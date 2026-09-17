@@ -6811,9 +6811,9 @@ export interface operations {
     api_v1_users_user_id_delete_user: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Versão atual do recurso para concorrência otimista */
-                "if-match": string;
+                "if-match"?: string | null;
             };
             path: {
                 user_id: string;
@@ -6843,9 +6843,9 @@ export interface operations {
     api_v1_users_user_id_update_user: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Versão atual do recurso para concorrência otimista */
-                "if-match": string;
+                "if-match"?: string | null;
             };
             path: {
                 user_id: string;

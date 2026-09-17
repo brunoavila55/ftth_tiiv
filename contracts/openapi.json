@@ -10159,11 +10159,18 @@
             "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso para concorrência otimista",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],
@@ -10245,11 +10252,18 @@
             "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso para concorrência otimista",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],

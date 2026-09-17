@@ -10,7 +10,7 @@ Este documento rastreia a evolução contínua da implementação do backend con
 |---|---|---|---|
 | **B01** | **Fundação reproduzível** | Concluído | Configuração tipada, uv.lock, Dockerfile multi-stage, health live/ready, RFC 7807, logs JSON mascarando segredos, Alembic PostGIS e 17 testes automatizados passando. |
 | **B02** | **Contrato e schemas antes de telas** | Concluído | OpenAPI determinístico em `contracts/openapi.json` (60 paths, 124 schemas), types TypeScript gerados (`contracts/api-types.d.ts`), units explícitas, 28 testes passando e detecção de drift. |
-| **B03** | **Sessões, usuários e permissões** | Pendente | Autenticação Argon2id, sessões opacas com expiração, CSRF, rate limit em banco, RBAC e CLI bootstrap. |
+| **B03** | **Sessões, usuários e permissões** | Concluído | Autenticação Argon2id, sessões opacas com expiração (7d) e inatividade (24h), CSRF com Origin e Double-Submit, rate limit no PostgreSQL (5 tentativas/15min), RBAC estrito, CLI de bootstrap admin e 41 testes passando. |
 | **B04** | **Inventário e migrações** | Pendente | Modelos de sites, structures, devices, ports, catálogos e perfis ópticos. |
 | **B05** | **GIS e comprimentos confiáveis** | Pendente | PostGIS SRID 4326, bbox indexado, comprimentos geográficos vs medidos vs reservas. |
 | **B06** | **Cabos, tubos, fibras e segmentação** | Pendente | Geração transacional de cabo, tubos, fibras, segmentos e divisão com preservação de continuidade. |
@@ -88,4 +88,38 @@ Este documento rastreia a evolução contínua da implementação do backend con
   - [x] Nenhuma paginação sem limite (parâmetro `page_size` limitado com máximo <= 200).
   - [x] Endpoints pendentes não respondem falso sucesso (retornam 501 estruturado).
 - **Limitações reais**: Nenhuma.
-- **Próximo passo**: Etapa **B03 — Sessões, usuários e permissões** (Argon2id, tabela de sessões opacas com expiração e rotação, rate limit persistido, proteção CSRF com cookie de vínculo, CLI de bootstrap admin e controle de perfis RBAC).
+
+---
+
+### B03 — Sessões, usuários e permissões
+- **Data de conclusão**: 2026-09-17
+- **Ações e Entregas**:
+  - `backend/app/core/security.py`: Hashing de senhas seguro com Argon2id, mitigação de enumeração via dummy hash em tempo constante, geração/hash de tokens opacos e verificação de CSRF em tempo constante.
+  - `backend/app/core/permissions.py`: Matriz centralizada de perfis (`admin`, `engineer`, `technician`, `viewer`) e permissões granulares.
+  - `backend/app/modules/identity/models.py`: Modelos ORM para `User`, `UserSession` e `LoginAttempt`.
+  - Migração Alembic `0002_identity_tables.py`: Criada e aplicada nos bancos `ftth_manager` e `ftth_manager_test`.
+  - `backend/app/modules/identity/service.py`: Lógica de autenticação com mitigação de enumeração, rate limiting distribuído no PostgreSQL (5 tentativas em 15min), rotação de token de sessão, expiração de 7 dias absolutos e 24 horas por inatividade, e proteção do último administrador ativo.
+  - `backend/app/core/dependencies.py`: Injeção de sessão ativa, extração de IP do cliente, validação de CSRF com verificação de Origin, e fábrica de autorização RBAC `require_permission(...)`.
+  - `backend/app/api/v1/auth.py`: Endpoints completos para `/auth/csrf`, `/auth/login`, `/auth/logout`, `/auth/me` e `/auth/change-password`.
+  - `backend/app/api/v1/users.py`: Endpoints completos para CRUD de usuários protegidos por RBAC, concorrência otimista via `If-Match` com suporte a `428 Precondition Required`, `412 Precondition Failed` e `409 Conflict`.
+  - `backend/app/cli/bootstrap_admin.py`: Utilitário de linha de comando para inicialização e recuperação segura de senha do administrador sem credenciais hardcoded.
+  - `contracts/openapi.json` e `contracts/api-types.d.ts`: Contrato OpenAPI e tipos TypeScript sincronizados e validados contra drift.
+  - `backend/tests/integration/test_auth.py`, `backend/tests/integration/test_users.py` e `backend/tests/unit/test_cli_bootstrap.py`: Cobertura rigorosa de testes de integração e unitários.
+  - `docs/adr/0003-authentication-sessions-and-rbac.md`: Registro formal da decisão de arquitetura.
+- **Comandos executados e resultados**:
+  - `uv run ruff check .` -> `All checks passed!`
+  - `uv run ruff format --check .` -> `85 files already formatted`
+  - `uv run mypy .` -> `Success: no issues found in 84 source files`
+  - `uv run pytest` -> `41 passed, 4 warnings in 9.05s`
+- **Critérios de aceite B03 atendidos**:
+  - [x] Testes para 401 (não autenticado/credenciais inválidas) e 403 (permissão insuficiente/usuário desativado).
+  - [x] Proteção e testes para CSRF com validação de cabeçalho, cookie e Origin (incluindo login/logout).
+  - [x] Sessão expirada/inativa tratada e revogada adequadamente.
+  - [x] Mitigação contra enumeração de usuários por tempo (timing attacks).
+  - [x] Rate limiting no banco de dados compartilhável entre processos (sem necessidade de Redis).
+  - [x] Logout com revogação explícita de sessão e limpeza de cookies.
+  - [x] Operações administrativas protegidas e proteção contra exclusão/desativação do último admin.
+  - [x] CLI de bootstrap testado e funcional.
+- **Limitações reais**: Nenhuma.
+- **Próximo passo**: Etapa **B04 — Inventário e migrações** (modelos relacionais para sites, structures, devices, ports, catálogos e perfis ópticos com constraints e integridade referencial).
+

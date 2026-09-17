@@ -1,0 +1,341 @@
+import uuid
+from datetime import UTC, datetime, timedelta
+
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from app.core.errors import (
+    AppException,
+    ConflictError,
+    ForbiddenError,
+    NotFoundError,
+    PreconditionFailedError,
+    PreconditionRequiredError,
+    UnauthorizedError,
+)
+from app.core.permissions import get_role_permissions
+from app.core.security import (
+    dummy_verify_password,
+    generate_session_token,
+    hash_password,
+    hash_session_token,
+    verify_password,
+)
+from app.modules.identity.models import LoginAttempt, User, UserSession
+from app.schemas.auth import MeResponse, UserCreate, UserRead, UserUpdate
+from app.schemas.common import UserRole
+
+# Configurações de expiração de sessão
+SESSION_ABSOLUTE_EXPIRY_DAYS = 7
+SESSION_INACTIVITY_EXPIRY_HOURS = 24
+RATE_LIMIT_WINDOW_MINUTES = 15
+RATE_LIMIT_MAX_ATTEMPTS = 5
+
+
+def record_login_attempt(session: Session, ip_address: str, email: str, success: bool) -> None:
+    attempt = LoginAttempt(
+        ip_address=ip_address,
+        email=email.strip().lower(),
+        attempted_at=datetime.now(UTC),
+        success=success,
+    )
+    session.add(attempt)
+    session.commit()
+
+
+def check_login_rate_limit(session: Session, ip_address: str, email: str) -> None:
+    window_start = datetime.now(UTC) - timedelta(minutes=RATE_LIMIT_WINDOW_MINUTES)
+    clean_email = email.strip().lower()
+
+    # Conta tentativas falhas recentes por IP ou por e-mail
+    failed_attempts_count = (
+        session.scalar(
+            select(func.count(LoginAttempt.id)).where(
+                LoginAttempt.attempted_at >= window_start,
+                LoginAttempt.success.is_(False),
+                (LoginAttempt.ip_address == ip_address) | (LoginAttempt.email == clean_email),
+            )
+        )
+        or 0
+    )
+
+    if failed_attempts_count >= RATE_LIMIT_MAX_ATTEMPTS:
+        raise AppException(
+            status_code=429,
+            code="rate_limit_exceeded",
+            title="Muitas tentativas de login",
+            detail="Muitas tentativas consecutivas de login sem sucesso. Aguarde 15 minutos antes de tentar novamente.",
+        )
+
+
+def authenticate_user(
+    session: Session,
+    email: str,
+    password: str,
+    ip_address: str,
+    user_agent: str | None = None,
+) -> tuple[User, str]:
+    """Autentica o usuário com mitigação de enumeração, rate limiting e criação de sessão."""
+    clean_email = email.strip().lower()
+    check_login_rate_limit(session, ip_address, clean_email)
+
+    user = session.scalar(select(User).where(User.email == clean_email))
+
+    if user is None:
+        dummy_verify_password(password)
+        record_login_attempt(session, ip_address, clean_email, success=False)
+        raise UnauthorizedError("E-mail ou senha incorretos.", code="invalid_credentials")
+
+    if not user.is_active:
+        record_login_attempt(session, ip_address, clean_email, success=False)
+        raise ForbiddenError("Esta conta de usuário está desativada.", code="user_deactivated")
+
+    if not verify_password(user.password_hash, password):
+        record_login_attempt(session, ip_address, clean_email, success=False)
+        raise UnauthorizedError("E-mail ou senha incorretos.", code="invalid_credentials")
+
+    # Autenticado com sucesso
+    record_login_attempt(session, ip_address, clean_email, success=True)
+
+    # Rotação de sessão: gera token novo e persiste hash
+    raw_token, token_hash = generate_session_token()
+    now = datetime.now(UTC)
+    user_session = UserSession(
+        user_id=user.id,
+        token_hash=token_hash,
+        ip_address=ip_address,
+        user_agent=user_agent[:255] if user_agent else None,
+        created_at=now,
+        last_activity_at=now,
+        expires_at=now + timedelta(days=SESSION_ABSOLUTE_EXPIRY_DAYS),
+        is_revoked=False,
+    )
+    session.add(user_session)
+    session.commit()
+
+    return user, raw_token
+
+
+def get_active_session_by_token(session: Session, raw_token: str) -> UserSession | None:
+    """Busca sessão ativa pelo token opaco com validação de expiração e inatividade."""
+    token_hash = hash_session_token(raw_token)
+    user_session = session.scalar(
+        select(UserSession)
+        .join(User)
+        .where(
+            UserSession.token_hash == token_hash,
+            UserSession.is_revoked.is_(False),
+            User.is_active.is_(True),
+        )
+    )
+
+    if not user_session:
+        return None
+
+    now = datetime.now(UTC)
+
+    # Expiração absoluta
+    if now > user_session.expires_at:
+        user_session.is_revoked = True
+        session.commit()
+        return None
+
+    # Expiração por inatividade
+    inactivity_limit = user_session.last_activity_at + timedelta(
+        hours=SESSION_INACTIVITY_EXPIRY_HOURS
+    )
+    if now > inactivity_limit:
+        user_session.is_revoked = True
+        session.commit()
+        return None
+
+    # Atualiza última atividade se passou mais de 60 segundos
+    if (now - user_session.last_activity_at).total_seconds() > 60:
+        user_session.last_activity_at = now
+        session.commit()
+
+    return user_session
+
+
+def revoke_session_by_token(session: Session, raw_token: str) -> None:
+    token_hash = hash_session_token(raw_token)
+    user_session = session.scalar(select(UserSession).where(UserSession.token_hash == token_hash))
+    if user_session:
+        user_session.is_revoked = True
+        session.commit()
+
+
+def change_user_password(
+    session: Session, user: User, current_password: str, new_password: str
+) -> None:
+    if not verify_password(user.password_hash, current_password):
+        raise UnauthorizedError("Senha atual incorreta.", code="invalid_current_password")
+
+    user.password_hash = hash_password(new_password)
+    user.updated_at = datetime.now(UTC)
+    session.commit()
+
+
+# --- GERENCIAMENTO DE USUÁRIOS (ADMIN) ---
+
+
+def create_user_by_admin(session: Session, payload: UserCreate) -> User:
+    clean_email = payload.email.strip().lower()
+    existing = session.scalar(select(User).where(User.email == clean_email))
+    if existing:
+        raise ConflictError(
+            "Já existe um usuário cadastrado com este e-mail.", code="email_already_registered"
+        )
+
+    user = User(
+        email=clean_email,
+        name=payload.name.strip(),
+        password_hash=hash_password(payload.password),
+        role=payload.role.value,
+        is_active=True,
+        version=1,
+    )
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def update_user_by_admin(
+    session: Session, user_id: str, payload: UserUpdate, if_match: str
+) -> User:
+    if not if_match:
+        raise PreconditionRequiredError()
+
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise NotFoundError("Usuário não encontrado.", code="user_not_found") from None
+
+    user = session.scalar(select(User).where(User.id == user_uuid))
+    if not user:
+        raise NotFoundError("Usuário não encontrado.", code="user_not_found")
+
+    try:
+        expected_version = int(if_match.strip('"'))
+    except ValueError:
+        raise PreconditionFailedError() from None
+
+    if user.version != expected_version:
+        raise PreconditionFailedError()
+
+    # Proteção do último administrador ativo
+    if user.role == UserRole.ADMIN.value:
+        will_deactivate = payload.is_active is False
+        will_change_role = payload.role is not None and payload.role != UserRole.ADMIN
+
+        if will_deactivate or will_change_role:
+            other_active_admins = (
+                session.scalar(
+                    select(func.count(User.id)).where(
+                        User.role == UserRole.ADMIN.value,
+                        User.is_active.is_(True),
+                        User.id != user.id,
+                    )
+                )
+                or 0
+            )
+            if other_active_admins == 0:
+                raise ConflictError(
+                    "Operação negada: não é permitido desativar ou rebaixar o único administrador ativo do sistema.",
+                    code="last_admin_protection",
+                )
+
+    if payload.name is not None:
+        user.name = payload.name.strip()
+    if payload.email is not None:
+        clean_email = payload.email.strip().lower()
+        if clean_email != user.email:
+            existing = session.scalar(select(User).where(User.email == clean_email))
+            if existing:
+                raise ConflictError("Este e-mail já pertence a outro usuário cadastrado.")
+            user.email = clean_email
+    if payload.role is not None:
+        user.role = payload.role.value
+    if payload.is_active is not None:
+        user.is_active = payload.is_active
+        # Se desativado, revoga todas as sessões ativas
+        if not user.is_active:
+            for s in user.sessions:
+                s.is_revoked = True
+
+    user.version += 1
+    user.updated_at = datetime.now(UTC)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def delete_user_by_admin(session: Session, user_id: str, if_match: str) -> None:
+    """Desativa o usuário preservando histórico (exclusão física apenas para contas sem referências)."""
+    update_user_by_admin(session, user_id, UserUpdate(is_active=False), if_match)
+
+
+def get_user_by_id(session: Session, user_id: str) -> User:
+    """Busca usuário pelo identificador UUID."""
+    try:
+        user_uuid = uuid.UUID(user_id)
+    except ValueError:
+        raise NotFoundError("Usuário não encontrado.", code="user_not_found") from None
+
+    user = session.scalar(select(User).where(User.id == user_uuid))
+    if not user:
+        raise NotFoundError("Usuário não encontrado.", code="user_not_found")
+    return user
+
+
+def list_users_paginated(
+    session: Session,
+    page: int = 1,
+    page_size: int = 50,
+    q: str | None = None,
+) -> tuple[list[User], int]:
+    """Retorna lista paginada de usuários da organização com filtro de busca opcional."""
+    query = select(User)
+    count_query = select(func.count(User.id))
+
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        filter_clause = (User.name.ilike(term)) | (User.email.ilike(term))
+        query = query.where(filter_clause)
+        count_query = count_query.where(filter_clause)
+
+    total = session.scalar(count_query) or 0
+    offset = (page - 1) * page_size
+    items = list(
+        session.scalars(
+            query.order_by(User.created_at.desc(), User.id).offset(offset).limit(page_size)
+        ).all()
+    )
+    return items, total
+
+
+def user_to_user_read(user: User) -> UserRead:
+    """Converte entidade ORM User para schema de resposta UserRead."""
+    return UserRead(
+        id=str(user.id),
+        name=user.name,
+        email=user.email,
+        role=UserRole(user.role),
+        is_active=user.is_active,
+        version=user.version,
+        created_at=user.created_at,
+        updated_at=user.updated_at,
+    )
+
+
+def user_to_me_response(user: User) -> MeResponse:
+    """Converte entidade ORM User para schema MeResponse com permissões resolvidas."""
+    role_enum = UserRole(user.role)
+    return MeResponse(
+        id=str(user.id),
+        name=user.name,
+        email=user.email,
+        role=role_enum,
+        permissions=get_role_permissions(role_enum),
+    )

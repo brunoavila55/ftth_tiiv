@@ -11,7 +11,11 @@ os.environ["DATABASE_URL"] = (
     "postgresql+psycopg://ftth_user:ftth_password@127.0.0.1:5432/ftth_manager_test"
 )
 
+from sqlalchemy import text
+from sqlalchemy.orm import Session
+
 from app.core.config import get_settings
+from app.db.session import get_session_factory
 from app.main import create_app
 
 
@@ -20,6 +24,24 @@ def clear_settings_cache() -> Generator[None, None, None]:
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
+
+
+@pytest.fixture
+def db_session() -> Generator[Session, None, None]:
+    factory = get_session_factory()
+    with factory() as session:
+        yield session
+
+
+@pytest.fixture(autouse=True)
+def clean_identity_tables(db_session: Session) -> Generator[None, None, None]:
+    db_session.rollback()
+    db_session.execute(text("TRUNCATE TABLE user_sessions, login_attempts, users CASCADE;"))
+    db_session.commit()
+    yield
+    db_session.rollback()
+    db_session.execute(text("TRUNCATE TABLE user_sessions, login_attempts, users CASCADE;"))
+    db_session.commit()
 
 
 @pytest.fixture
