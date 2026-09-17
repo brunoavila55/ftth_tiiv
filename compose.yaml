@@ -1,0 +1,44 @@
+services:
+  db:
+    image: docker.io/postgis/postgis:16-3.4
+    container_name: ftth_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-ftth_manager}
+      POSTGRES_USER: ${POSTGRES_USER:-ftth_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ftth_password}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER:-ftth_user} -d $${POSTGRES_DB:-ftth_manager}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: ftth_backend
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:-ftth_password}@db:5432/${POSTGRES_DB:-ftth_manager}
+      SECRET_KEY: ${SECRET_KEY:-dev-insecure-secret-key-replace-in-production-minimum-32-chars-long}
+      API_V1_PREFIX: /api/v1
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://127.0.0.1:3000"]}
+    ports:
+      - "127.0.0.1:8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - backend_storage:/app/storage
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  backend_storage:
