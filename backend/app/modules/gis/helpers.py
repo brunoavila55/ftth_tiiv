@@ -229,3 +229,47 @@ def validate_route_endpoints_tolerance(
             "Ajuste as coordenadas da extremidade do cabo para coincidir com a estrutura de acesso.",
             field="geometry.coordinates[-1]",
         )
+
+
+def split_linestring_at_point(
+    coords: list[tuple[float, float]],
+    split_point: tuple[float, float],
+) -> tuple[list[tuple[float, float]], list[tuple[float, float]]]:
+    """Divide uma lista de coordenadas LineString no ponto split_point em duas LineStrings.
+
+    Retorna (coords_trecho_1, coords_trecho_2), ambas com no mínimo 2 vértices válidos.
+    """
+    if len(coords) < 2:
+        raise UnprocessableEntityError(
+            "LineString deve ter no mínimo 2 vértices para ser dividida."
+        )
+
+    best_idx = 0
+    min_combined_detour = float("inf")
+    for i in range(len(coords) - 1):
+        p1 = coords[i]
+        p2 = coords[i + 1]
+        d1 = haversine_distance_m(p1, split_point)
+        d2 = haversine_distance_m(split_point, p2)
+        total_d = d1 + d2
+        seg_len = haversine_distance_m(p1, p2)
+        detour = total_d - seg_len
+        if detour < min_combined_detour:
+            min_combined_detour = detour
+            best_idx = i
+
+    line_1: list[tuple[float, float]] = list(coords[: best_idx + 1])
+    if line_1[-1] != split_point:
+        line_1.append(split_point)
+
+    line_2: list[tuple[float, float]] = [split_point]
+    for pt in coords[best_idx + 1 :]:
+        if pt != split_point:
+            line_2.append(pt)
+
+    if len(line_1) < 2:
+        line_1.insert(0, coords[0])
+    if len(line_2) < 2:
+        line_2.append(coords[-1])
+
+    return (line_1, line_2)

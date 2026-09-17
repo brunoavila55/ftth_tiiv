@@ -190,7 +190,43 @@ Este documento rastreia a evolução contínua da implementação do backend con
   - [x] Alteração geométrica ou de comprimento óptico incrementa atomicamente a revisão monotônica da topologia (`topology_revision`).
   - [x] Mover uma estrutura/poste preserva as coordenadas do cabo e não altera conexões ópticas automaticamente por proximidade.
 - **Limitações reais**: Nenhuma.
-- **Próximo passo**: Etapa **B06 — Cabos, tubos, fibras e segmentação** (criação transacional de cabos com tubos e fibras numerados segundo catálogos industriais, 2 terminais por fibra por trecho, e operação de divisão de segmento em local de acesso sem duplicação de reservas).
+- **Próximo passo**: Etapa **B06 — Cabos, tubos, fibras e segmentação** (Concluído).
 
+---
 
-
+### B06 — Cabos, tubos, fibras e segmentação
+- **Data de conclusão**: 2026-09-17
+- **Ações e Entregas**:
+  - `backend/app/modules/connectivity/models.py`: Modelos ORM `Terminal` (terminais normalizados de fibra/porta/splitter com check constraint de localização exclusiva `site_id` ou `structure_id`) e `Connection` (conexões internas e externas, fusões, cordões, perdas em dB e status ativo).
+  - `backend/app/modules/cables/models.py`:
+    - Adicionado modelo `Tube` (`cable_id`, `number`, `color_name`, `is_logical_group`).
+    - Adicionado modelo `Fiber` (`cable_id`, `tube_id`, `global_number`, `tube_position`, `color_name`, `status`).
+    - Adicionado modelo `FiberSegment` (`cable_segment_id`, `fiber_id`, `fiber_number`, `terminal_a_id`, `terminal_b_id`, `occupancy`).
+  - Migração Alembic `0005_tubes_fibers_terminals.py`: Criada e aplicada com sucesso com suporte a upgrade e downgrade bidirecional em ambos os bancos (`ftth_manager` e `ftth_manager_test`).
+  - `backend/app/modules/cables/service.py`:
+    - Criação transacional de cabos com base em catálogo de cores (`NBR`, `TIA-598`, `DIN-VDE-0888`), gerando tubos e fibras numerados com identificação global e suporte a agrupamento lógico (`is_logical_group = True`).
+    - Criação de segmento de cabo gerando automaticamente exatamente $2N$ terminais normalizados do tipo `fiber_endpoint` (ex.: cabo de 24 fibras gera 24 fibras e 48 extremidades por segmento).
+    - Divisão atômica de segmento (`split_cable_segment` e `preview_split_segment`) em local de acesso intermediário (CEO/CTO): fatiamento da geometria LineString, recálculo de comprimentos geodésicos sem duplicação de reservas (`slack_length_m`), preservação de conexões externas pré-existentes, geração automática de conexões de continuidade (`internal_continuity` 0.0 dB) para fibras passantes (sangria), geração de terminais livres para fibras cortadas e incremento atômico da revisão topológica (`topology_revision`).
+  - `backend/app/api/v1/cables.py`: Endpoints completos conectados com autorização RBAC (`network:read`, `network:write`), proteção CSRF e controle de concorrência otimista (`If-Match`).
+  - `contracts/openapi.json` e `contracts/api-types.d.ts`: Sincronizados com 62 caminhos e 127 schemas.
+  - Suíte de testes: 78 testes automatizados passando (5 testes de integração dedicados para geração de 24F/48 terminais, divisão de segmento, padrões de cores, RBAC e rollback em falhas parciais).
+  - `docs/adr/0006-cables-fibers-and-segment-splitting.md`: Registro formal da decisão de arquitetura.
+- **Comandos executados e resultados**:
+  - `uv run ruff check .` -> `All checks passed!`
+  - `uv run ruff format --check .` -> `109 files already formatted`
+  - `uv run mypy .` -> `Success: no issues found in 107 source files`
+  - `uv run alembic upgrade head` -> `Running upgrade 0004_gis_and_cables -> 0005_tubes_fibers_terminals`
+  - `uv run pytest` -> `78 passed, 8 warnings in 39.45s`
+  - `uv run python scripts/export_openapi.py` -> `Contrato OpenAPI exportado com sucesso (62 paths, 127 schemas)`
+  - `podman run ... npx openapi-typescript` -> `contracts/api-types.d.ts gerado com sucesso`
+- **Critérios de aceite B06 atendidos**:
+  - [x] Cabo 24F de dois grupos de 12 gera 24 fibras e 48 extremidades normalizadas (`Terminal`) por segmento.
+  - [x] Nenhuma fibra órfã ou identificada apenas por cor (identificação rigorosa por número global, posição no tubo e cor).
+  - [x] Padrões de cores flexíveis suportados (NBR, TIA-598, DIN) sem padrão universal hardcoded.
+  - [x] Suporte a cabos monotubo/sem tubos físicos através de agrupamento lógico identificado (`is_logical_group = True`).
+  - [x] Divisão de segmento em estrutura intermediária preserva rastreabilidade e conexões externas existentes.
+  - [x] Fibras não cortadas na divisão geram continuidade interna com perda de 0.0 dB.
+  - [x] Comprimentos e reservas técnicas não são duplicados ao seccionar um trecho.
+  - [x] Falha intermediária em transação reverte atomicamente toda a divisão (rollback garantido).
+- **Limitações reais**: Nenhuma.
+- **Próximo passo**: Etapa **B07 — Motor de conectividade e fusões** (terminais normalizados, arestas internas, conexões externas, conexão/desconexão/reserva, lote atômico para editor de fusão com `expected_topology_revision`, bloqueio determinístico anti-deadlock e prevenção de dupla ocupação concorrente no banco).

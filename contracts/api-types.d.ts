@@ -238,6 +238,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cable-segments/{segment_id}/split": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Dividir trecho de cabo em local de acesso */
+        post: operations["api_v1_cable_segments_segment_id_split_split_segment"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cable-segments/{segment_id}/split/preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Pré-visualizar divisão de trecho de cabo */
+        post: operations["api_v1_cable_segments_segment_id_split_preview_preview_segment_split"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/cables": {
         parameters: {
             query?: never;
@@ -3130,6 +3164,73 @@ export interface components {
             /** Status */
             status?: string | null;
         };
+        /** SegmentSplitPreviewResponse */
+        SegmentSplitPreviewResponse: {
+            /** Access Structure Id */
+            access_structure_id: string;
+            /** Cut Fibers Count */
+            cut_fibers_count: number;
+            /** Original Segment Id */
+            original_segment_id: string;
+            /** Pass Through Fibers Count */
+            pass_through_fibers_count: number;
+            /** Segment 1 Map Length M */
+            segment_1_map_length_m: number;
+            /** Segment 2 Map Length M */
+            segment_2_map_length_m: number;
+            /** Total Fibers Count */
+            total_fibers_count: number;
+            /** Warnings */
+            warnings?: string[];
+        };
+        /** SegmentSplitRequest */
+        SegmentSplitRequest: {
+            /**
+             * Access Structure Id
+             * @description UUID da estrutura física onde o cabo é aberto/dividido (ex: CEO ou CTO)
+             */
+            access_structure_id: string;
+            /**
+             * Cut Fiber Ids
+             * @description Lista de UUIDs das fibras cortadas nesta caixa. Fibras não listadas permanecem passantes (continuidade interna)
+             */
+            cut_fiber_ids?: string[];
+            /**
+             * Segment 1 Slack M
+             * @description Reserva técnica alocada para o primeiro trecho em metros
+             * @default 0
+             */
+            segment_1_slack_m: number;
+            /**
+             * Segment 2 Slack M
+             * @description Reserva técnica alocada para o segundo trecho em metros
+             * @default 0
+             */
+            segment_2_slack_m: number;
+            /**
+             * Split Coordinates
+             * @description Coordenadas geodésicas opcionais do ponto de divisão (se omitido, usa as da estrutura de acesso)
+             */
+            split_coordinates?: [
+                number,
+                number
+            ] | null;
+        };
+        /** SegmentSplitResponse */
+        SegmentSplitResponse: {
+            /** Cut Terminals Count */
+            cut_terminals_count: number;
+            /** New Topology Revision */
+            new_topology_revision: number;
+            /** Original Segment Id */
+            original_segment_id: string;
+            /** Pass Through Continuities Count */
+            pass_through_continuities_count: number;
+            segment_1: components["schemas"]["CableSegmentRead"];
+            segment_2: components["schemas"]["CableSegmentRead"];
+            /** Success */
+            success: boolean;
+        };
         /** ServiceLinkCreate */
         ServiceLinkCreate: {
             /**
@@ -4094,9 +4195,9 @@ export interface operations {
     api_v1_cable_segments_segment_id_delete_cable_segment: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+                "if-match"?: string | null;
             };
             path: {
                 segment_id: string;
@@ -4126,9 +4227,9 @@ export interface operations {
     api_v1_cable_segments_segment_id_update_cable_segment: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+                "if-match"?: string | null;
             };
             path: {
                 segment_id: string;
@@ -4195,10 +4296,80 @@ export interface operations {
             };
         };
     };
+    api_v1_cable_segments_segment_id_split_split_segment: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                segment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SegmentSplitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SegmentSplitResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_v1_cable_segments_segment_id_split_preview_preview_segment_split: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                segment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SegmentSplitRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SegmentSplitPreviewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     api_v1_cables_list_cables: {
         parameters: {
             query?: {
-                /** @description Busca por código do cabo */
+                /** @description Busca por código ou modelo do cabo */
                 q?: string | null;
                 page?: number;
                 page_size?: number;
@@ -4296,9 +4467,9 @@ export interface operations {
     api_v1_cables_cable_id_delete_cable: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+                "if-match"?: string | null;
             };
             path: {
                 cable_id: string;
@@ -4328,9 +4499,9 @@ export interface operations {
     api_v1_cables_cable_id_update_cable: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+                "if-match"?: string | null;
             };
             path: {
                 cable_id: string;

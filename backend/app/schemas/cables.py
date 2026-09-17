@@ -96,6 +96,16 @@ class CableSegmentRead(BaseModel):
     updated_at: datetime
 
 
+class TubeRead(BaseModel):
+    id: str
+    cable_id: str
+    number: int = Field(..., description="Número do tubo loose")
+    color_name: str = Field(..., description="Cor do tubo loose")
+    is_logical_group: bool = Field(
+        default=False, description="Indica agrupamento lógico para cabo sem tubos físicos"
+    )
+
+
 class FiberRead(BaseModel):
     id: str
     cable_id: str
@@ -115,3 +125,45 @@ class FiberSegmentRead(BaseModel):
     occupancy: OccupancyStatus = Field(
         ..., description="Estado atual de ocupação: free, reserved, connected"
     )
+
+
+class SegmentSplitRequest(BaseModel):
+    access_structure_id: str = Field(
+        ...,
+        description="UUID da estrutura física onde o cabo é aberto/dividido (ex: CEO ou CTO)",
+    )
+    split_coordinates: tuple[float, float] | None = Field(
+        default=None,
+        description="Coordenadas geodésicas opcionais do ponto de divisão (se omitido, usa as da estrutura de acesso)",
+    )
+    cut_fiber_ids: list[str] = Field(
+        default_factory=list,
+        description="Lista de UUIDs das fibras cortadas nesta caixa. Fibras não listadas permanecem passantes (continuidade interna)",
+    )
+    segment_1_slack_m: float = Field(
+        default=0.0, ge=0.0, description="Reserva técnica alocada para o primeiro trecho em metros"
+    )
+    segment_2_slack_m: float = Field(
+        default=0.0, ge=0.0, description="Reserva técnica alocada para o segundo trecho em metros"
+    )
+
+
+class SegmentSplitPreviewResponse(BaseModel):
+    original_segment_id: str
+    access_structure_id: str
+    total_fibers_count: int
+    cut_fibers_count: int
+    pass_through_fibers_count: int
+    segment_1_map_length_m: float
+    segment_2_map_length_m: float
+    warnings: list[str] = Field(default_factory=list)
+
+
+class SegmentSplitResponse(BaseModel):
+    success: bool
+    original_segment_id: str
+    segment_1: CableSegmentRead
+    segment_2: CableSegmentRead
+    pass_through_continuities_count: int
+    cut_terminals_count: int
+    new_topology_revision: int

@@ -4073,6 +4073,155 @@
         "title": "SearchResultItem",
         "type": "object"
       },
+      "SegmentSplitPreviewResponse": {
+        "properties": {
+          "access_structure_id": {
+            "title": "Access Structure Id",
+            "type": "string"
+          },
+          "cut_fibers_count": {
+            "title": "Cut Fibers Count",
+            "type": "integer"
+          },
+          "original_segment_id": {
+            "title": "Original Segment Id",
+            "type": "string"
+          },
+          "pass_through_fibers_count": {
+            "title": "Pass Through Fibers Count",
+            "type": "integer"
+          },
+          "segment_1_map_length_m": {
+            "title": "Segment 1 Map Length M",
+            "type": "number"
+          },
+          "segment_2_map_length_m": {
+            "title": "Segment 2 Map Length M",
+            "type": "number"
+          },
+          "total_fibers_count": {
+            "title": "Total Fibers Count",
+            "type": "integer"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Warnings",
+            "type": "array"
+          }
+        },
+        "required": [
+          "original_segment_id",
+          "access_structure_id",
+          "total_fibers_count",
+          "cut_fibers_count",
+          "pass_through_fibers_count",
+          "segment_1_map_length_m",
+          "segment_2_map_length_m"
+        ],
+        "title": "SegmentSplitPreviewResponse",
+        "type": "object"
+      },
+      "SegmentSplitRequest": {
+        "properties": {
+          "access_structure_id": {
+            "description": "UUID da estrutura física onde o cabo é aberto/dividido (ex: CEO ou CTO)",
+            "title": "Access Structure Id",
+            "type": "string"
+          },
+          "cut_fiber_ids": {
+            "description": "Lista de UUIDs das fibras cortadas nesta caixa. Fibras não listadas permanecem passantes (continuidade interna)",
+            "items": {
+              "type": "string"
+            },
+            "title": "Cut Fiber Ids",
+            "type": "array"
+          },
+          "segment_1_slack_m": {
+            "default": 0.0,
+            "description": "Reserva técnica alocada para o primeiro trecho em metros",
+            "minimum": 0.0,
+            "title": "Segment 1 Slack M",
+            "type": "number"
+          },
+          "segment_2_slack_m": {
+            "default": 0.0,
+            "description": "Reserva técnica alocada para o segundo trecho em metros",
+            "minimum": 0.0,
+            "title": "Segment 2 Slack M",
+            "type": "number"
+          },
+          "split_coordinates": {
+            "anyOf": [
+              {
+                "maxItems": 2,
+                "minItems": 2,
+                "prefixItems": [
+                  {
+                    "type": "number"
+                  },
+                  {
+                    "type": "number"
+                  }
+                ],
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Coordenadas geodésicas opcionais do ponto de divisão (se omitido, usa as da estrutura de acesso)",
+            "title": "Split Coordinates"
+          }
+        },
+        "required": [
+          "access_structure_id"
+        ],
+        "title": "SegmentSplitRequest",
+        "type": "object"
+      },
+      "SegmentSplitResponse": {
+        "properties": {
+          "cut_terminals_count": {
+            "title": "Cut Terminals Count",
+            "type": "integer"
+          },
+          "new_topology_revision": {
+            "title": "New Topology Revision",
+            "type": "integer"
+          },
+          "original_segment_id": {
+            "title": "Original Segment Id",
+            "type": "string"
+          },
+          "pass_through_continuities_count": {
+            "title": "Pass Through Continuities Count",
+            "type": "integer"
+          },
+          "segment_1": {
+            "$ref": "#/components/schemas/CableSegmentRead"
+          },
+          "segment_2": {
+            "$ref": "#/components/schemas/CableSegmentRead"
+          },
+          "success": {
+            "title": "Success",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "success",
+          "original_segment_id",
+          "segment_1",
+          "segment_2",
+          "pass_through_continuities_count",
+          "cut_terminals_count",
+          "new_topology_revision"
+        ],
+        "title": "SegmentSplitResponse",
+        "type": "object"
+      },
       "ServiceLinkCreate": {
         "properties": {
           "customer_id": {
@@ -5977,11 +6126,18 @@
             "description": "Versão atual do recurso (If-Match)",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],
@@ -6061,11 +6217,18 @@
             "description": "Versão atual do recurso (If-Match)",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],
@@ -6172,12 +6335,116 @@
         ]
       }
     },
+    "/api/v1/cable-segments/{segment_id}/split": {
+      "post": {
+        "operationId": "api_v1_cable_segments_segment_id_split_split_segment",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "segment_id",
+            "required": true,
+            "schema": {
+              "title": "Segment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentSplitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentSplitResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Dividir trecho de cabo em local de acesso",
+        "tags": [
+          "Cabos e Fibras"
+        ]
+      }
+    },
+    "/api/v1/cable-segments/{segment_id}/split/preview": {
+      "post": {
+        "operationId": "api_v1_cable_segments_segment_id_split_preview_preview_segment_split",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "segment_id",
+            "required": true,
+            "schema": {
+              "title": "Segment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SegmentSplitRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SegmentSplitPreviewResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Pré-visualizar divisão de trecho de cabo",
+        "tags": [
+          "Cabos e Fibras"
+        ]
+      }
+    },
     "/api/v1/cables": {
       "get": {
         "operationId": "api_v1_cables_list_cables",
         "parameters": [
           {
-            "description": "Busca por código do cabo",
+            "description": "Busca por código ou modelo do cabo",
             "in": "query",
             "name": "q",
             "required": false,
@@ -6190,7 +6457,7 @@
                   "type": "null"
                 }
               ],
-              "description": "Busca por código do cabo",
+              "description": "Busca por código ou modelo do cabo",
               "title": "Q"
             }
           },
@@ -6302,11 +6569,18 @@
             "description": "Versão atual do recurso (If-Match)",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],
@@ -6386,11 +6660,18 @@
             "description": "Versão atual do recurso (If-Match)",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],
