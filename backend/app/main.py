@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.routing import APIRoute
 
 from app.api.v1.health import health_router
 from app.api.v1.router import api_v1_router
@@ -26,6 +27,18 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     logger.info(f"Encerrando {settings.APP_NAME}")
 
 
+def custom_generate_unique_id(route: APIRoute) -> str:
+    """Gera operation_id determinístico e estável único por rota e path."""
+    clean_path = (
+        route.path_format.strip("/")
+        .replace("/", "_")
+        .replace("{", "")
+        .replace("}", "")
+        .replace("-", "_")
+    )
+    return f"{clean_path}_{route.name}"
+
+
 def create_app() -> FastAPI:
     """Fábrica da aplicação FastAPI."""
     settings = get_settings()
@@ -39,6 +52,7 @@ def create_app() -> FastAPI:
         docs_url="/docs" if not settings.is_production else None,
         redoc_url="/redoc" if not settings.is_production else None,
         openapi_url="/openapi.json" if not settings.is_production else None,
+        generate_unique_id_function=custom_generate_unique_id,
     )
 
     # Middlewares globais

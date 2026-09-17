@@ -9,7 +9,7 @@ Este documento rastreia a evolução contínua da implementação do backend con
 | Etapa | Nome | Status | Evidências / Observações |
 |---|---|---|---|
 | **B01** | **Fundação reproduzível** | Concluído | Configuração tipada, uv.lock, Dockerfile multi-stage, health live/ready, RFC 7807, logs JSON mascarando segredos, Alembic PostGIS e 17 testes automatizados passando. |
-| **B02** | **Contrato e schemas antes de telas** | Pendente | OpenAPI determinístico em `contracts/openapi.json`, schemas v1 completos, Problem Details e concorrência. |
+| **B02** | **Contrato e schemas antes de telas** | Concluído | OpenAPI determinístico em `contracts/openapi.json` (60 paths, 124 schemas), types TypeScript gerados (`contracts/api-types.d.ts`), units explícitas, 28 testes passando e detecção de drift. |
 | **B03** | **Sessões, usuários e permissões** | Pendente | Autenticação Argon2id, sessões opacas com expiração, CSRF, rate limit em banco, RBAC e CLI bootstrap. |
 | **B04** | **Inventário e migrações** | Pendente | Modelos de sites, structures, devices, ports, catálogos e perfis ópticos. |
 | **B05** | **GIS e comprimentos confiáveis** | Pendente | PostGIS SRID 4326, bbox indexado, comprimentos geográficos vs medidos vs reservas. |
@@ -60,4 +60,32 @@ Este documento rastreia a evolução contínua da implementação do backend con
   - [x] Nenhum acesso ao banco ao importar módulos de domínio (comprovado por teste unitário com mock estrito).
   - [x] Smoke test documentado e executável.
 - **Limitações reais**: Nenhuma. O banco PostGIS local foi inicializado via Podman socket e as migrações foram aplicadas.
-- **Próximo passo**: Etapa **B02 — Contrato e schemas antes de telas** (schemas completos, paginação, Problem Details, modelos de concorrência e exportador determinístico de `contracts/openapi.json`).
+
+---
+
+### B02 — Contrato e schemas antes de telas
+- **Data de conclusão**: 2026-09-17
+- **Ações e Entregas**:
+  - Implementação de toda a malha de schemas Pydantic v2 em `backend/app/schemas/` cobrindo todos os módulos do FTTH Manager.
+  - Convenção obrigatória de unidades explícitas nos campos (`*_m`, `*_db`, `*_dbm`, `wavelength_nm`, `_db_per_km`).
+  - Definição do controle de concorrência com cabeçalho `If-Match: "<version>"` para mutações (PATCH/DELETE) e respostas 428/412/409.
+  - Geração e publicação de [`contracts/openapi.json`](file:///home/bruno/projects/ftth_tiiv/contracts/openapi.json) com `operationId` determinístico e estável.
+  - Geração de tipagem TypeScript em [`contracts/api-types.d.ts`](file:///home/bruno/projects/ftth_tiiv/contracts/api-types.d.ts) (6.922 linhas) via `openapi-typescript` com 100% de sucesso em 354ms.
+  - `backend/tests/contract/test_synthetic_examples.py`: exemplos sintéticos testados para auth, cabo, segmento, conexão, lote, trace, orçamento óptico e conflitos.
+  - `backend/tests/contract/test_openapi_schema.py`: testes automatizados para prevenção de drift de schema, garantia de limites estritos em paginação (máx <= 200), validação de unidades explícitas e unicidade de operationId.
+  - Respostas `501 Not Implemented` via Problem Details RFC 7807 para endpoints que dependem de etapas posteriores.
+  - `docs/adr/0002-shared-contract-and-openapi.md`: registro de decisão arquitetural sobre o contrato OpenAPI.
+- **Comandos executados e resultados**:
+  - `uv run ruff check .` -> `All checks passed!`
+  - `uv run ruff format --check .` -> `75 files already formatted`
+  - `uv run mypy .` -> `Success: no issues found in 74 source files`
+  - `uv run pytest` -> `28 passed, 4 warnings in 1.95s`
+  - `openapi-typescript` -> `6.922 linhas geradas sem nenhum aviso`
+- **Critérios de aceite B02 atendidos**:
+  - [x] Geração de cliente TypeScript possível (validado com `contracts/api-types.d.ts`).
+  - [x] Todas as unidades de grandezas físicas explícitas nos nomes dos campos.
+  - [x] Resposta 422 uniforme com lista estruturada de erros por campo.
+  - [x] Nenhuma paginação sem limite (parâmetro `page_size` limitado com máximo <= 200).
+  - [x] Endpoints pendentes não respondem falso sucesso (retornam 501 estruturado).
+- **Limitações reais**: Nenhuma.
+- **Próximo passo**: Etapa **B03 — Sessões, usuários e permissões** (Argon2id, tabela de sessões opacas com expiração e rotação, rate limit persistido, proteção CSRF com cookie de vínculo, CLI de bootstrap admin e controle de perfis RBAC).
