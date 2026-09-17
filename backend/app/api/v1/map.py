@@ -1,8 +1,12 @@
 from typing import Any
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.orm import Session
 
-from app.core.contracts import pending_endpoint
+from app.core.dependencies import require_permission
+from app.db.session import get_db
+from app.modules.gis.service import query_map_features
+from app.modules.identity.models import User
 from app.schemas.geojson import MapFeatureCollection
 
 map_router = APIRouter(prefix="/map", tags=["Mapa e Camadas GIS"])
@@ -28,5 +32,12 @@ def get_map_features(
         description="Camadas separadas por vírgula a serem renderizadas",
     ),
     zoom: int | None = Query(default=14, ge=0, le=24, description="Nível de zoom do cliente"),
+    current_user: User = Depends(require_permission("network:read")),
+    db: Session = Depends(get_db),
 ) -> Any:
-    pending_endpoint("B05")
+    return query_map_features(
+        db=db,
+        bbox_str=bbox,
+        layers_str=layers,
+        zoom=zoom,
+    )

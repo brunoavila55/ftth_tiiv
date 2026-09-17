@@ -12,7 +12,7 @@ Este documento rastreia a evolução contínua da implementação do backend con
 | **B02** | **Contrato e schemas antes de telas** | Concluído | OpenAPI determinístico em `contracts/openapi.json` (60 paths, 124 schemas), types TypeScript gerados (`contracts/api-types.d.ts`), units explícitas, 28 testes passando e detecção de drift. |
 | **B03** | **Sessões, usuários e permissões** | Concluído | Autenticação Argon2id, sessões opacas com expiração (7d) e inatividade (24h), CSRF com Origin e Double-Submit, rate limit no PostgreSQL (5 tentativas/15min), RBAC estrito, CLI de bootstrap admin e 41 testes passando. |
 | **B04** | **Inventário e migrações** | Concluído | Modelos de sites, structures, devices, ports, catálogos e perfis ópticos com PostGIS, constraints exclusivas, 0003 migration e 56 testes passando. |
-| **B05** | **GIS e comprimentos confiáveis** | Pendente | PostGIS SRID 4326, bbox indexado, comprimentos geográficos vs medidos vs reservas. |
+| **B05** | **GIS e comprimentos confiáveis** | Concluído | SRID 4326, GeoJSON, PostGIS geography para comprimentos em metros, regra óptica (sem dupla reserva), tolerância de rota, GiST bbox, truncated flag, revisão de topologia e 73 testes passando. |
 | **B06** | **Cabos, tubos, fibras e segmentação** | Pendente | Geração transacional de cabo, tubos, fibras, segmentos e divisão com preservação de continuidade. |
 | **B07** | **Motor de conectividade e fusões** | Pendente | Terminais normalizados, conexões atômicas, lote com `expected_topology_revision`. |
 | **B08** | **Splitters, CTOs e atendimento** | Pendente | Splitters 1:N, portas CTO, ocupação e service links com histórico. |
@@ -151,6 +151,46 @@ Este documento rastreia a evolução contínua da implementação do backend con
   - [x] Exclusão referenciada não destrói a rede (retorna 409 Conflict e preserva o recurso).
   - [x] Matriz de permissões validada (viewer, technician, engineer, admin).
 - **Limitações reais**: Nenhuma.
-- **Próximo passo**: Etapa **B05 — GIS e comprimentos confiáveis** (pontos e linhas SRID 4326, GeoJSON válido, bbox indexado com GiST, cálculo geodésico de comprimentos em metros, regras ópticas de measured_length_m vs map_length_m + slack_length_m e prevenção de truncamento silencioso).
+
+---
+
+### B05 — GIS e comprimentos confiáveis
+- **Data de conclusão**: 2026-09-17
+- **Ações e Entregas**:
+  - `backend/app/core/config.py`: Adicionadas configurações `MAP_MAX_FEATURES = 500` e `ROUTE_ENDPOINT_TOLERANCE_M = 5.0`.
+  - `backend/app/modules/gis/helpers.py`: Implementação completa de utilitários espaciais:
+    - `validate_coordinates`: checagem de limites WGS84 `[-180, 180]` e `[-90, 90]`, rejeição estrita de `NaN` e `Inf` com HTTP 422.
+    - `validate_linestring`: checagem de linhas não vazias, mínimo de 2 vértices, limite de 10.000 vértices e rejeição de geometrias degeneradas colapsadas em um ponto.
+    - `parse_and_validate_bbox`: validação de integridade e ordenação do envelope `minLon,minLat,maxLon,maxLat`.
+    - `haversine_distance_m` e `calculate_linestring_geodetic_length_m`: cálculo geodésico puro em metros sobre a esfera/elipsoide terrestre.
+    - `resolve_optical_length`: aplicação rigorosa da regra óptica de comprimentos: se `measured_length_m` for informado, ele já representa a distância total instalada e `slack_length_m` NÃO é somado para evitar dupla reserva; caso contrário, `map_length_m + slack_length_m`. Retorna `length_source` ("measured" | "calculated").
+    - `validate_route_endpoints_tolerance`: validação de tolerância configurável (5.0m) entre as pontas da rota e as estruturas de acesso. Divergência exige correção explícita.
+  - `backend/app/modules/topology/models.py`: Modelo ORM `NetworkTopologyState` com controle monotônico de `topology_revision`.
+  - `backend/app/modules/cables/models.py`: Modelos ORM `Cable` e `CableSegment` com geometria PostGIS `LINESTRING`, campos de comprimentos explícitos em metros (`map_length_m`, `measured_length_m`, `slack_length_m`, `effective_length_m`, `length_source`) e check constraints.
+  - Migração Alembic `0004_gis_and_cables.py`: Criada e aplicada com sucesso com teste de reversibilidade bidirecional (upgrade/downgrade).
+  - `backend/app/modules/gis/service.py`: Serviço espacial com consulta GiST indexada por Bounding Box (`query_map_features`), busca das camadas `sites`, `structures` e `cables`, sinalização explícita de `truncated=true` ao ultrapassar o limite seguro, cálculo de distâncias via PostGIS `geography` e incrementos atômicos de `topology_revision`.
+  - `backend/app/modules/cables/service.py`: Serviço de gerenciamento de cabos e trechos com cálculo geodésico via PostGIS, controle de concorrência otimista (`If-Match`), validação de tolerância e atualização da revisão de topologia.
+  - `backend/app/api/v1/map.py`: Endpoint `/api/v1/map/features` conectado ao serviço com autorização RBAC `network:read`.
+  - `contracts/openapi.json` e `contracts/api-types.d.ts`: Re-exportados deterministamente e sincronizados com TypeScript.
+  - Suíte de testes: 73 testes automatizados passando (9 testes unitários de GIS, 8 testes de integração de mapa/revisão/tolerância/GiST, além de todas as suítes anteriores de B01 a B04).
+  - `docs/adr/0005-gis-geodetic-lengths-and-map-features.md`: Registro formal da decisão de arquitetura.
+- **Comandos executados e resultados**:
+  - `uv run ruff check .` -> `All checks passed!`
+  - `uv run ruff format --check .` -> `105 files already formatted`
+  - `uv run mypy .` -> `Success: no issues found in 104 source files`
+  - `uv run alembic upgrade head` -> `Running upgrade 0003_inventory_and_optical -> 0004_gis_and_cables`
+  - `uv run pytest` -> `73 passed, 8 warnings in 27.80s`
+  - `uv run python scripts/export_openapi.py` -> `Contrato OpenAPI exportado com sucesso (60 paths, 124 schemas)`
+  - `podman run ... npx openapi-typescript` -> `contracts/api-types.d.ts gerado com sucesso`
+- **Critérios de aceite B05 atendidos**:
+  - [x] Segmento conhecido tem distância verificada com tolerância sobre o esferoide WGS84 em metros via PostGIS geography.
+  - [x] Consulta espacial por bbox utiliza índice espacial GiST (comprovado via EXPLAIN no PostgreSQL).
+  - [x] Geometria inválida (NaN, Inf, coordenadas fora dos limites, linha colapsada, bbox invertida) retorna HTTP 422 Problem Details.
+  - [x] Mapa limitado sinaliza truncamento explícito (`truncated=true`) quando o volume excede o limite configurado (sem truncamento silencioso).
+  - [x] Alteração geométrica ou de comprimento óptico incrementa atomicamente a revisão monotônica da topologia (`topology_revision`).
+  - [x] Mover uma estrutura/poste preserva as coordenadas do cabo e não altera conexões ópticas automaticamente por proximidade.
+- **Limitações reais**: Nenhuma.
+- **Próximo passo**: Etapa **B06 — Cabos, tubos, fibras e segmentação** (criação transacional de cabos com tubos e fibras numerados segundo catálogos industriais, 2 terminais por fibra por trecho, e operação de divisão de segmento em local de acesso sem duplicação de reservas).
+
 
 

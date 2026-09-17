@@ -36,14 +36,21 @@ def db_session() -> Generator[Session, None, None]:
 @pytest.fixture(autouse=True)
 def clean_identity_tables(db_session: Session) -> Generator[None, None, None]:
     truncate_sql = text(
-        "TRUNCATE TABLE ports, devices, structures, sites, optical_profiles, user_sessions, login_attempts, users CASCADE;"
+        "TRUNCATE TABLE cable_segments, cables, ports, devices, structures, sites, optical_profiles, user_sessions, login_attempts, users CASCADE;"
+    )
+    reset_topology_sql = text(
+        "INSERT INTO network_topology_state (id, topology_revision, updated_at) "
+        "VALUES (1, 1, NOW()) "
+        "ON CONFLICT (id) DO UPDATE SET topology_revision = 1, updated_at = NOW();"
     )
     db_session.rollback()
     db_session.execute(truncate_sql)
+    db_session.execute(reset_topology_sql)
     db_session.commit()
     yield
     db_session.rollback()
     db_session.execute(truncate_sql)
+    db_session.execute(reset_topology_sql)
     db_session.commit()
 
 

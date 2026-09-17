@@ -8,6 +8,7 @@ def test_domain_modules_import_without_database_access() -> None:
     modules_to_test = [
         "app.modules.identity",
         "app.modules.inventory",
+        "app.modules.cables",
         "app.modules.gis",
         "app.modules.connectivity",
         "app.modules.topology",

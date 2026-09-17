@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     STORAGE_PATH: str = "./storage"
     MAX_UPLOAD_SIZE_BYTES: int = 10_485_760  # 10 MB
 
+    # GIS e Mapa
+    MAP_MAX_FEATURES: int = 500
+    ROUTE_ENDPOINT_TOLERANCE_M: float = 5.0
+
     @field_validator("ENVIRONMENT", mode="before")
     @classmethod
     def parse_environment(cls, v: str | Environment) -> Environment:

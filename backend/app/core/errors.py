@@ -174,9 +174,10 @@ class UnprocessableEntityError(AppException):
         code: str = "validation_error",
         field: str | None = None,
     ) -> None:
+        self.field = field
         errors = [ValidationErrorItem(field=field, code=code, message=detail)] if field else None
         super().__init__(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=422,
             code=code,
             title="Erro de validação",
             detail=detail,
