@@ -11,7 +11,7 @@ Este documento rastreia a evolução contínua da implementação do backend con
 | **B01** | **Fundação reproduzível** | Concluído | Configuração tipada, uv.lock, Dockerfile multi-stage, health live/ready, RFC 7807, logs JSON mascarando segredos, Alembic PostGIS e 17 testes automatizados passando. |
 | **B02** | **Contrato e schemas antes de telas** | Concluído | OpenAPI determinístico em `contracts/openapi.json` (60 paths, 124 schemas), types TypeScript gerados (`contracts/api-types.d.ts`), units explícitas, 28 testes passando e detecção de drift. |
 | **B03** | **Sessões, usuários e permissões** | Concluído | Autenticação Argon2id, sessões opacas com expiração (7d) e inatividade (24h), CSRF com Origin e Double-Submit, rate limit no PostgreSQL (5 tentativas/15min), RBAC estrito, CLI de bootstrap admin e 41 testes passando. |
-| **B04** | **Inventário e migrações** | Pendente | Modelos de sites, structures, devices, ports, catálogos e perfis ópticos. |
+| **B04** | **Inventário e migrações** | Concluído | Modelos de sites, structures, devices, ports, catálogos e perfis ópticos com PostGIS, constraints exclusivas, 0003 migration e 56 testes passando. |
 | **B05** | **GIS e comprimentos confiáveis** | Pendente | PostGIS SRID 4326, bbox indexado, comprimentos geográficos vs medidos vs reservas. |
 | **B06** | **Cabos, tubos, fibras e segmentação** | Pendente | Geração transacional de cabo, tubos, fibras, segmentos e divisão com preservação de continuidade. |
 | **B07** | **Motor de conectividade e fusões** | Pendente | Terminais normalizados, conexões atômicas, lote com `expected_topology_revision`. |
@@ -121,5 +121,36 @@ Este documento rastreia a evolução contínua da implementação do backend con
   - [x] Operações administrativas protegidas e proteção contra exclusão/desativação do último admin.
   - [x] CLI de bootstrap testado e funcional.
 - **Limitações reais**: Nenhuma.
-- **Próximo passo**: Etapa **B04 — Inventário e migrações** (modelos relacionais para sites, structures, devices, ports, catálogos e perfis ópticos com constraints e integridade referencial).
+
+---
+
+### B04 — Inventário e migrações
+- **Data de conclusão**: 2026-09-17
+- **Ações e Entregas**:
+  - `backend/app/modules/inventory/catalogs.py`: Catálogo formal de padrões industriais de cores de cabos e fibras ópticas (ABNT NBR 14106/14771, TIA-598-C, DIN VDE 0888).
+  - `backend/app/modules/gis/helpers.py`: Utilitários espaciais para conversão e validação rigorosa de coordenadas geodésicas WGS84 EPSG:4326.
+  - `backend/app/modules/inventory/models.py`: Modelos ORM para `Site`, `Structure`, `Device` e `Port` com geometrias PostGIS Point, índices espaciais GiST, chaves estrangeiras `ON DELETE RESTRICT` e check constraints exclusivas de localização e propriedade.
+  - `backend/app/modules/optical/models.py`: Modelo ORM para `OpticalProfile` com check constraints de limites físicos (`tx_min <= tx_max`, `rx_sensitivity <= rx_overload`, `800 <= wavelength_nm <= 2000`, `attenuation >= 0`).
+  - Migração Alembic `0003_inventory_and_optical.py`: Criada e aplicada com sucesso com suporte a upgrade e downgrade bidirecional completo em banco limpo.
+  - `backend/app/modules/inventory/service.py` e `backend/app/modules/optical/service.py`: Serviços com paginação estrita, busca textual, integridade referencial com bloqueio de exclusões destrutivas (409 Conflict) e concorrência otimista (`If-Match` 428/412).
+  - `backend/app/api/v1/inventory.py` e `backend/app/api/v1/optical.py`: Endpoints completos conectados aos serviços reais, com validação de permissões RBAC (`network:read`, `network:write`, `optical:read`, `optical:write`) e CSRF.
+  - `contracts/openapi.json` e `contracts/api-types.d.ts`: Atualizados e validados contra drift.
+  - Suíte de testes com 56 testes automatizados passando (testes de integração para Sites, Estruturas, Dispositivos, Portas, Perfis Ópticos, Catálogos e migração).
+  - `docs/adr/0004-inventory-data-model-and-constraints.md`: Registro da decisão arquitetural.
+- **Comandos executados e resultados**:
+  - `uv run ruff check .` -> `All checks passed!`
+  - `uv run ruff format --check .` -> `91 files already formatted`
+  - `uv run mypy .` -> `Success: no issues found in 91 source files`
+  - `uv run alembic upgrade head` -> `Running upgrade 0002_identity_tables -> 0003_inventory_and_optical`
+  - `uv run pytest` -> `56 passed, 14 warnings in 20.27s`
+- **Critérios de aceite B04 atendidos**:
+  - [x] Migrations aplicam e revertem perfeitamente em DB vazio (testado com upgrade/downgrade).
+  - [x] Constraints de banco e API recusam proprietário inválido de porta (nenhum ou ambos os donos).
+  - [x] Constraints recusam dispositivo sem localização ou com dupla localização (site e structure).
+  - [x] Atualização concorrente retorna 412 e precondição ausente retorna 428.
+  - [x] Exclusão referenciada não destrói a rede (retorna 409 Conflict e preserva o recurso).
+  - [x] Matriz de permissões validada (viewer, technician, engineer, admin).
+- **Limitações reais**: Nenhuma.
+- **Próximo passo**: Etapa **B05 — GIS e comprimentos confiáveis** (pontos e linhas SRID 4326, GeoJSON válido, bbox indexado com GiST, cálculo geodésico de comprimentos em metros, regras ópticas de measured_length_m vs map_length_m + slack_length_m e prevenção de truncamento silencioso).
+
 

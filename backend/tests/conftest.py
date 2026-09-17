@@ -35,12 +35,15 @@ def db_session() -> Generator[Session, None, None]:
 
 @pytest.fixture(autouse=True)
 def clean_identity_tables(db_session: Session) -> Generator[None, None, None]:
+    truncate_sql = text(
+        "TRUNCATE TABLE ports, devices, structures, sites, optical_profiles, user_sessions, login_attempts, users CASCADE;"
+    )
     db_session.rollback()
-    db_session.execute(text("TRUNCATE TABLE user_sessions, login_attempts, users CASCADE;"))
+    db_session.execute(truncate_sql)
     db_session.commit()
     yield
     db_session.rollback()
-    db_session.execute(text("TRUNCATE TABLE user_sessions, login_attempts, users CASCADE;"))
+    db_session.execute(truncate_sql)
     db_session.commit()
 
 

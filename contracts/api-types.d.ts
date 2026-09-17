@@ -399,7 +399,7 @@ export interface paths {
         get: operations["api_v1_devices_list_devices"];
         put?: never;
         /** Criar dispositivo */
-        post: operations["api_v1_devices_create_device"];
+        post: operations["api_v1_devices_create_device_endpoint"];
         delete?: never;
         options?: never;
         head?: never;
@@ -414,15 +414,15 @@ export interface paths {
             cookie?: never;
         };
         /** Detalhes do dispositivo */
-        get: operations["api_v1_devices_device_id_get_device"];
+        get: operations["api_v1_devices_device_id_get_device_endpoint"];
         put?: never;
         post?: never;
         /** Desativar dispositivo */
-        delete: operations["api_v1_devices_device_id_delete_device"];
+        delete: operations["api_v1_devices_device_id_delete_device_endpoint"];
         options?: never;
         head?: never;
         /** Atualizar dispositivo */
-        patch: operations["api_v1_devices_device_id_update_device"];
+        patch: operations["api_v1_devices_device_id_update_device_endpoint"];
         trace?: never;
     };
     "/api/v1/exports": {
@@ -695,7 +695,7 @@ export interface paths {
         get: operations["api_v1_optical_profiles_list_optical_profiles"];
         put?: never;
         /** Criar perfil óptico */
-        post: operations["api_v1_optical_profiles_create_optical_profile"];
+        post: operations["api_v1_optical_profiles_create_optical_profile_endpoint"];
         delete?: never;
         options?: never;
         head?: never;
@@ -710,15 +710,15 @@ export interface paths {
             cookie?: never;
         };
         /** Detalhes do perfil óptico */
-        get: operations["api_v1_optical_profiles_profile_id_get_optical_profile"];
+        get: operations["api_v1_optical_profiles_profile_id_get_optical_profile_endpoint"];
         put?: never;
         post?: never;
         /** Desativar perfil óptico */
-        delete: operations["api_v1_optical_profiles_profile_id_delete_optical_profile"];
+        delete: operations["api_v1_optical_profiles_profile_id_delete_optical_profile_endpoint"];
         options?: never;
         head?: never;
         /** Atualizar perfil óptico */
-        patch: operations["api_v1_optical_profiles_profile_id_update_optical_profile"];
+        patch: operations["api_v1_optical_profiles_profile_id_update_optical_profile_endpoint"];
         trace?: never;
     };
     "/api/v1/optical/budgets": {
@@ -772,7 +772,7 @@ export interface paths {
         get: operations["api_v1_ports_list_ports"];
         put?: never;
         /** Criar porta */
-        post: operations["api_v1_ports_create_port"];
+        post: operations["api_v1_ports_create_port_endpoint"];
         delete?: never;
         options?: never;
         head?: never;
@@ -787,15 +787,15 @@ export interface paths {
             cookie?: never;
         };
         /** Detalhes da porta */
-        get: operations["api_v1_ports_port_id_get_port"];
+        get: operations["api_v1_ports_port_id_get_port_endpoint"];
         put?: never;
         post?: never;
         /** Desativar porta */
-        delete: operations["api_v1_ports_port_id_delete_port"];
+        delete: operations["api_v1_ports_port_id_delete_port_endpoint"];
         options?: never;
         head?: never;
         /** Atualizar porta */
-        patch: operations["api_v1_ports_port_id_update_port"];
+        patch: operations["api_v1_ports_port_id_update_port_endpoint"];
         trace?: never;
     };
     "/api/v1/search": {
@@ -890,7 +890,7 @@ export interface paths {
         get: operations["api_v1_sites_list_sites"];
         put?: never;
         /** Criar site */
-        post: operations["api_v1_sites_create_site"];
+        post: operations["api_v1_sites_create_site_endpoint"];
         delete?: never;
         options?: never;
         head?: never;
@@ -905,15 +905,15 @@ export interface paths {
             cookie?: never;
         };
         /** Detalhes do site */
-        get: operations["api_v1_sites_site_id_get_site"];
+        get: operations["api_v1_sites_site_id_get_site_endpoint"];
         put?: never;
         post?: never;
         /** Desativar site */
-        delete: operations["api_v1_sites_site_id_delete_site"];
+        delete: operations["api_v1_sites_site_id_delete_site_endpoint"];
         options?: never;
         head?: never;
         /** Atualizar site */
-        patch: operations["api_v1_sites_site_id_update_site"];
+        patch: operations["api_v1_sites_site_id_update_site_endpoint"];
         trace?: never;
     };
     "/api/v1/splitters": {
@@ -964,7 +964,7 @@ export interface paths {
         get: operations["api_v1_structures_list_structures"];
         put?: never;
         /** Criar estrutura */
-        post: operations["api_v1_structures_create_structure"];
+        post: operations["api_v1_structures_create_structure_endpoint"];
         delete?: never;
         options?: never;
         head?: never;
@@ -979,15 +979,15 @@ export interface paths {
             cookie?: never;
         };
         /** Detalhes da estrutura */
-        get: operations["api_v1_structures_structure_id_get_structure"];
+        get: operations["api_v1_structures_structure_id_get_structure_endpoint"];
         put?: never;
         post?: never;
         /** Desativar estrutura */
-        delete: operations["api_v1_structures_structure_id_delete_structure"];
+        delete: operations["api_v1_structures_structure_id_delete_structure_endpoint"];
         options?: never;
         head?: never;
         /** Atualizar estrutura */
-        patch: operations["api_v1_structures_structure_id_update_structure"];
+        patch: operations["api_v1_structures_structure_id_update_structure_endpoint"];
         trace?: never;
     };
     "/api/v1/structures/{structure_id}/connectivity": {
@@ -4749,7 +4749,7 @@ export interface operations {
             };
         };
     };
-    api_v1_devices_create_device: {
+    api_v1_devices_create_device_endpoint: {
         parameters: {
             query?: never;
             header?: never;
@@ -4782,7 +4782,7 @@ export interface operations {
             };
         };
     };
-    api_v1_devices_device_id_get_device: {
+    api_v1_devices_device_id_get_device_endpoint: {
         parameters: {
             query?: never;
             header?: never;
@@ -4813,12 +4813,12 @@ export interface operations {
             };
         };
     };
-    api_v1_devices_device_id_delete_device: {
+    api_v1_devices_device_id_delete_device_endpoint: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+            header?: {
+                /** @description Versão atual do recurso para concorrência otimista */
+                "if-match"?: string | null;
             };
             path: {
                 device_id: string;
@@ -4845,12 +4845,12 @@ export interface operations {
             };
         };
     };
-    api_v1_devices_device_id_update_device: {
+    api_v1_devices_device_id_update_device_endpoint: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+            header?: {
+                /** @description Versão atual do recurso para concorrência otimista */
+                "if-match"?: string | null;
             };
             path: {
                 device_id: string;
@@ -5449,7 +5449,7 @@ export interface operations {
             };
         };
     };
-    api_v1_optical_profiles_create_optical_profile: {
+    api_v1_optical_profiles_create_optical_profile_endpoint: {
         parameters: {
             query?: never;
             header?: never;
@@ -5482,7 +5482,7 @@ export interface operations {
             };
         };
     };
-    api_v1_optical_profiles_profile_id_get_optical_profile: {
+    api_v1_optical_profiles_profile_id_get_optical_profile_endpoint: {
         parameters: {
             query?: never;
             header?: never;
@@ -5513,12 +5513,12 @@ export interface operations {
             };
         };
     };
-    api_v1_optical_profiles_profile_id_delete_optical_profile: {
+    api_v1_optical_profiles_profile_id_delete_optical_profile_endpoint: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+            header?: {
+                /** @description Versão atual do recurso para concorrência otimista */
+                "if-match"?: string | null;
             };
             path: {
                 profile_id: string;
@@ -5545,12 +5545,12 @@ export interface operations {
             };
         };
     };
-    api_v1_optical_profiles_profile_id_update_optical_profile: {
+    api_v1_optical_profiles_profile_id_update_optical_profile_endpoint: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+            header?: {
+                /** @description Versão atual do recurso para concorrência otimista */
+                "if-match"?: string | null;
             };
             path: {
                 profile_id: string;
@@ -5683,7 +5683,7 @@ export interface operations {
             };
         };
     };
-    api_v1_ports_create_port: {
+    api_v1_ports_create_port_endpoint: {
         parameters: {
             query?: never;
             header?: never;
@@ -5716,7 +5716,7 @@ export interface operations {
             };
         };
     };
-    api_v1_ports_port_id_get_port: {
+    api_v1_ports_port_id_get_port_endpoint: {
         parameters: {
             query?: never;
             header?: never;
@@ -5747,12 +5747,12 @@ export interface operations {
             };
         };
     };
-    api_v1_ports_port_id_delete_port: {
+    api_v1_ports_port_id_delete_port_endpoint: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+            header?: {
+                /** @description Versão atual do recurso para concorrência otimista */
+                "if-match"?: string | null;
             };
             path: {
                 port_id: string;
@@ -5779,12 +5779,12 @@ export interface operations {
             };
         };
     };
-    api_v1_ports_port_id_update_port: {
+    api_v1_ports_port_id_update_port_endpoint: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+            header?: {
+                /** @description Versão atual do recurso para concorrência otimista */
+                "if-match"?: string | null;
             };
             path: {
                 port_id: string;
@@ -6110,7 +6110,7 @@ export interface operations {
             };
         };
     };
-    api_v1_sites_create_site: {
+    api_v1_sites_create_site_endpoint: {
         parameters: {
             query?: never;
             header?: never;
@@ -6143,7 +6143,7 @@ export interface operations {
             };
         };
     };
-    api_v1_sites_site_id_get_site: {
+    api_v1_sites_site_id_get_site_endpoint: {
         parameters: {
             query?: never;
             header?: never;
@@ -6174,12 +6174,12 @@ export interface operations {
             };
         };
     };
-    api_v1_sites_site_id_delete_site: {
+    api_v1_sites_site_id_delete_site_endpoint: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+            header?: {
+                /** @description Versão atual do recurso para concorrência otimista */
+                "if-match"?: string | null;
             };
             path: {
                 site_id: string;
@@ -6206,12 +6206,12 @@ export interface operations {
             };
         };
     };
-    api_v1_sites_site_id_update_site: {
+    api_v1_sites_site_id_update_site_endpoint: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+            header?: {
+                /** @description Versão atual do recurso para concorrência otimista */
+                "if-match"?: string | null;
             };
             path: {
                 site_id: string;
@@ -6448,7 +6448,7 @@ export interface operations {
             };
         };
     };
-    api_v1_structures_create_structure: {
+    api_v1_structures_create_structure_endpoint: {
         parameters: {
             query?: never;
             header?: never;
@@ -6481,7 +6481,7 @@ export interface operations {
             };
         };
     };
-    api_v1_structures_structure_id_get_structure: {
+    api_v1_structures_structure_id_get_structure_endpoint: {
         parameters: {
             query?: never;
             header?: never;
@@ -6512,12 +6512,12 @@ export interface operations {
             };
         };
     };
-    api_v1_structures_structure_id_delete_structure: {
+    api_v1_structures_structure_id_delete_structure_endpoint: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+            header?: {
+                /** @description Versão atual do recurso para concorrência otimista */
+                "if-match"?: string | null;
             };
             path: {
                 structure_id: string;
@@ -6544,12 +6544,12 @@ export interface operations {
             };
         };
     };
-    api_v1_structures_structure_id_update_structure: {
+    api_v1_structures_structure_id_update_structure_endpoint: {
         parameters: {
             query?: never;
-            header: {
-                /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+            header?: {
+                /** @description Versão atual do recurso para concorrência otimista */
+                "if-match"?: string | null;
             };
             path: {
                 structure_id: string;

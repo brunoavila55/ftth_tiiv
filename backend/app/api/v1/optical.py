@@ -1,8 +1,17 @@
-from typing import Any
-
-from fastapi import APIRouter, Depends, Header, status
+from fastapi import APIRouter, Depends, Header, Response, status
+from sqlalchemy.orm import Session
 
 from app.core.contracts import pending_endpoint
+from app.core.dependencies import require_permission, validate_csrf
+from app.db.session import get_db
+from app.modules.optical.service import (
+    create_optical_profile,
+    delete_optical_profile,
+    get_optical_profile_by_id,
+    list_optical_profiles_paginated,
+    optical_profile_to_read,
+    update_optical_profile,
+)
 from app.schemas.common import PaginatedResponse, PaginationParams
 from app.schemas.optical import (
     BudgetCalculationRequest,
@@ -24,9 +33,23 @@ optical_router = APIRouter(tags=["Cálculo Óptico e Perfis"])
     "/optical-profiles",
     response_model=PaginatedResponse[OpticalProfileRead],
     summary="Listar perfis ópticos",
+    dependencies=[Depends(require_permission("optical:read"))],
 )
-def list_optical_profiles(pagination: PaginationParams = Depends()) -> Any:
-    pending_endpoint("B04")
+def list_optical_profiles(
+    pagination: PaginationParams = Depends(),
+    db: Session = Depends(get_db),
+) -> PaginatedResponse[OpticalProfileRead]:
+    items, total = list_optical_profiles_paginated(
+        session=db,
+        page=pagination.page,
+        page_size=pagination.page_size,
+    )
+    return PaginatedResponse[OpticalProfileRead](
+        items=[optical_profile_to_read(p) for p in items],
+        total=total,
+        page=pagination.page,
+        page_size=pagination.page_size,
+    )
 
 
 @optical_router.post(
@@ -34,43 +57,70 @@ def list_optical_profiles(pagination: PaginationParams = Depends()) -> Any:
     response_model=OpticalProfileRead,
     status_code=status.HTTP_201_CREATED,
     summary="Criar perfil óptico",
+    dependencies=[Depends(require_permission("optical:write")), Depends(validate_csrf)],
 )
-def create_optical_profile(payload: OpticalProfileCreate) -> Any:
-    pending_endpoint("B04")
+def create_optical_profile_endpoint(
+    payload: OpticalProfileCreate,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> OpticalProfileRead:
+    profile = create_optical_profile(session=db, payload=payload)
+    response.headers["ETag"] = f'"{profile.version}"'
+    return optical_profile_to_read(profile)
 
 
 @optical_router.get(
     "/optical-profiles/{profile_id}",
     response_model=OpticalProfileRead,
     summary="Detalhes do perfil óptico",
+    dependencies=[Depends(require_permission("optical:read"))],
 )
-def get_optical_profile(profile_id: str) -> Any:
-    pending_endpoint("B04")
+def get_optical_profile_endpoint(
+    profile_id: str,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> OpticalProfileRead:
+    profile = get_optical_profile_by_id(session=db, profile_id=profile_id)
+    response.headers["ETag"] = f'"{profile.version}"'
+    return optical_profile_to_read(profile)
 
 
 @optical_router.patch(
     "/optical-profiles/{profile_id}",
     response_model=OpticalProfileRead,
     summary="Atualizar perfil óptico",
+    dependencies=[Depends(require_permission("optical:write")), Depends(validate_csrf)],
 )
-def update_optical_profile(
+def update_optical_profile_endpoint(
     profile_id: str,
     payload: OpticalProfileUpdate,
-    if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
-) -> Any:
-    pending_endpoint("B04")
+    response: Response,
+    if_match: str | None = Header(
+        default=None, description="Versão atual do recurso para concorrência otimista"
+    ),
+    db: Session = Depends(get_db),
+) -> OpticalProfileRead:
+    profile = update_optical_profile(
+        session=db, profile_id=profile_id, payload=payload, if_match=if_match
+    )
+    response.headers["ETag"] = f'"{profile.version}"'
+    return optical_profile_to_read(profile)
 
 
 @optical_router.delete(
     "/optical-profiles/{profile_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Desativar perfil óptico",
+    dependencies=[Depends(require_permission("optical:write")), Depends(validate_csrf)],
 )
-def delete_optical_profile(
+def delete_optical_profile_endpoint(
     profile_id: str,
-    if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
+    if_match: str | None = Header(
+        default=None, description="Versão atual do recurso para concorrência otimista"
+    ),
+    db: Session = Depends(get_db),
 ) -> None:
-    pending_endpoint("B04")
+    delete_optical_profile(session=db, profile_id=profile_id, if_match=if_match)
 
 
 # ==============================================================================
@@ -86,7 +136,7 @@ def delete_optical_profile(
         "e sobrecarga para um atendimento documentado."
     ),
 )
-def calculate_budget(payload: BudgetCalculationRequest) -> Any:
+def calculate_budget(payload: BudgetCalculationRequest) -> BudgetCalculationResponse:
     pending_endpoint("B10")
 
 
@@ -100,5 +150,5 @@ def calculate_budget(payload: BudgetCalculationRequest) -> Any:
         "em perdas, comprimentos ou splitters."
     ),
 )
-def simulate_budget(payload: OpticalSimulationRequest) -> Any:
+def simulate_budget(payload: OpticalSimulationRequest) -> OpticalSimulationResponse:
     pending_endpoint("B12")

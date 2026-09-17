@@ -7045,7 +7045,7 @@
         ]
       },
       "post": {
-        "operationId": "api_v1_devices_create_device",
+        "operationId": "api_v1_devices_create_device_endpoint",
         "requestBody": {
           "content": {
             "application/json": {
@@ -7086,7 +7086,7 @@
     },
     "/api/v1/devices/{device_id}": {
       "delete": {
-        "operationId": "api_v1_devices_device_id_delete_device",
+        "operationId": "api_v1_devices_device_id_delete_device_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -7098,14 +7098,21 @@
             }
           },
           {
-            "description": "Versão atual do recurso (If-Match)",
+            "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão atual do recurso para concorrência otimista",
+              "title": "If-Match"
             }
           }
         ],
@@ -7130,7 +7137,7 @@
         ]
       },
       "get": {
-        "operationId": "api_v1_devices_device_id_get_device",
+        "operationId": "api_v1_devices_device_id_get_device_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -7170,7 +7177,7 @@
         ]
       },
       "patch": {
-        "operationId": "api_v1_devices_device_id_update_device",
+        "operationId": "api_v1_devices_device_id_update_device_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -7182,14 +7189,21 @@
             }
           },
           {
-            "description": "Versão atual do recurso (If-Match)",
+            "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão atual do recurso para concorrência otimista",
+              "title": "If-Match"
             }
           }
         ],
@@ -8091,7 +8105,7 @@
         ]
       },
       "post": {
-        "operationId": "api_v1_optical_profiles_create_optical_profile",
+        "operationId": "api_v1_optical_profiles_create_optical_profile_endpoint",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8132,7 +8146,7 @@
     },
     "/api/v1/optical-profiles/{profile_id}": {
       "delete": {
-        "operationId": "api_v1_optical_profiles_profile_id_delete_optical_profile",
+        "operationId": "api_v1_optical_profiles_profile_id_delete_optical_profile_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -8144,14 +8158,21 @@
             }
           },
           {
-            "description": "Versão atual do recurso (If-Match)",
+            "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão atual do recurso para concorrência otimista",
+              "title": "If-Match"
             }
           }
         ],
@@ -8176,7 +8197,7 @@
         ]
       },
       "get": {
-        "operationId": "api_v1_optical_profiles_profile_id_get_optical_profile",
+        "operationId": "api_v1_optical_profiles_profile_id_get_optical_profile_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -8216,7 +8237,7 @@
         ]
       },
       "patch": {
-        "operationId": "api_v1_optical_profiles_profile_id_update_optical_profile",
+        "operationId": "api_v1_optical_profiles_profile_id_update_optical_profile_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -8228,14 +8249,21 @@
             }
           },
           {
-            "description": "Versão atual do recurso (If-Match)",
+            "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão atual do recurso para concorrência otimista",
+              "title": "If-Match"
             }
           }
         ],
@@ -8449,7 +8477,7 @@
         ]
       },
       "post": {
-        "operationId": "api_v1_ports_create_port",
+        "operationId": "api_v1_ports_create_port_endpoint",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8490,7 +8518,7 @@
     },
     "/api/v1/ports/{port_id}": {
       "delete": {
-        "operationId": "api_v1_ports_port_id_delete_port",
+        "operationId": "api_v1_ports_port_id_delete_port_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -8502,14 +8530,21 @@
             }
           },
           {
-            "description": "Versão atual do recurso (If-Match)",
+            "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão atual do recurso para concorrência otimista",
+              "title": "If-Match"
             }
           }
         ],
@@ -8534,7 +8569,7 @@
         ]
       },
       "get": {
-        "operationId": "api_v1_ports_port_id_get_port",
+        "operationId": "api_v1_ports_port_id_get_port_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -8574,7 +8609,7 @@
         ]
       },
       "patch": {
-        "operationId": "api_v1_ports_port_id_update_port",
+        "operationId": "api_v1_ports_port_id_update_port_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -8586,14 +8621,21 @@
             }
           },
           {
-            "description": "Versão atual do recurso (If-Match)",
+            "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão atual do recurso para concorrência otimista",
+              "title": "If-Match"
             }
           }
         ],
@@ -9134,7 +9176,7 @@
         ]
       },
       "post": {
-        "operationId": "api_v1_sites_create_site",
+        "operationId": "api_v1_sites_create_site_endpoint",
         "requestBody": {
           "content": {
             "application/json": {
@@ -9175,7 +9217,7 @@
     },
     "/api/v1/sites/{site_id}": {
       "delete": {
-        "operationId": "api_v1_sites_site_id_delete_site",
+        "operationId": "api_v1_sites_site_id_delete_site_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -9187,14 +9229,21 @@
             }
           },
           {
-            "description": "Versão atual do recurso (If-Match)",
+            "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão atual do recurso para concorrência otimista",
+              "title": "If-Match"
             }
           }
         ],
@@ -9219,7 +9268,7 @@
         ]
       },
       "get": {
-        "operationId": "api_v1_sites_site_id_get_site",
+        "operationId": "api_v1_sites_site_id_get_site_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -9259,7 +9308,7 @@
         ]
       },
       "patch": {
-        "operationId": "api_v1_sites_site_id_update_site",
+        "operationId": "api_v1_sites_site_id_update_site_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -9271,14 +9320,21 @@
             }
           },
           {
-            "description": "Versão atual do recurso (If-Match)",
+            "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão atual do recurso para concorrência otimista",
+              "title": "If-Match"
             }
           }
         ],
@@ -9672,7 +9728,7 @@
         ]
       },
       "post": {
-        "operationId": "api_v1_structures_create_structure",
+        "operationId": "api_v1_structures_create_structure_endpoint",
         "requestBody": {
           "content": {
             "application/json": {
@@ -9713,7 +9769,7 @@
     },
     "/api/v1/structures/{structure_id}": {
       "delete": {
-        "operationId": "api_v1_structures_structure_id_delete_structure",
+        "operationId": "api_v1_structures_structure_id_delete_structure_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -9725,14 +9781,21 @@
             }
           },
           {
-            "description": "Versão atual do recurso (If-Match)",
+            "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão atual do recurso para concorrência otimista",
+              "title": "If-Match"
             }
           }
         ],
@@ -9757,7 +9820,7 @@
         ]
       },
       "get": {
-        "operationId": "api_v1_structures_structure_id_get_structure",
+        "operationId": "api_v1_structures_structure_id_get_structure_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -9797,7 +9860,7 @@
         ]
       },
       "patch": {
-        "operationId": "api_v1_structures_structure_id_update_structure",
+        "operationId": "api_v1_structures_structure_id_update_structure_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -9809,14 +9872,21 @@
             }
           },
           {
-            "description": "Versão atual do recurso (If-Match)",
+            "description": "Versão atual do recurso para concorrência otimista",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
-              "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão atual do recurso para concorrência otimista",
+              "title": "If-Match"
             }
           }
         ],
@@ -9876,9 +9946,7 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {
-                  "title": "Response Api V1 Structures Structure Id Connectivity Get Structure Connectivity"
-                }
+                "schema": {}
               }
             },
             "description": "Successful Response"

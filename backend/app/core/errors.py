@@ -167,6 +167,23 @@ class CSRFError(AppException):
         )
 
 
+class UnprocessableEntityError(AppException):
+    def __init__(
+        self,
+        detail: str,
+        code: str = "validation_error",
+        field: str | None = None,
+    ) -> None:
+        errors = [ValidationErrorItem(field=field, code=code, message=detail)] if field else None
+        super().__init__(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            code=code,
+            title="Erro de validação",
+            detail=detail,
+            errors=errors,
+        )
+
+
 def _build_problem_response(
     status_code: int,
     code: str,
