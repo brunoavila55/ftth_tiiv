@@ -13,7 +13,7 @@ from app.core.errors import (
     UnprocessableEntityError,
 )
 from app.modules.cables.models import Cable, CableSegment, Fiber, FiberSegment, Tube
-from app.modules.connectivity.models import Connection, Terminal
+from app.modules.connectivity.models import Connection, ConnectionEndpoint, InternalEdge, Terminal
 from app.modules.gis.helpers import (
     linestring_geometry_to_wkb,
     resolve_optical_length,
@@ -310,6 +310,9 @@ def create_cable_segment(db: Session, payload: CableSegmentCreate) -> CableSegme
             structure_id=origin_uuid,
             label=f"{cable.code} - F{fiber.global_number} - Ponta A @ {origin_struct.code}",
             is_occupied=False,
+            occupancy="free",
+            entity_type="fiber",
+            entity_id=fiber.id,
             version=1,
         )
         term_b = Terminal(
@@ -317,6 +320,9 @@ def create_cable_segment(db: Session, payload: CableSegmentCreate) -> CableSegme
             structure_id=dest_uuid,
             label=f"{cable.code} - F{fiber.global_number} - Ponta B @ {dest_struct.code}",
             is_occupied=False,
+            occupancy="free",
+            entity_type="fiber",
+            entity_id=fiber.id,
             version=1,
         )
         db.add_all([term_a, term_b])
@@ -332,6 +338,19 @@ def create_cable_segment(db: Session, payload: CableSegmentCreate) -> CableSegme
             version=1,
         )
         db.add(fiber_seg)
+        db.flush()
+
+        edge = InternalEdge(
+            terminal_a_id=term_a.id,
+            terminal_b_id=term_b.id,
+            edge_type="fiber_continuity",
+            entity_type="fiber_segment",
+            entity_id=fiber_seg.id,
+            loss_db=0.0,
+            is_bidirectional=True,
+            version=1,
+        )
+        db.add(edge)
 
     bump_topology_revision(db)
     db.commit()
@@ -658,6 +677,9 @@ def split_cable_segment(
             structure_id=access_uuid,
             label=f"{cable.code} - F{old_fs.fiber_number} - Ponta B (Trecho 1) @ {access_struct.code}",
             is_occupied=False,
+            occupancy="free",
+            entity_type="fiber",
+            entity_id=old_fs.fiber_id,
             version=1,
         )
         term_2a = Terminal(
@@ -665,6 +687,9 @@ def split_cable_segment(
             structure_id=access_uuid,
             label=f"{cable.code} - F{old_fs.fiber_number} - Ponta A (Trecho 2) @ {access_struct.code}",
             is_occupied=False,
+            occupancy="free",
+            entity_type="fiber",
+            entity_id=old_fs.fiber_id,
             version=1,
         )
         db.add_all([term_1b, term_2a])
@@ -691,6 +716,30 @@ def split_cable_segment(
             version=1,
         )
         db.add_all([fs_1, fs_2])
+        db.flush()
+
+        # Adiciona as arestas internas dos novos segmentos
+        edge_1 = InternalEdge(
+            terminal_a_id=fs_1.terminal_a_id,
+            terminal_b_id=fs_1.terminal_b_id,
+            edge_type="fiber_continuity",
+            entity_type="fiber_segment",
+            entity_id=fs_1.id,
+            loss_db=0.0,
+            is_bidirectional=True,
+            version=1,
+        )
+        edge_2 = InternalEdge(
+            terminal_a_id=fs_2.terminal_a_id,
+            terminal_b_id=fs_2.terminal_b_id,
+            edge_type="fiber_continuity",
+            entity_type="fiber_segment",
+            entity_id=fs_2.id,
+            loss_db=0.0,
+            is_bidirectional=True,
+            version=1,
+        )
+        db.add_all([edge_1, edge_2])
 
         if not is_cut:
             # Fibra passante: cria conexão de continuidade interna sem corte e sem perda adicional
@@ -705,14 +754,36 @@ def split_cable_segment(
                 version=1,
             )
             db.add(conn)
+            db.flush()
+
+            ep_1 = ConnectionEndpoint(
+                connection_id=conn.id,
+                terminal_id=term_1b.id,
+                is_active=True,
+                version=1,
+            )
+            ep_2 = ConnectionEndpoint(
+                connection_id=conn.id,
+                terminal_id=term_2a.id,
+                is_active=True,
+                version=1,
+            )
+            db.add_all([ep_1, ep_2])
+
             term_1b.is_occupied = True
+            term_1b.occupancy = "connected"
             term_2a.is_occupied = True
+            term_2a.occupancy = "connected"
             pass_through_count += 1
         else:
             cut_terminals_count += 2
 
-    # Remove os fiber_segments do trecho antigo e o trecho antigo
+    # Remove os fiber_segments e internal_edges do trecho antigo
     for old_fs in old_fiber_segs:
+        db.query(InternalEdge).filter(
+            InternalEdge.entity_id == old_fs.id,
+            InternalEdge.entity_type == "fiber_segment",
+        ).delete(synchronize_session=False)
         db.delete(old_fs)
     db.delete(segment)
 

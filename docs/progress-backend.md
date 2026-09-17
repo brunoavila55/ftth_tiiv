@@ -229,4 +229,32 @@ Este documento rastreia a evolução contínua da implementação do backend con
   - [x] Comprimentos e reservas técnicas não são duplicados ao seccionar um trecho.
   - [x] Falha intermediária em transação reverte atomicamente toda a divisão (rollback garantido).
 - **Limitações reais**: Nenhuma.
-- **Próximo passo**: Etapa **B07 — Motor de conectividade e fusões** (terminais normalizados, arestas internas, conexões externas, conexão/desconexão/reserva, lote atômico para editor de fusão com `expected_topology_revision`, bloqueio determinístico anti-deadlock e prevenção de dupla ocupação concorrente no banco).
+- **Próximo passo**: Etapa **B07 — Motor de conectividade e fusões** (Em andamento).
+
+---
+
+### B07 — Motor de conectividade e fusões (Em Andamento)
+- **Status atual**: Modelagem de dados, restrições no PostgreSQL e migrações concluídas; implementação do serviço e endpoints em andamento.
+- **Ações e Entregas já realizadas**:
+  - `backend/app/modules/connectivity/models.py`:
+    - Adicionado modelo `ConnectionEndpoint`: mapeamento e controle estrito de unicidade de conexão ativa por terminal no PostgreSQL via índice parcial único `uq_active_connection_endpoint (terminal_id) WHERE is_active = true`.
+    - Adicionado modelo `TerminalReservation`: reserva formal de terminais com motivo, expiração e unicidade de reserva ativa (`uq_active_terminal_reservation`).
+    - Adicionado modelo `InternalEdge`: arestas internas normalizadas (continuidade de fibra A-B, travessia frente-trás de DIO 1:1 sem fan-out e caminhos de splitter) com check constraints `terminal_a_id != terminal_b_id` e `loss_db >= 0.0`.
+    - Atualizado `Terminal`: adicionados campos `occupancy` (`free`, `reserved`, `connected`), `entity_type` e `entity_id`.
+    - Atualizado `Connection`: adicionado campo `site_id` e check constraint `structure_id IS NOT NULL OR site_id IS NOT NULL`.
+  - `backend/app/modules/audit/models.py` e `service.py`: Modelo `AuditEvent` append-only e helper `record_audit_event` para persistência de auditoria atômica na mesma transação.
+  - Migração Alembic `0006_connectivity_engine.py`: Criada, aplicada e testada bidirecionalmente (upgrade/downgrade/upgrade) em ambos os bancos (`ftth_manager` e `ftth_manager_test`).
+  - `backend/app/modules/cables/service.py`: Atualizado para registrar `InternalEdge` e `ConnectionEndpoint` automaticamente na criação e no split de segmentos de cabo.
+  - `README.md`: Criado documento raiz completo com visão geral da arquitetura, tabela de status de B01 a B18, instruções de execução local e comandos de teste.
+- **Comandos executados e resultados**:
+  - `uv run ruff check .` -> `All checks passed!`
+  - `uv run ruff format --check .` -> `111 files already formatted`
+  - `uv run mypy .` -> `Success: no issues found in 110 source files`
+  - `uv run alembic upgrade head` -> `Running upgrade 0005_tubes_fibers_terminals -> 0006_connectivity_engine`
+  - `uv run pytest` -> `78 passed, 8 warnings in 49.96s`
+- **Próximas ações para fechamento de B07**:
+  - Implementar o serviço central `backend/app/modules/connectivity/service.py` com `create_connection`, `delete_connection` (soft-disconnect com `If-Match`), e `execute_batch_connections` (bloqueio determinístico anti-deadlock e validação de `expected_topology_revision`).
+  - Conectar os endpoints em `backend/app/api/v1/connectivity.py`.
+  - Escrever a suíte de testes de integração em `tests/integration/test_connectivity_engine.py` cobrindo todos os critérios de aceite (concorrência, rollback parcial de lote, DIO sem fan-out, liberação explícita para reconexão).
+  - Atualizar contratos OpenAPI e compilar tipos TypeScript.
+
