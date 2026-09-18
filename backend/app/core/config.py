@@ -76,6 +76,7 @@ class Settings(BaseSettings):
     # Armazenamento
     STORAGE_PATH: str = "./storage"
     MAX_UPLOAD_SIZE_BYTES: int = 10_485_760  # 10 MB (anexos)
+    MAX_IMAGE_PIXELS: int = 25_000_000  # 25 Mpx: acima disso a imagem é rejeitada sem decodificar
     MAX_IMPORT_SIZE_BYTES: int = 20_971_520  # 20 MB (arquivos de importação GeoJSON/KML/CSV)
 
     # Rate limit por usuário autenticado (janela de 1 minuto; limitador em memória por processo —

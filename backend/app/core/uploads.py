@@ -18,3 +18,18 @@ async def read_upload_limited(file: UploadFile, max_bytes: int) -> bytes:
             )
         chunks.append(chunk)
     return b"".join(chunks)
+
+
+def read_upload_limited_sync(file: UploadFile, max_bytes: int) -> bytes:
+    """Versão síncrona (handlers `def`, executados no threadpool) de `read_upload_limited`."""
+    chunks: list[bytes] = []
+    total = 0
+    while chunk := file.file.read(_CHUNK_SIZE):
+        total += len(chunk)
+        if total > max_bytes:
+            raise HTTPException(
+                status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+                detail=f"Arquivo excede o limite máximo permitido de {max_bytes} bytes.",
+            )
+        chunks.append(chunk)
+    return b"".join(chunks)

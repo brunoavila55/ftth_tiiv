@@ -15,9 +15,11 @@ from fastapi import (
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.dependencies import require_permission, validate_csrf
 from app.core.privacy import require_customer_access, user_can
 from app.core.rate_limit import rate_limit
+from app.core.uploads import read_upload_limited_sync
 from app.db.session import get_db
 from app.modules.attachments.service import (
     build_attachment_read,
@@ -48,7 +50,7 @@ attachments_router = APIRouter(prefix="/attachments", tags=["Anexos e Fotos"])
         Depends(rate_limit("upload", "RATE_LIMIT_UPLOAD_PER_MINUTE")),
     ],
 )
-async def upload_attachment(
+def upload_attachment(
     entity_id: str = Form(
         ..., description="UUID da entidade associada (ex: estrutura, site, cliente)"
     ),
@@ -73,7 +75,9 @@ async def upload_attachment(
             detail=f"entity_id inválido: '{entity_id}' não é um UUID válido",
         ) from err
 
-    raw_content = await file.read()
+    # Handler síncrono (threadpool): Pillow/IO/DB não bloqueiam o event loop. Leitura em blocos
+    # com corte em MAX_UPLOAD_SIZE_BYTES (413) antes de qualquer processamento.
+    raw_content = read_upload_limited_sync(file, get_settings().MAX_UPLOAD_SIZE_BYTES)
     filename = file.filename or "anexo"
 
     return save_attachment(

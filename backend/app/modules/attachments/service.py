@@ -108,9 +108,46 @@ def get_storage_directories() -> tuple[Path, Path]:
     return originals_dir, thumbnails_dir
 
 
+IMAGE_MIME_TYPES = ("image/jpeg", "image/png", "image/webp")
+
+
+def validate_image_dimensions(content: bytes, mime_type: str) -> None:
+    """Rejeita (422) imagens inválidas ou acima de MAX_IMAGE_PIXELS **sem decodificá-las**.
+
+    `Image.open` lê só o cabeçalho; a checagem de `size` evita bombas de descompressão (arquivo
+    pequeno que expande para centenas de MiB) e a exceção do Pillow é convertida em 422.
+    """
+    if mime_type not in IMAGE_MIME_TYPES:
+        return
+
+    max_pixels = get_settings().MAX_IMAGE_PIXELS
+    try:
+        with Image.open(io.BytesIO(content)) as img:
+            width, height = img.size
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning) as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Imagem rejeitada: dimensões excedem o limite de {max_pixels} pixels.",
+        ) from err
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError) as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Imagem inválida ou corrompida.",
+        ) from err
+
+    if width * height > max_pixels:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Imagem rejeitada: {width}x{height} pixels excede o limite de "
+                f"{max_pixels} pixels ({max_pixels / 1_000_000:.0f} megapixels)."
+            ),
+        )
+
+
 def generate_thumbnail_image(content: bytes, mime_type: str) -> bytes | None:
     """Gera miniatura redimensionada e reencodificada de forma segura para imagens."""
-    if mime_type not in ("image/jpeg", "image/png", "image/webp"):
+    if mime_type not in IMAGE_MIME_TYPES:
         return None
 
     try:
@@ -125,7 +162,7 @@ def generate_thumbnail_image(content: bytes, mime_type: str) -> bytes | None:
             output = io.BytesIO()
             thumb_img.save(output, format="WEBP", quality=80, method=6)
             return output.getvalue()
-    except (UnidentifiedImageError, OSError, ValueError):
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
         return None
 
 
@@ -200,8 +237,9 @@ def save_attachment(
     # 1. Validar entidade existente
     validate_entity_exists(db, entity_type, entity_id)
 
-    # 2. Inspecionar conteúdo e magic bytes
+    # 2. Inspecionar conteúdo e magic bytes; validar dimensões da imagem sem decodificá-la
     mime_type, ext = inspect_file_content(raw_content)
+    validate_image_dimensions(raw_content, mime_type)
 
     # 3. Gerar hash SHA-256 e sanitizar nome
     sha256_hash = hashlib.sha256(raw_content).hexdigest()
@@ -212,12 +250,18 @@ def save_attachment(
     storage_filename = f"{file_id.hex}{ext}"
     originals_dir, thumbnails_dir = get_storage_directories()
 
+    # 5. Gerar miniatura (em memória) antes de gravar qualquer arquivo em disco
+    thumb_bytes = generate_thumbnail_image(raw_content, mime_type)
+    if mime_type in IMAGE_MIME_TYPES and thumb_bytes is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Imagem inválida ou corrompida: não foi possível gerar a miniatura.",
+        )
+
     original_target_path = originals_dir / storage_filename
     original_target_path.write_bytes(raw_content)
 
-    # 5. Gerar miniatura se imagem
     thumbnail_rel_path: str | None = None
-    thumb_bytes = generate_thumbnail_image(raw_content, mime_type)
     if thumb_bytes:
         thumb_filename = f"{file_id.hex}.webp"
         thumb_target_path = thumbnails_dir / thumb_filename
