@@ -118,7 +118,7 @@ export interface paths {
         };
         /**
          * Consultar trilha de auditoria append-only
-         * @description Retorna histórico ordenado de mutações e ações de usuários no sistema.
+         * @description Retorna histórico ordenado de mutações e ações de usuários no sistema. Campos pessoais de clientes (phone, email, address) são mascarados para quem não tem customers:read.
          */
         get: operations["api_v1_audit_events_list_audit_events"];
         put?: never;
@@ -1173,7 +1173,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Ocupação das portas da CTO */
+        /**
+         * Ocupação das portas da CTO
+         * @description Estado das portas (network:read). Dados pessoais do cliente só com customers:read.
+         */
         get: operations["api_v1_structures_structure_id_cto_occupancy_get_cto_occupancy"];
         put?: never;
         post?: never;

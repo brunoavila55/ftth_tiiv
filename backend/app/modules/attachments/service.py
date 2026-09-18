@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.privacy import CUSTOMER_PII_ENTITY_TYPES
 from app.modules.attachments.models import Attachment
 from app.modules.audit.service import record_audit_event
 from app.modules.cables.models import Cable
@@ -313,9 +314,16 @@ def list_attachments_paginated(
     entity_id: uuid.UUID | None = None,
     limit: int = 50,
     offset: int = 0,
+    include_customer_pii: bool = True,
 ) -> tuple[list[Attachment], int]:
-    """Lista anexos filtrados por entidade com paginação."""
+    """Lista anexos filtrados por entidade com paginação.
+
+    Sem `include_customer_pii` (usuário sem customers:read) omite anexos de cliente/vínculo.
+    """
     query = select(Attachment)
+
+    if not include_customer_pii:
+        query = query.where(Attachment.entity_type.not_in(sorted(CUSTOMER_PII_ENTITY_TYPES)))
 
     if entity_type:
         query = query.where(Attachment.entity_type == entity_type.lower().strip())

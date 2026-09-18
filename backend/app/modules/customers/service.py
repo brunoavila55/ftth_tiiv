@@ -448,8 +448,13 @@ def deactivate_service_link(
 def get_cto_port_occupancy(
     db: Session,
     structure_id: uuid.UUID,
+    include_customer_details: bool = True,
 ) -> dict[str, Any]:
-    """Calcula a ocupação exata das portas da CTO considerando conexões, reservas e atendimentos."""
+    """Calcula a ocupação exata das portas da CTO considerando conexões, reservas e atendimentos.
+
+    Sem `include_customer_details` (usuário sem `customers:read`) o estado das portas é mantido,
+    mas dados pessoais do cliente e anotações do atendimento são omitidos (SEC-03).
+    """
     structure = db.get(Structure, structure_id)
     if not structure:
         raise NotFoundError(f"Estrutura {structure_id} não existe.")
@@ -580,13 +585,13 @@ def get_cto_port_occupancy(
                 "terminal_id": str(term.id) if term else None,
                 "notes": port.notes,
                 "service_link": {
-                    "id": str(link.id),
-                    "status": link.status,
-                    "activated_at": link.activated_at.isoformat(),
-                    "version": link.version,
-                    "notes": link.notes,
+                    "id": str(srv_link.id),
+                    "status": srv_link.status,
+                    "activated_at": srv_link.activated_at.isoformat(),
+                    "version": srv_link.version,
+                    "notes": srv_link.notes if include_customer_details else None,
                 }
-                if link
+                if srv_link
                 else None,
                 "customer": {
                     "id": str(cust.id),
@@ -595,7 +600,7 @@ def get_cto_port_occupancy(
                     "phone": cust.phone,
                     "email": cust.email,
                 }
-                if cust
+                if cust and include_customer_details
                 else None,
                 "onu": {
                     "id": str(onu.id),

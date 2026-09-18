@@ -16,6 +16,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import require_permission, validate_csrf
+from app.core.privacy import require_customer_access, user_can
 from app.db.session import get_db
 from app.modules.attachments.service import (
     build_attachment_read,
@@ -55,6 +56,7 @@ async def upload_attachment(
     current_user: User = Depends(require_permission("attachments:write")),
     db: Session = Depends(get_db),
 ) -> AttachmentRead:
+    require_customer_access(current_user, entity_type, write=True)
     try:
         e_uuid = uuid.UUID(entity_id)
     except ValueError as err:
@@ -83,14 +85,16 @@ async def upload_attachment(
     response_model=PaginatedResponse[AttachmentRead],
     summary="Listar anexos com paginação e filtros",
     description="Retorna lista paginada de anexos cadastrados com filtro opcional por entidade.",
-    dependencies=[Depends(require_permission("attachments:read"))],
 )
 def list_attachments_endpoint(
     pagination: PaginationParams = Depends(),
     entity_type: str | None = Query(default=None, description="Filtrar por tipo de entidade"),
     entity_id: str | None = Query(default=None, description="Filtrar por UUID da entidade"),
+    current_user: User = Depends(require_permission("attachments:read")),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[AttachmentRead]:
+    if entity_type:
+        require_customer_access(current_user, entity_type)
     e_uuid: uuid.UUID | None = None
     if entity_id:
         try:
@@ -107,6 +111,7 @@ def list_attachments_endpoint(
         entity_id=e_uuid,
         limit=pagination.page_size,
         offset=(pagination.page - 1) * pagination.page_size,
+        include_customer_pii=user_can(current_user, "customers:read"),
     )
 
     results = [build_attachment_read(a) for a in items]
@@ -123,10 +128,10 @@ def list_attachments_endpoint(
     "/{attachment_id}",
     response_model=AttachmentRead,
     summary="Obter metadados de anexo",
-    dependencies=[Depends(require_permission("attachments:read"))],
 )
 def get_attachment_metadata(
     attachment_id: str,
+    current_user: User = Depends(require_permission("attachments:read")),
     db: Session = Depends(get_db),
 ) -> AttachmentRead:
     try:
@@ -138,6 +143,7 @@ def get_attachment_metadata(
         ) from err
 
     attachment = get_attachment_by_id(db, att_uuid)
+    require_customer_access(current_user, attachment.entity_type)
     return build_attachment_read(attachment)
 
 
@@ -145,10 +151,10 @@ def get_attachment_metadata(
     "/{attachment_id}/download",
     summary="Download de anexo autorizado",
     description="Faz o download seguro de arquivo após validação das credenciais e permissões do usuário.",
-    dependencies=[Depends(require_permission("attachments:read"))],
 )
 def download_attachment(
     attachment_id: str,
+    current_user: User = Depends(require_permission("attachments:read")),
     db: Session = Depends(get_db),
 ) -> Response:
     try:
@@ -160,6 +166,7 @@ def download_attachment(
         ) from err
 
     attachment = get_attachment_by_id(db, att_uuid)
+    require_customer_access(current_user, attachment.entity_type)
     file_path = resolve_attachment_file_path(attachment, is_thumbnail=False)
 
     return FileResponse(
@@ -174,10 +181,10 @@ def download_attachment(
     "/{attachment_id}/thumbnail",
     summary="Obter miniatura de anexo",
     description="Retorna imagem otimizada em miniatura gerada com segurança.",
-    dependencies=[Depends(require_permission("attachments:read"))],
 )
 def get_attachment_thumbnail(
     attachment_id: str,
+    current_user: User = Depends(require_permission("attachments:read")),
     db: Session = Depends(get_db),
 ) -> Response:
     try:
@@ -189,6 +196,7 @@ def get_attachment_thumbnail(
         ) from err
 
     attachment = get_attachment_by_id(db, att_uuid)
+    require_customer_access(current_user, attachment.entity_type)
     file_path = resolve_attachment_file_path(attachment, is_thumbnail=True)
 
     return FileResponse(
@@ -226,6 +234,8 @@ def delete_attachment(
             detail=f"Header If-Match inválido: '{if_match}'. Deve ser um número inteiro.",
         ) from err
 
+    existing = get_attachment_by_id(db, att_uuid)
+    require_customer_access(current_user, existing.entity_type, write=True)
     delete_attachment_service(
         db,
         attachment_id=att_uuid,

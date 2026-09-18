@@ -5,10 +5,11 @@ from fastapi import APIRouter, Depends, Header, Query, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import require_permission, validate_csrf
+from app.core.permissions import has_permission
 from app.db.session import get_db
 from app.modules.customers import service
 from app.modules.identity.models import User
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UserRole
 from app.schemas.customers import (
     CustomerCreate,
     CustomerRead,
@@ -28,7 +29,7 @@ customers_router = APIRouter(tags=["Clientes e Atendimentos"])
     "/customers",
     response_model=PaginatedResponse[CustomerRead],
     summary="Listar clientes",
-    dependencies=[Depends(require_permission("network:read"))],
+    dependencies=[Depends(require_permission("customers:read"))],
 )
 def list_customers(
     pagination: PaginationParams = Depends(),
@@ -51,12 +52,12 @@ def list_customers(
     response_model=CustomerRead,
     status_code=status.HTTP_201_CREATED,
     summary="Cadastrar cliente",
-    dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
+    dependencies=[Depends(require_permission("customers:write")), Depends(validate_csrf)],
 )
 def create_customer(
     payload: CustomerCreate,
     request: Request,
-    current_user: User = Depends(require_permission("network:write")),
+    current_user: User = Depends(require_permission("customers:write")),
     db: Session = Depends(get_db),
 ) -> Any:
     request_id = getattr(request.state, "request_id", None)
@@ -73,7 +74,7 @@ def create_customer(
     "/customers/{customer_id}",
     response_model=CustomerRead,
     summary="Detalhes do cliente",
-    dependencies=[Depends(require_permission("network:read"))],
+    dependencies=[Depends(require_permission("customers:read"))],
 )
 def get_customer(
     customer_id: str,
@@ -86,14 +87,14 @@ def get_customer(
     "/customers/{customer_id}",
     response_model=CustomerRead,
     summary="Atualizar cliente",
-    dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
+    dependencies=[Depends(require_permission("customers:write")), Depends(validate_csrf)],
 )
 def update_customer(
     customer_id: str,
     payload: CustomerUpdate,
     request: Request,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
-    current_user: User = Depends(require_permission("network:write")),
+    current_user: User = Depends(require_permission("customers:write")),
     db: Session = Depends(get_db),
 ) -> Any:
     request_id = getattr(request.state, "request_id", None)
@@ -112,13 +113,13 @@ def update_customer(
     "/customers/{customer_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Desativar cliente",
-    dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
+    dependencies=[Depends(require_permission("customers:write")), Depends(validate_csrf)],
 )
 def delete_customer(
     customer_id: str,
     request: Request,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
-    current_user: User = Depends(require_permission("network:write")),
+    current_user: User = Depends(require_permission("customers:write")),
     db: Session = Depends(get_db),
 ) -> None:
     request_id = getattr(request.state, "request_id", None)
@@ -139,7 +140,7 @@ def delete_customer(
     "/service-links",
     response_model=PaginatedResponse[ServiceLinkRead],
     summary="Listar atendimentos ópticos",
-    dependencies=[Depends(require_permission("network:read"))],
+    dependencies=[Depends(require_permission("customers:read"))],
 )
 def list_service_links(
     pagination: PaginationParams = Depends(),
@@ -169,12 +170,12 @@ def list_service_links(
     response_model=ServiceLinkRead,
     status_code=status.HTTP_201_CREATED,
     summary="Ativar atendimento de cliente",
-    dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
+    dependencies=[Depends(require_permission("customers:write")), Depends(validate_csrf)],
 )
 def create_service_link(
     payload: ServiceLinkCreate,
     request: Request,
-    current_user: User = Depends(require_permission("network:write")),
+    current_user: User = Depends(require_permission("customers:write")),
     db: Session = Depends(get_db),
 ) -> Any:
     request_id = getattr(request.state, "request_id", None)
@@ -191,7 +192,7 @@ def create_service_link(
     "/service-links/{link_id}",
     response_model=ServiceLinkRead,
     summary="Detalhes do atendimento",
-    dependencies=[Depends(require_permission("network:read"))],
+    dependencies=[Depends(require_permission("customers:read"))],
 )
 def get_service_link(
     link_id: str,
@@ -204,14 +205,14 @@ def get_service_link(
     "/service-links/{link_id}",
     response_model=ServiceLinkRead,
     summary="Atualizar status do atendimento",
-    dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
+    dependencies=[Depends(require_permission("customers:write")), Depends(validate_csrf)],
 )
 def update_service_link(
     link_id: str,
     payload: ServiceLinkUpdate,
     request: Request,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
-    current_user: User = Depends(require_permission("network:write")),
+    current_user: User = Depends(require_permission("customers:write")),
     db: Session = Depends(get_db),
 ) -> Any:
     request_id = getattr(request.state, "request_id", None)
@@ -230,13 +231,13 @@ def update_service_link(
     "/service-links/{link_id}",
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Desativar atendimento",
-    dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
+    dependencies=[Depends(require_permission("customers:write")), Depends(validate_csrf)],
 )
 def delete_service_link(
     link_id: str,
     request: Request,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
-    current_user: User = Depends(require_permission("network:write")),
+    current_user: User = Depends(require_permission("customers:write")),
     db: Session = Depends(get_db),
 ) -> None:
     request_id = getattr(request.state, "request_id", None)
@@ -253,10 +254,15 @@ def delete_service_link(
 @customers_router.get(
     "/structures/{structure_id}/cto-occupancy",
     summary="Ocupação das portas da CTO",
-    dependencies=[Depends(require_permission("network:read"))],
+    description="Estado das portas (network:read). Dados pessoais do cliente só com customers:read.",
 )
 def get_cto_occupancy(
     structure_id: str,
+    current_user: User = Depends(require_permission("network:read")),
     db: Session = Depends(get_db),
 ) -> Any:
-    return service.get_cto_port_occupancy(db, uuid.UUID(structure_id))
+    return service.get_cto_port_occupancy(
+        db,
+        uuid.UUID(structure_id),
+        include_customer_details=has_permission(UserRole(current_user.role), "customers:read"),
+    )

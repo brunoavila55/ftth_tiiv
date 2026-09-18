@@ -6740,7 +6740,7 @@
     },
     "/api/v1/audit-events": {
       "get": {
-        "description": "Retorna histórico ordenado de mutações e ações de usuários no sistema.",
+        "description": "Retorna histórico ordenado de mutações e ações de usuários no sistema. Campos pessoais de clientes (phone, email, address) são mascarados para quem não tem customers:read.",
         "operationId": "api_v1_audit_events_list_audit_events",
         "parameters": [
           {
@@ -11670,6 +11670,7 @@
     },
     "/api/v1/structures/{structure_id}/cto-occupancy": {
       "get": {
+        "description": "Estado das portas (network:read). Dados pessoais do cliente só com customers:read.",
         "operationId": "api_v1_structures_structure_id_cto_occupancy_get_cto_occupancy",
         "parameters": [
           {

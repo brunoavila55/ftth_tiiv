@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import get_current_user, require_permission
+from app.core.privacy import mask_pii_changes, user_can
 from app.db.session import get_db
 from app.modules.identity.models import User
 from app.modules.reports.service import (
@@ -158,8 +159,10 @@ def list_inconsistencies_report(
     "/audit-events",
     response_model=PaginatedResponse[AuditEventRead],
     summary="Consultar trilha de auditoria append-only",
-    description="Retorna histórico ordenado de mutações e ações de usuários no sistema.",
-    dependencies=[Depends(require_permission("audit:read"))],
+    description=(
+        "Retorna histórico ordenado de mutações e ações de usuários no sistema. Campos pessoais "
+        "de clientes (phone, email, address) são mascarados para quem não tem customers:read."
+    ),
 )
 def list_audit_events(
     pagination: PaginationParams = Depends(),
@@ -167,6 +170,7 @@ def list_audit_events(
     entity_id: str | None = Query(default=None, description="Filtrar por UUID da entidade"),
     actor_id: str | None = Query(default=None, description="Filtrar por UUID do autor"),
     action: str | None = Query(default=None, description="Filtrar por tipo de ação"),
+    current_user: User = Depends(require_permission("audit:read")),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[AuditEventRead]:
     e_uuid: uuid.UUID | None = None
@@ -201,6 +205,7 @@ def list_audit_events(
         offset=(pagination.page - 1) * pagination.page_size,
     )
 
+    can_see_pii = user_can(current_user, "customers:read")
     results = [
         AuditEventRead(
             id=str(e.id),
@@ -209,7 +214,7 @@ def list_audit_events(
             action=e.action,
             entity_type=e.entity_type,
             entity_id=str(e.entity_id),
-            changes=e.changes or {},
+            changes=(e.changes or {}) if can_see_pii else mask_pii_changes(e.changes or {}),
             reason=e.reason,
             request_id=e.request_id,
             created_at=e.created_at,

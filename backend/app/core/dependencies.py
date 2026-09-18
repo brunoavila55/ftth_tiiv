@@ -192,4 +192,6 @@ def require_permission(permission: str) -> Callable[..., User]:
             )
         return current_user
 
+    # Exposto para introspecção (testes de cobertura da matriz de permissões)
+    _permission_dependency.required_permission = permission  # type: ignore[attr-defined]
     return _permission_dependency
