@@ -1,5 +1,6 @@
 import os
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse
@@ -7,9 +8,12 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.dependencies import get_current_user, require_permission, validate_csrf
+from app.core.errors import ForbiddenError
+from app.core.privacy import user_can
 from app.core.rate_limit import rate_limit
 from app.core.uploads import read_upload_limited
 from app.db.session import get_db
+from app.modules.audit.service import record_audit_event
 from app.modules.exports.service import create_export_request
 from app.modules.identity.models import User
 from app.modules.imports.models import AsyncJob
@@ -144,6 +148,7 @@ def get_export_status(
 )
 def download_export(
     export_id: str,
+    current_user: User = Depends(require_permission("exports:read")),
     db: Session = Depends(get_db),
 ) -> Response:
     try:
@@ -167,11 +172,34 @@ def download_export(
             detail=f"O arquivo de exportação ainda não está pronto. Status atual: {job.status}.",
         )
 
-    if not os.path.exists(job.result_path):
+    # Dados pessoais (LGPD): a camada de clientes só é baixável por admin — revalidado AQUI, não só
+    # na criação (exports:read + job_id não basta)
+    layers = (job.payload or {}).get("layers", [])
+    if "customers" in layers and current_user.role != "admin":
+        raise ForbiddenError(
+            "Exportações com dados pessoais de clientes só podem ser baixadas por administradores.",
+            code="insufficient_permissions",
+        )
+
+    expired = job.finished_at is not None and job.finished_at < datetime.now(UTC) - timedelta(
+        days=get_settings().EXPORT_TTL_DAYS
+    )
+    if expired or not os.path.exists(job.result_path):
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="O arquivo exportado expirou ou foi removido do servidor.",
         )
+
+    record_audit_event(
+        db,
+        actor_id=current_user.id,
+        actor_name=current_user.name,
+        action="export_downloaded",
+        entity_type="async_job",
+        entity_id=job.id,
+        changes={"format": (job.payload or {}).get("format"), "layers": layers},
+    )
+    db.commit()
 
     filename = os.path.basename(job.result_path)
     content_type = "application/octet-stream"
@@ -200,9 +228,17 @@ def download_export(
 )
 def get_job(
     job_id: str,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> JobRead:
-    return get_job_by_id(db=db, job_id=job_id)
+    job = get_job_by_id(db=db, job_id=job_id)
+    # Leitura conforme o tipo: exportações exigem exports:read; importações, imports:read
+    permission = "exports:read" if job.type.value.startswith("export_") else "imports:read"
+    if not user_can(current_user, permission):
+        raise ForbiddenError(
+            f"Acesso negado. Requer a permissão '{permission}'.", code="insufficient_permissions"
+        )
+    return job
 
 
 @imports_exports_router.post(

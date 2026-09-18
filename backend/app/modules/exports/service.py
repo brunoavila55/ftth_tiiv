@@ -13,11 +13,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.modules.audit.service import record_audit_event
 from app.modules.cables.models import CableSegment
 from app.modules.customers.models import Customer
 from app.modules.identity.models import User
 from app.modules.imports.models import AsyncJob
 from app.modules.inventory.models import Site, Structure
+from app.modules.jobs.errors import JobValidationError
 from app.schemas.imports_exports import ExportRequest, ExportResponse
 
 FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
@@ -75,11 +77,24 @@ def create_export_request(
         payload={
             "format": payload.format.value,
             "layers": payload.layers,
+            # quem pediu: o download revalida o papel (camada de clientes exige admin)
+            "requested_by": str(user.id) if user else None,
+            "requested_by_role": user.role if user else None,
         },
         progress_percentage=0,
         user_id=user.id if user else None,
     )
     db.add(job)
+    db.flush()
+    record_audit_event(
+        db,
+        actor_id=user.id if user else None,
+        actor_name=user.name if user else "Sistema",
+        action="export_requested",
+        entity_type="async_job",
+        entity_id=job.id,
+        changes={"format": payload.format.value, "layers": payload.layers},
+    )
     db.commit()
     db.refresh(job)
 
@@ -344,6 +359,6 @@ def execute_export_job(db: Session, job: AsyncJob) -> str:
         with open(file_path, "w", encoding="utf-8") as f:
             f.write(csv_str)
     else:
-        raise ValueError(f"Formato de exportação desconhecido: {fmt_str}")
+        raise JobValidationError(f"Formato de exportação desconhecido: {fmt_str}")
 
     return file_path

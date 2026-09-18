@@ -10,6 +10,7 @@ from shapely.geometry import Point
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.logging import job_id_ctx
 from app.core.metrics import metrics_collector
 from app.modules.audit.service import record_audit_event
@@ -20,6 +21,7 @@ from app.modules.identity.models import User
 from app.modules.imports.models import AsyncJob, ImportPreview
 from app.modules.imports.service import parse_csv, parse_geojson, parse_kml
 from app.modules.inventory.models import Site, Structure
+from app.modules.jobs.errors import GENERIC_JOB_ERROR, JobValidationError
 from app.schemas.imports_exports import JobRead, JobStatus, JobType
 
 logger = logging.getLogger("ftth.jobs")
@@ -153,7 +155,9 @@ def execute_import_commit(db: Session, job: AsyncJob) -> dict[str, Any]:
     fmt = payload.get("format")
 
     if not file_path or not os.path.exists(file_path):
-        raise FileNotFoundError(f"Arquivo de importação não encontrado no disco: {file_path}")
+        raise JobValidationError(
+            "O arquivo de importação não está mais disponível no servidor. Gere uma nova prévia."
+        )
 
     with open(file_path, "rb") as f:
         content = f.read()
@@ -165,12 +169,14 @@ def execute_import_commit(db: Session, job: AsyncJob) -> dict[str, Any]:
     elif fmt == "csv":
         parsed_items, _ = parse_csv(content)
     else:
-        raise ValueError(f"Formato de importação desconhecido: {fmt}")
+        raise JobValidationError(f"Formato de importação desconhecido: {fmt}")
 
     # Validação All-or-Nothing prévia
     codes = [it["code"] for it in parsed_items if it.get("code")]
     if len(codes) != len(set(codes)):
-        raise ValueError("O arquivo contém códigos duplicados entre suas próprias entidades.")
+        raise JobValidationError(
+            "O arquivo contém códigos duplicados entre suas próprias entidades."
+        )
 
     # Iniciar transação atômica
     site_map: dict[str, uuid.UUID] = {}
@@ -324,13 +330,15 @@ def process_claimed_job(db: Session, job: AsyncJob, worker_id: str = "worker-def
                 reloaded.finished_at = datetime.now(UTC)
                 db.commit()
         except Exception as e:
+            # O detalhe técnico (SQL, caminhos, traceback) fica só no log, com o job_id no contexto
             logger.exception("Job '%s' [%s] falhou no worker '%s'.", job_id, job_type, worker_id)
             db.rollback()
-            # Atualizar job com falha
+            # O cliente recebe apenas mensagem segura (JobValidationError) ou a genérica
+            client_message = str(e) if isinstance(e, JobValidationError) else GENERIC_JOB_ERROR
             reloaded = db.get(AsyncJob, job_id)
             if reloaded:
                 reloaded.status = "failed"
-                reloaded.error_message = str(e)
+                reloaded.error_message = client_message
                 reloaded.finished_at = datetime.now(UTC)
                 db.commit()
 
@@ -355,7 +363,11 @@ def process_next_job(db: Session, worker_id: str = "worker-default") -> bool:
 
 
 def clean_expired_previews_and_exports(db: Session) -> dict[str, int]:
-    """Rotina de retenção: remove rascunhos de importação expirados (>24h) e arquivos temporários."""
+    """Rotina de retenção: remove rascunhos de importação expirados (>24h) e exportações vencidas.
+
+    Arquivos de exportação vivem `EXPORT_TTL_DAYS` (padrão 7) após o término do job; o registro do
+    job permanece (histórico) e o download passa a responder 410.
+    """
     now = datetime.now(UTC)
     expired_previews = db.scalars(select(ImportPreview).where(ImportPreview.expires_at < now)).all()
 
@@ -369,5 +381,28 @@ def clean_expired_previews_and_exports(db: Session) -> dict[str, int]:
                 pass
         db.delete(p)
 
+    export_cutoff = now - timedelta(days=get_settings().EXPORT_TTL_DAYS)
+    expired_exports = 0
+    export_jobs = db.scalars(
+        select(AsyncJob).where(
+            AsyncJob.type.like("export_%"),
+            AsyncJob.status == "succeeded",
+            AsyncJob.result_path.is_not(None),
+            AsyncJob.finished_at < export_cutoff,
+        )
+    ).all()
+    for job in export_jobs:
+        if job.result_path and os.path.exists(job.result_path):
+            try:
+                os.remove(job.result_path)
+            except OSError:
+                logger.warning("Não foi possível remover a exportação vencida do job '%s'.", job.id)
+                continue
+            expired_exports += 1
+
     db.commit()
-    return {"cleaned_previews": len(expired_previews), "removed_files": removed_files}
+    return {
+        "cleaned_previews": len(expired_previews),
+        "removed_files": removed_files,
+        "expired_exports": expired_exports,
+    }

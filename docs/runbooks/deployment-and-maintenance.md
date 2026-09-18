@@ -217,3 +217,12 @@ O mapa operacional do FTTH Manager utiliza MapLibre GL JS e requer acesso a um s
 - **Cobertura**: toda mutação da API (cadastros, cabos/segmentos, conexões, medições, anexos, importação/exportação, usuários) e a autenticação (`auth:login_succeeded`, `auth:login_failed` — sem senha nem e-mail digitado —, `auth:logout`, `auth:password_changed`) geram **exatamente um** `AuditEvent` com `actor_id`, `request_id` (o `X-Request-ID` da resposta) e o diff da alteração. Serviços com evento próprio mais rico (ex.: `customer:created`, `connection_batch_applied`) substituem o genérico.
 - **Mecanismo** (`app/modules/audit/hooks.py`): a dependência `audit_mutation` prepara o contexto (ator, request_id, rota) na Session da requisição; listeners `after_flush`/`before_commit` acumulam o que foi criado/alterado/removido e gravam o evento **na mesma transação** da operação (rollback descarta o evento). Rotas somente-leitura (trace/impact/budgets/simulações/split-preview) e stubs 501 não geram evento.
 - **Imutabilidade**: um trigger no PostgreSQL (`trg_audit_events_append_only`, migração 0012) bloqueia `UPDATE`/`DELETE` em `audit_events`, inclusive para o usuário da aplicação. `TRUNCATE` continua permitido a quem administra o banco. Nunca inclua `audit_events` em rotinas de retenção.
+
+---
+
+## 12. Exportações e jobs
+
+- **Auditoria**: criar uma exportação grava `export_requested` (formato, camadas, ator) e cada download grava `export_downloaded`.
+- **Dados pessoais**: exportações com a camada `customers` só são baixáveis por `admin` — o papel é revalidado no download (`exports:read` + conhecer o `job_id` não basta).
+- **Retenção (`EXPORT_TTL_DAYS`, padrão 7)**: o worker remove os arquivos de exportação vencidos (o registro do job permanece) e o download responde `410 Gone` após o prazo, mesmo antes da limpeza.
+- **Erros de job**: `GET /jobs/{id}` devolve só mensagens seguras (validações de negócio) ou uma mensagem genérica; o detalhe técnico (SQL, caminhos, traceback) fica no log do worker com o `job_id`. A leitura exige `exports:read` (jobs de exportação) ou `imports:read` (importação).
