@@ -21,6 +21,7 @@ from app.core.security import (
     hash_session_token,
     verify_password,
 )
+from app.modules.audit.service import record_audit_event, record_contextual_event
 from app.modules.identity.models import LoginAttempt, User, UserSession
 from app.schemas.auth import MeResponse, UserCreate, UserRead, UserUpdate
 from app.schemas.common import UserRole
@@ -37,6 +38,8 @@ LOGIN_BACKOFF_MAX_SECONDS = LOGIN_WINDOW_MINUTES * 60
 LOGIN_IP_MAX_FAILURES = 50  # teto por IP (todas as contas): freia password spraying
 
 INVALID_CREDENTIALS = "E-mail ou senha incorretos."
+# entity_id dos eventos auth:login_failed de contas inexistentes (nunca vaza o e-mail digitado)
+_UNKNOWN_LOGIN_ENTITY_ID = uuid.UUID(int=0)
 
 
 def record_login_attempt(session: Session, ip_address: str, email: str, success: bool) -> None:
@@ -136,10 +139,29 @@ def authenticate_user(
         password_ok = verify_password(user.password_hash, password)
 
     if user is None or not password_ok or not user.is_active:
+        # Auditoria sem a senha e sem o e-mail digitado (pode ser lixo/segredo); id só se a conta existe
+        record_audit_event(
+            session,
+            actor_id=None,
+            actor_name="anonymous",
+            action="auth:login_failed",
+            entity_type="user",
+            entity_id=user.id if user is not None else _UNKNOWN_LOGIN_ENTITY_ID,
+            changes={"ip_address": ip_address[:45]},
+        )
         record_login_attempt(session, ip_address, clean_email, success=False)
         raise UnauthorizedError(INVALID_CREDENTIALS, code="invalid_credentials")
 
     # Autenticado com sucesso
+    record_audit_event(
+        session,
+        actor_id=user.id,
+        actor_name=user.name,
+        action="auth:login_succeeded",
+        entity_type="user",
+        entity_id=user.id,
+        changes={"ip_address": ip_address[:45]},
+    )
     record_login_attempt(session, ip_address, clean_email, success=True)
 
     # Rotação de sessão: gera token novo e persiste hash
@@ -205,8 +227,17 @@ def get_active_session_by_token(session: Session, raw_token: str) -> UserSession
 def revoke_session_by_token(session: Session, raw_token: str) -> None:
     token_hash = hash_session_token(raw_token)
     user_session = session.scalar(select(UserSession).where(UserSession.token_hash == token_hash))
-    if user_session:
+    if user_session and not user_session.is_revoked:
         user_session.is_revoked = True
+        user = user_session.user
+        record_audit_event(
+            session,
+            actor_id=user.id,
+            actor_name=user.name,
+            action="auth:logout",
+            entity_type="user",
+            entity_id=user.id,
+        )
         session.commit()
 
 
@@ -238,7 +269,16 @@ def change_user_password(
 
     user.password_hash = hash_password(new_password)
     user.updated_at = datetime.now(UTC)
-    revoke_user_sessions(session, user.id, keep_session_id=keep_session_id)
+    revoked = revoke_user_sessions(session, user.id, keep_session_id=keep_session_id)
+    record_audit_event(
+        session,
+        actor_id=user.id,
+        actor_name=user.name,
+        action="auth:password_changed",
+        entity_type="user",
+        entity_id=user.id,
+        changes={"other_sessions_revoked": revoked},
+    )
     session.commit()
 
 
@@ -262,6 +302,14 @@ def create_user_by_admin(session: Session, payload: UserCreate) -> User:
         version=1,
     )
     session.add(user)
+    session.flush()
+    record_contextual_event(
+        session,
+        action="user:created",
+        entity_type="user",
+        entity_id=user.id,
+        changes={"email": user.email, "name": user.name, "role": user.role},
+    )
     session.commit()
     session.refresh(user)
     return user
@@ -312,6 +360,13 @@ def update_user_by_admin(
                     code="last_admin_protection",
                 )
 
+    before = {
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "is_active": user.is_active,
+    }
+
     if payload.name is not None:
         user.name = payload.name.strip()
     if payload.email is not None:
@@ -332,6 +387,18 @@ def update_user_by_admin(
 
     user.version += 1
     user.updated_at = datetime.now(UTC)
+
+    after = {"name": user.name, "email": user.email, "role": user.role, "is_active": user.is_active}
+    diff = {k: {"old": before[k], "new": after[k]} for k in after if before[k] != after[k]}
+    if before["is_active"] and not after["is_active"]:
+        action = "user:deactivated"
+    elif before["role"] != after["role"]:
+        action = "user:role_changed"
+    else:
+        action = "user:updated"
+    record_contextual_event(
+        session, action=action, entity_type="user", entity_id=user.id, changes=diff
+    )
     session.commit()
     session.refresh(user)
     return user

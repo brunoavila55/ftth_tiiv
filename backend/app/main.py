@@ -11,6 +11,7 @@ from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import get_logger, setup_logging
 from app.core.middleware import RequestIDMiddleware, TrustedProxyMiddleware
+from app.modules.audit.hooks import register_audit_listeners
 
 logger = get_logger("app.main")
 
@@ -54,6 +55,8 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json" if not settings.is_production else None,
         generate_unique_id_function=custom_generate_unique_id,
     )
+
+    register_audit_listeners()
 
     # Middlewares globais
     # X-Forwarded-* só de proxies listados em TRUSTED_PROXIES (padrão: nenhum)

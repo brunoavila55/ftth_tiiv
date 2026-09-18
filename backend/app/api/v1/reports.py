@@ -162,8 +162,11 @@ def list_inconsistencies_report(
     response_model=PaginatedResponse[AuditEventRead],
     summary="Consultar trilha de auditoria append-only",
     description=(
-        "Retorna histórico ordenado de mutações e ações de usuários no sistema. Campos pessoais "
-        "de clientes (phone, email, address) são mascarados para quem não tem customers:read."
+        "Trilha append-only (imutável no banco) de TODAS as mutações da API — cadastros, cabos e "
+        "segmentos, conexões, medições, anexos, importações/exportações, usuários — e de "
+        "autenticação (login, falha de login, logout, troca de senha). Cada evento traz ator, "
+        "request_id e o diff da alteração (nunca segredos). Campos pessoais de clientes "
+        "(phone, email, address) são mascarados para quem não tem customers:read."
     ),
 )
 def list_audit_events(

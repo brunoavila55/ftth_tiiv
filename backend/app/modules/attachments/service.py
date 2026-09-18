@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.core.privacy import CUSTOMER_PII_ENTITY_TYPES
 from app.modules.attachments.models import Attachment
-from app.modules.audit.service import record_audit_event
+from app.modules.audit.service import record_audit_event, record_contextual_event
 from app.modules.cables.models import Cable
 from app.modules.connectivity.models import Terminal
 from app.modules.customers.models import Customer, ServiceLink
@@ -107,6 +107,9 @@ def get_storage_directories() -> tuple[Path, Path]:
 
     return originals_dir, thumbnails_dir
 
+
+# entity_id fixo dos eventos de manutenção do armazenamento (não há linha por trás)
+STORAGE_AUDIT_ENTITY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a7")
 
 IMAGE_MIME_TYPES = ("image/jpeg", "image/png", "image/webp")
 
@@ -493,6 +496,20 @@ def reconcile_storage_orphans(
         orig_file = base_dir / a.storage_path
         if not orig_file.exists():
             missing_disk_files.append(f"{a.id}: {a.storage_path}")
+
+    if not dry_run:
+        # Manutenção destrutiva de arquivos (sem alterar linhas): auditada explicitamente
+        record_contextual_event(
+            db,
+            action="storage:reconciled",
+            entity_type="storage",
+            entity_id=STORAGE_AUDIT_ENTITY_ID,
+            changes={
+                "orphans_removed": len(orphans_removed),
+                "missing_disk_files": len(missing_disk_files),
+            },
+        )
+        db.commit()
 
     return AttachmentReconciliationResponse(
         total_disk_files=total_disk_files,

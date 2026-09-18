@@ -209,3 +209,11 @@ O mapa operacional do FTTH Manager utiliza MapLibre GL JS e requer acesso a um s
 - **Sessões**: `POST /auth/change-password` e `python -m app.cli.bootstrap_admin --reset-password` revogam as outras sessões do usuário (a atual é mantida na troca; o reset derruba todas).
 - **Proxies confiáveis (`TRUSTED_PROXIES`)**: `X-Forwarded-For`/`X-Forwarded-Proto` só são respeitados quando o par TCP está na lista (IPs/CIDRs em JSON). O IP do cliente é a entrada mais à direita do XFF que não seja um proxy confiável; cabeçalho inválido/longo é ignorado. Padrão do compose: redes privadas do Docker. Fora do compose, **defina** a variável, ou o IP visto será o do proxy.
 - **CSRF**: token assinado (HMAC-SHA256 com `CSRF_SECRET`; rotacionar o segredo invalida os tokens em circulação, o cliente obtém outro em `GET /auth/csrf`). O cabeçalho `Origin` é comparado por igualdade exata de esquema+host+porta contra `CORS_ORIGINS` e a própria origem da requisição. **Em produção inclua a origem pública (https) em `CORS_ORIGINS`.**
+
+---
+
+## 11. Trilha de auditoria
+
+- **Cobertura**: toda mutação da API (cadastros, cabos/segmentos, conexões, medições, anexos, importação/exportação, usuários) e a autenticação (`auth:login_succeeded`, `auth:login_failed` — sem senha nem e-mail digitado —, `auth:logout`, `auth:password_changed`) geram **exatamente um** `AuditEvent` com `actor_id`, `request_id` (o `X-Request-ID` da resposta) e o diff da alteração. Serviços com evento próprio mais rico (ex.: `customer:created`, `connection_batch_applied`) substituem o genérico.
+- **Mecanismo** (`app/modules/audit/hooks.py`): a dependência `audit_mutation` prepara o contexto (ator, request_id, rota) na Session da requisição; listeners `after_flush`/`before_commit` acumulam o que foi criado/alterado/removido e gravam o evento **na mesma transação** da operação (rollback descarta o evento). Rotas somente-leitura (trace/impact/budgets/simulações/split-preview) e stubs 501 não geram evento.
+- **Imutabilidade**: um trigger no PostgreSQL (`trg_audit_events_append_only`, migração 0012) bloqueia `UPDATE`/`DELETE` em `audit_events`, inclusive para o usuário da aplicação. `TRUNCATE` continua permitido a quem administra o banco. Nunca inclua `audit_events` em rotinas de retenção.
