@@ -1,18 +1,34 @@
 {
     admin off
-    auto_https off
+    # Sem `auto_https off`: com um domínio em SITE_ADDRESS o Caddy obtém e renova certificados
+    # (Let's Encrypt) e redireciona HTTP → HTTPS. Com o padrão `:80` (sem domínio) ele serve HTTP
+    # puro — para desenvolvimento local ou quando um balanceador externo termina o TLS.
 }
 
-:80 {
+# SITE_ADDRESS: domínio público (ex.: ftth.exemplo.com.br) para TLS no Caddy; padrão ":80".
+{$SITE_ADDRESS::80} {
     encode gzip zstd
 
-    # Headers de Segurança
+    # Conexão segura: TLS do próprio Caddy OU balanceador externo que envia X-Forwarded-Proto: https
+    @secure expression `{scheme} == "https" || {header.X-Forwarded-Proto} == "https"`
+
+    # Headers de segurança comuns.
+    # O CSP das páginas NÃO é definido aqui: ele leva um nonce por resposta e é gerado pelo
+    # Next.js (frontend/src/middleware.ts) — script-src sem 'unsafe-inline'/'unsafe-eval'.
     header {
         X-Content-Type-Options "nosniff"
         X-Frame-Options "SAMEORIGIN"
         Referrer-Policy "strict-origin-when-cross-origin"
         Permissions-Policy "camera=(self), microphone=(), geolocation=(self)"
-        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com; connect-src 'self' blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com; font-src 'self' data:; frame-ancestors 'self';"
+        -Server
+    }
+    # HSTS só em HTTPS (1 ano). Não usar `preload` sem decisão explícita do operador.
+    header @secure Strict-Transport-Security "max-age=31536000; includeSubDomains"
+
+    # /metrics é interno (Prometheus acessa a rede interna): nunca é publicado pelo proxy.
+    @metrics path /api/v1/metrics /api/v1/metrics/* /metrics /metrics/*
+    handle @metrics {
+        respond "Not Found" 404
     }
 
     # Uploads (anexos: MAX_UPLOAD_SIZE_BYTES=10 MB; importações: MAX_IMPORT_SIZE_BYTES=20 MB).
@@ -26,15 +42,18 @@
         request_body {
             max_size 25MB
         }
+        header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
         reverse_proxy backend:8000
     }
 
     # API Backend (FastAPI): corpos JSON legítimos são pequenos (maior caso: 10 000 pontos de
-    # geometria ≈ 0,4 MB); 2 MB dá folga sem aceitar corpos arbitrários.
+    # geometria ≈ 0,4 MB); 2 MB dá folga sem aceitar corpos arbitrários. Respostas JSON não
+    # precisam de nenhuma fonte de conteúdo.
     handle /api/* {
         request_body {
             max_size 2MB
         }
+        header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
         reverse_proxy backend:8000
     }
 
@@ -42,7 +61,7 @@
         reverse_proxy backend:8000
     }
 
-    # Frontend Web (Next.js)
+    # Frontend Web (Next.js) — envia o próprio Content-Security-Policy com nonce
     handle {
         reverse_proxy frontend:3000
     }

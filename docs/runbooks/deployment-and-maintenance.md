@@ -15,7 +15,7 @@ A pilha de produção do FTTH Manager é orquestrada via Docker Compose com sepa
 | `backend` | `backend:runner` (Python 3.12 non-root) | `internal`, `public` | Nenhuma (via Caddy) | API FastAPI, endpoints REST, telemetria e documentação |
 | `worker` | `backend:runner` (Python 3.12 non-root) | `internal` | Nenhuma | Consumo concorrente de jobs de importação/exportação via `SKIP LOCKED` |
 | `frontend` | `frontend:runner` (Node 22 Alpine non-root) | `public` | Nenhuma (via Caddy) | Interface Web Next.js App Router standalone |
-| `caddy` | `docker.io/caddy:2.8.4-alpine` | `public` | `80:80`, `443:443` | Reverse proxy com compressão, terminação TLS e CSP estrito |
+| `caddy` | `docker.io/caddy:2.8.4-alpine` | `public` | `80:80`, `443:443` | Reverse proxy com compressão, terminação TLS opcional (`SITE_ADDRESS`), HSTS e bloqueio de `/metrics` (o CSP com nonce vem do frontend) |
 
 ### Invariantes de Infraestrutura:
 1. **Rede Privada do Banco**: A porta `5432` do PostgreSQL **não** é publicada no host por padrão. Somente containers na rede `internal` têm acesso direto. Para desenvolvimento local, utilize `compose.override.yaml` (baseado em `compose.override.yaml.example`).
@@ -58,7 +58,7 @@ openssl rand -base64 24
 > [!IMPORTANT]
 > **Sem credenciais padrão**: com `ENVIRONMENT=production` o backend **recusa subir** (erro de validação na inicialização, sem ecoar os valores) se `SECRET_KEY`, `CSRF_SECRET` ou `METRICS_SECRET_TOKEN` forem valores de exemplo/padrão, tiverem menos de 32 caracteres ou baixa variedade de caracteres, ou se a senha do `DATABASE_URL` for a de exemplo. O `compose.yaml` também exige `SECRET_KEY`, `CSRF_SECRET`, `METRICS_SECRET_TOKEN` e `POSTGRES_PASSWORD` (`${VAR:?...}`): sem elas o `docker compose up` falha antes de subir. Os placeholders do `.env.example` (`change-me-...`) são rejeitados de propósito.
 >
-> **Métricas**: o nome canônico da variável é `METRICS_SECRET_TOKEN` (aceito pelo backend e injetado pelo compose). O endpoint `/api/v1/metrics` aceita o cabeçalho `X-Metrics-Token` (comparação em tempo constante) ou sessão de administrador; `METRICS_ENABLED=false` o desliga (404). Ele **não** é publicado pelo Caddy — ver pendência da etapa R17.
+> **Métricas**: o nome canônico da variável é `METRICS_SECRET_TOKEN` (aceito pelo backend e injetado pelo compose). O endpoint `/api/v1/metrics` aceita o cabeçalho `X-Metrics-Token` (comparação em tempo constante) ou sessão de administrador; `METRICS_ENABLED=false` o desliga (404). Ele **não** é publicado pelo Caddy (responde 404 externamente); o Prometheus o acessa pela rede interna.
 
 ### 2.3 Inicialização da Pilha
 ```bash
@@ -280,3 +280,12 @@ Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
 - **Agregação entre processos**: com `METRICS_DIR` definido (o compose usa `/app/storage/metrics`, volume compartilhado entre `backend` e `worker`) cada processo — workers da API e o worker de jobs — publica um snapshot JSON (a cada ≥ 5 s, escrita atômica) e o scrape soma tudo: contadores, histogramas e `background_jobs` do worker aparecem em qualquer resposta. `ftth_processes{role="api|worker"}` mostra quantos processos estão publicando.
 - Snapshots parados há mais de `METRICS_SNAPSHOT_TTL_SECONDS` (300) deixam de contar (processo morto → seus contadores "resetam", como um restart no Prometheus) e arquivos com mais de 1 h são apagados. Sem `METRICS_DIR`, o modo é processo único (métricas em memória).
 - O endpoint segue restrito (`X-Metrics-Token` ou sessão admin; `METRICS_ENABLED=false` → 404) e **não** é publicado pelo Caddy (ver R17).
+
+---
+
+## 18. Proxy: TLS, HSTS e CSP
+
+- **TLS no Caddy** (recomendado quando o servidor tem IP público): defina `SITE_ADDRESS=ftth.exemplo.com.br` no `.env`, aponte o DNS para o host e mantenha 80/443 abertas; o Caddy emite/renova o certificado (volume `caddy_data`), redireciona HTTP→HTTPS e envia HSTS. Inclua `https://ftth.exemplo.com.br` em `CORS_ORIGINS` (o `Origin` das escritas é comparado por igualdade exata) e mantenha `TRUSTED_PROXIES` cobrindo a rede do Docker.
+- **TLS em balanceador externo** (alternativa): deixe `SITE_ADDRESS=:80`; o balanceador termina o TLS e **deve** enviar `X-Forwarded-Proto: https` (o Caddy emite HSTS nesse caso e o backend enxerga `https` via `TRUSTED_PROXIES`). Não publique a porta 80 do Caddy diretamente na internet.
+- **CSP**: definido pelo Next.js com nonce por resposta (`script-src` sem `unsafe-inline`/`unsafe-eval`); a página raiz é renderizada dinamicamente por isso. Novas origens de tiles/APIs externas exigem ajustar `frontend/src/middleware.ts`.
+- Verificação: `curl -sI https://<domínio>/login` deve mostrar `content-security-policy` sem `unsafe-*` e `strict-transport-security`; `curl -s -o /dev/null -w '%{http_code}' https://<domínio>/api/v1/metrics` deve retornar `404`.
