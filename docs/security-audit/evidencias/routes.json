@@ -1,0 +1,4591 @@
+[
+ {
+  "kind": "Route",
+  "path": "/openapi.json"
+ },
+ {
+  "kind": "Route",
+  "path": "/docs"
+ },
+ {
+  "kind": "Route",
+  "path": "/docs/oauth2-redirect"
+ },
+ {
+  "kind": "Route",
+  "path": "/redoc"
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/health/live",
+  "name": "liveness",
+  "file": "backend/app/api/v1/health.py",
+  "line": 23,
+  "async": false,
+  "deps": [],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/health/ready",
+  "name": "readiness",
+  "file": "backend/app/api/v1/health.py",
+  "line": 33,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/health/live",
+  "name": "liveness",
+  "file": "backend/app/api/v1/health.py",
+  "line": 23,
+  "async": false,
+  "deps": [],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/health/ready",
+  "name": "readiness",
+  "file": "backend/app/api/v1/health.py",
+  "line": 33,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/auth/csrf",
+  "name": "get_csrf",
+  "file": "backend/app/api/v1/auth.py",
+  "line": 33,
+  "async": false,
+  "deps": [],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/auth/login",
+  "name": "login",
+  "file": "backend/app/api/v1/auth.py",
+  "line": 45,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/auth/logout",
+  "name": "logout",
+  "file": "backend/app/api/v1/auth.py",
+  "line": 83,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/auth/me",
+  "name": "get_me",
+  "file": "backend/app/api/v1/auth.py",
+  "line": 107,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/auth/change-password",
+  "name": "change_password",
+  "file": "backend/app/api/v1/auth.py",
+  "line": 119,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/users",
+  "name": "list_users",
+  "file": "backend/app/api/v1/users.py",
+  "line": 21,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "users:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "q"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/users",
+  "name": "create_user",
+  "file": "backend/app/api/v1/users.py",
+  "line": 47,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "users:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/users/{user_id}",
+  "name": "get_user",
+  "file": "backend/app/api/v1/users.py",
+  "line": 65,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "users:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "user_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/users/{user_id}",
+  "name": "update_user",
+  "file": "backend/app/api/v1/users.py",
+  "line": 82,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "users:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "user_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/users/{user_id}",
+  "name": "delete_user",
+  "file": "backend/app/api/v1/users.py",
+  "line": 105,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "users:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "user_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/sites",
+  "name": "list_sites",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 65,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "kind",
+    "q"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/sites",
+  "name": "create_site_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 92,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/sites/{site_id}",
+  "name": "get_site_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 109,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "site_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/sites/{site_id}",
+  "name": "update_site_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 125,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "site_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/sites/{site_id}",
+  "name": "delete_site_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 145,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "site_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/structures",
+  "name": "list_structures",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 164,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "kind",
+    "q"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/structures",
+  "name": "create_structure_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 193,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/structures/{structure_id}",
+  "name": "get_structure_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 210,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "structure_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/structures/{structure_id}",
+  "name": "update_structure_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 226,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "structure_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/structures/{structure_id}",
+  "name": "delete_structure_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 248,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "structure_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/structures/{structure_id}/occupancy",
+  "name": "get_structure_occupancy",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 264,
+  "async": false,
+  "deps": [],
+  "params": {
+   "path": [
+    "structure_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/structures/{structure_id}/connectivity",
+  "name": "get_structure_connectivity",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 273,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "structure_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/devices",
+  "name": "list_devices",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 289,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "kind",
+    "q"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/devices",
+  "name": "create_device_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 316,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/devices/{device_id}",
+  "name": "get_device_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 333,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "device_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/devices/{device_id}",
+  "name": "update_device_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 349,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "device_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/devices/{device_id}",
+  "name": "delete_device_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 369,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "device_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/ports",
+  "name": "list_ports",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 388,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "device_id",
+    "structure_id"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/ports",
+  "name": "create_port_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 415,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/ports/{port_id}",
+  "name": "get_port_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 432,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "port_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/ports/{port_id}",
+  "name": "update_port_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 448,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "port_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/ports/{port_id}",
+  "name": "delete_port_endpoint",
+  "file": "backend/app/api/v1/inventory.py",
+  "line": 468,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "port_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/cables",
+  "name": "list_cables",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 30,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "q"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/cables",
+  "name": "create_cable",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 51,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/cables/{cable_id}",
+  "name": "get_cable",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 67,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "cable_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/cables/{cable_id}",
+  "name": "update_cable",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 81,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "cable_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/cables/{cable_id}",
+  "name": "delete_cable",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 98,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "cable_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/cable-segments",
+  "name": "list_cable_segments",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 116,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "cable_id"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/cable-segments",
+  "name": "create_cable_segment",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 139,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/cable-segments/{segment_id}",
+  "name": "get_cable_segment",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 155,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "segment_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/cable-segments/{segment_id}",
+  "name": "update_cable_segment",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 169,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "segment_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/cable-segments/{segment_id}",
+  "name": "delete_cable_segment",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 188,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "segment_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/cable-segments/{segment_id}/fibers",
+  "name": "list_segment_fibers",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 203,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "segment_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/cable-segments/{segment_id}/split/preview",
+  "name": "preview_segment_split",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 226,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "segment_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/cable-segments/{segment_id}/split",
+  "name": "split_segment",
+  "file": "backend/app/api/v1/cables.py",
+  "line": 240,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "segment_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/splitters",
+  "name": "list_splitters",
+  "file": "backend/app/api/v1/splitters.py",
+  "line": 12,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "PaginationParams"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "structure_id"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/splitters",
+  "name": "create_splitter",
+  "file": "backend/app/api/v1/splitters.py",
+  "line": 24,
+  "async": false,
+  "deps": [],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/splitters/{splitter_id}",
+  "name": "get_splitter",
+  "file": "backend/app/api/v1/splitters.py",
+  "line": 34,
+  "async": false,
+  "deps": [],
+  "params": {
+   "path": [
+    "splitter_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/splitters/{splitter_id}",
+  "name": "update_splitter",
+  "file": "backend/app/api/v1/splitters.py",
+  "line": 39,
+  "async": false,
+  "deps": [],
+  "params": {
+   "path": [
+    "splitter_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/splitters/{splitter_id}",
+  "name": "delete_splitter",
+  "file": "backend/app/api/v1/splitters.py",
+  "line": 48,
+  "async": false,
+  "deps": [],
+  "params": {
+   "path": [
+    "splitter_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/connections",
+  "name": "list_connections",
+  "file": "backend/app/api/v1/connectivity.py",
+  "line": 22,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "structure_id",
+    "is_active"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/connections",
+  "name": "create_connection",
+  "file": "backend/app/api/v1/connectivity.py",
+  "line": 52,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/connections/{connection_id}",
+  "name": "get_connection",
+  "file": "backend/app/api/v1/connectivity.py",
+  "line": 75,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "connection_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/connections/{connection_id}",
+  "name": "delete_connection",
+  "file": "backend/app/api/v1/connectivity.py",
+  "line": 86,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "connection_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/connections/batch",
+  "name": "batch_connections",
+  "file": "backend/app/api/v1/connectivity.py",
+  "line": 110,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/customers",
+  "name": "list_customers",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 27,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "q"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/customers",
+  "name": "create_customer",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 49,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/customers/{customer_id}",
+  "name": "get_customer",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 72,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "customer_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/customers/{customer_id}",
+  "name": "update_customer",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 85,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "customer_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/customers/{customer_id}",
+  "name": "delete_customer",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 111,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "customer_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/service-links",
+  "name": "list_service_links",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 138,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "customer_id",
+    "port_id"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/service-links",
+  "name": "create_service_link",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 167,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/service-links/{link_id}",
+  "name": "get_service_link",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 190,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "link_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/service-links/{link_id}",
+  "name": "update_service_link",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 203,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "link_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/service-links/{link_id}",
+  "name": "delete_service_link",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 229,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "network:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "link_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/structures/{structure_id}/cto-occupancy",
+  "name": "get_cto_occupancy",
+  "file": "backend/app/api/v1/customers.py",
+  "line": 253,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "structure_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/topology/trace",
+  "name": "trace_path",
+  "file": "backend/app/api/v1/topology.py",
+  "line": 19,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/topology/impact",
+  "name": "analyze_impact",
+  "file": "backend/app/api/v1/topology.py",
+  "line": 37,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/optical-profiles",
+  "name": "list_optical_profiles",
+  "file": "backend/app/api/v1/optical.py",
+  "line": 33,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "optical:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/optical-profiles",
+  "name": "create_optical_profile_endpoint",
+  "file": "backend/app/api/v1/optical.py",
+  "line": 56,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "optical:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/optical-profiles/{profile_id}",
+  "name": "get_optical_profile_endpoint",
+  "file": "backend/app/api/v1/optical.py",
+  "line": 73,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "optical:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "profile_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/optical-profiles/{profile_id}",
+  "name": "update_optical_profile_endpoint",
+  "file": "backend/app/api/v1/optical.py",
+  "line": 89,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "optical:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "profile_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/optical-profiles/{profile_id}",
+  "name": "delete_optical_profile_endpoint",
+  "file": "backend/app/api/v1/optical.py",
+  "line": 111,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "optical:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "profile_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/optical/budgets",
+  "name": "calculate_budget",
+  "file": "backend/app/api/v1/optical.py",
+  "line": 130,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "optical:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/optical/simulations",
+  "name": "simulate_budget",
+  "file": "backend/app/api/v1/optical.py",
+  "line": 148,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "optical:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/measurements",
+  "name": "list_measurements_endpoint",
+  "file": "backend/app/api/v1/measurements.py",
+  "line": 27,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "measurements:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "service_link_id",
+    "terminal_id"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/measurements",
+  "name": "create_measurement_endpoint",
+  "file": "backend/app/api/v1/measurements.py",
+  "line": 56,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "measurements:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "measurements:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/measurements/{measurement_id}",
+  "name": "get_measurement_endpoint",
+  "file": "backend/app/api/v1/measurements.py",
+  "line": 74,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "measurements:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "measurement_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/measurements/{measurement_id}",
+  "name": "update_measurement_endpoint",
+  "file": "backend/app/api/v1/measurements.py",
+  "line": 90,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "measurements:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "measurement_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/measurements/{measurement_id}",
+  "name": "delete_measurement_endpoint",
+  "file": "backend/app/api/v1/measurements.py",
+  "line": 110,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "measurements:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "measurement_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/measurements/{measurement_id}/compare",
+  "name": "compare_measurement_endpoint",
+  "file": "backend/app/api/v1/measurements.py",
+  "line": 124,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "measurements:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "measurement_id"
+   ],
+   "query": [
+    "tolerance_db"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/map/features",
+  "name": "get_map_features",
+  "file": "backend/app/api/v1/map.py",
+  "line": 15,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "network:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "bbox",
+    "layers",
+    "zoom"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/attachments",
+  "name": "upload_attachment",
+  "file": "backend/app/api/v1/attachments.py",
+  "line": 38,
+  "async": true,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "attachments:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "entity_id",
+    "entity_type",
+    "caption",
+    "file"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/attachments",
+  "name": "list_attachments_endpoint",
+  "file": "backend/app/api/v1/attachments.py",
+  "line": 81,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "attachments:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "entity_type",
+    "entity_id"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/attachments/{attachment_id}",
+  "name": "get_attachment_metadata",
+  "file": "backend/app/api/v1/attachments.py",
+  "line": 122,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "attachments:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "attachment_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/attachments/{attachment_id}/download",
+  "name": "download_attachment",
+  "file": "backend/app/api/v1/attachments.py",
+  "line": 144,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "attachments:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "attachment_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/attachments/{attachment_id}/thumbnail",
+  "name": "get_attachment_thumbnail",
+  "file": "backend/app/api/v1/attachments.py",
+  "line": 173,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "attachments:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "attachment_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "DELETE"
+  ],
+  "path": "/api/v1/attachments/{attachment_id}",
+  "name": "delete_attachment",
+  "file": "backend/app/api/v1/attachments.py",
+  "line": 200,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "attachments:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "attachment_id"
+   ],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/attachments/reconcile-orphans",
+  "name": "reconcile_orphans_endpoint",
+  "file": "backend/app/api/v1/attachments.py",
+  "line": 239,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "perm",
+    "settings:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "dry_run"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/imports/preview",
+  "name": "preview_import",
+  "file": "backend/app/api/v1/imports_exports.py",
+  "line": 34,
+  "async": true,
+  "deps": [
+   [
+    "perm",
+    "imports:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "file"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/imports/{import_id}",
+  "name": "get_import_preview",
+  "file": "backend/app/api/v1/imports_exports.py",
+  "line": 57,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "imports:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "import_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/imports/{import_id}/commit",
+  "name": "commit_import",
+  "file": "backend/app/api/v1/imports_exports.py",
+  "line": 70,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "imports:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "import_id"
+   ],
+   "query": [],
+   "header": [
+    "idempotency_key"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/exports",
+  "name": "request_export",
+  "file": "backend/app/api/v1/imports_exports.py",
+  "line": 97,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "exports:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/exports/{export_id}",
+  "name": "get_export_status",
+  "file": "backend/app/api/v1/imports_exports.py",
+  "line": 116,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "exports:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "export_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/exports/{export_id}/download",
+  "name": "download_export",
+  "file": "backend/app/api/v1/imports_exports.py",
+  "line": 129,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "exports:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "export_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/jobs/{job_id}",
+  "name": "get_job",
+  "file": "backend/app/api/v1/imports_exports.py",
+  "line": 184,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "job_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "POST"
+  ],
+  "path": "/api/v1/jobs/{job_id}/cancel",
+  "name": "cancel_job",
+  "file": "backend/app/api/v1/imports_exports.py",
+  "line": 197,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "imports:write"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "validate_csrf"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [
+    "job_id"
+   ],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/dashboard/summary",
+  "name": "get_dashboard_summary",
+  "file": "backend/app/api/v1/reports.py",
+  "line": 29,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/search",
+  "name": "global_search",
+  "file": "backend/app/api/v1/reports.py",
+  "line": 39,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_optional_current_user"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "q",
+    "limit"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/reports/ctos",
+  "name": "list_cto_occupancy_report",
+  "file": "backend/app/api/v1/reports.py",
+  "line": 56,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "reports:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "site_id",
+    "min_occupancy_pct",
+    "max_occupancy_pct",
+    "status"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/reports/cables",
+  "name": "list_cable_capacity_report",
+  "file": "backend/app/api/v1/reports.py",
+  "line": 100,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "reports:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "status",
+    "min_usage_pct"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/reports/inconsistencies",
+  "name": "list_inconsistencies_report",
+  "file": "backend/app/api/v1/reports.py",
+  "line": 131,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "reports:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/audit-events",
+  "name": "list_audit_events",
+  "file": "backend/app/api/v1/reports.py",
+  "line": 156,
+  "async": false,
+  "deps": [
+   [
+    "perm",
+    "audit:read"
+   ],
+   [
+    "dep",
+    "get_current_user"
+   ],
+   [
+    "dep",
+    "get_current_session"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "PaginationParams"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "entity_type",
+    "entity_id",
+    "actor_id",
+    "action"
+   ],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/settings",
+  "name": "get_app_settings",
+  "file": "backend/app/api/v1/settings.py",
+  "line": 11,
+  "async": false,
+  "deps": [],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [],
+   "body": []
+  }
+ },
+ {
+  "methods": [
+   "PATCH"
+  ],
+  "path": "/api/v1/settings",
+  "name": "update_app_settings",
+  "file": "backend/app/api/v1/settings.py",
+  "line": 21,
+  "async": false,
+  "deps": [],
+  "params": {
+   "path": [],
+   "query": [],
+   "header": [
+    "if_match"
+   ],
+   "body": [
+    "payload"
+   ]
+  }
+ },
+ {
+  "methods": [
+   "GET"
+  ],
+  "path": "/api/v1/metrics",
+  "name": "get_metrics",
+  "file": "backend/app/api/v1/metrics.py",
+  "line": 48,
+  "async": false,
+  "deps": [
+   [
+    "dep",
+    "verify_metrics_access"
+   ],
+   [
+    "dep",
+    "get_optional_current_user"
+   ],
+   [
+    "dep",
+    "get_db"
+   ],
+   [
+    "dep",
+    "get_db"
+   ]
+  ],
+  "params": {
+   "path": [],
+   "query": [
+    "format"
+   ],
+   "header": [],
+   "body": []
+  }
+ }
+]
