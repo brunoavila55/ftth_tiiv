@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.permissions import has_permission
@@ -23,117 +23,92 @@ from app.schemas.reports import (
 )
 
 
+def _cto_occupancy_buckets(db: Session) -> CTOOccupancyBuckets:
+    """Distribui as CTOs ativas nas 4 faixas de ocupação com UMA consulta agregada (sem N+1).
+
+    Uma porta está ocupada se tem atendimento ativo, ou se seu terminal está
+    conectado/customer_connected/reservado, tem conexão ativa ou reserva ativa.
+    """
+    link_exists = (
+        select(ServiceLink.id)
+        .where(ServiceLink.port_id == Port.id, ServiceLink.status == "active")
+        .exists()
+    )
+    conn_exists = (
+        select(Connection.id)
+        .where(
+            Connection.is_active.is_(True),
+            or_(Connection.terminal_a_id == Terminal.id, Connection.terminal_b_id == Terminal.id),
+        )
+        .exists()
+    )
+    res_exists = (
+        select(TerminalReservation.id)
+        .where(
+            TerminalReservation.terminal_id == Terminal.id, TerminalReservation.is_active.is_(True)
+        )
+        .exists()
+    )
+    terminal_busy = (
+        select(Terminal.id)
+        .where(
+            Terminal.entity_type == "port",
+            Terminal.entity_id == Port.id,
+            or_(
+                Terminal.occupancy.in_(("connected", "customer_connected", "reserved")),
+                conn_exists,
+                res_exists,
+            ),
+        )
+        .exists()
+    )
+    per_cto = (
+        select(
+            func.count(Port.id).label("total"),
+            func.count(Port.id).filter(or_(link_exists, terminal_busy)).label("occupied"),
+        )
+        .select_from(Structure)
+        .outerjoin(Port, Port.structure_id == Structure.id)
+        .where(Structure.kind == "cto", Structure.status != "retired")
+        .group_by(Structure.id)
+        .subquery()
+    )
+    total, occupied = per_cto.c.total, per_cto.c.occupied
+    row = db.execute(
+        select(
+            func.count().filter(or_(total == 0, occupied == 0)).label("empty"),
+            # ocupação em (0, 50]: occupied/total*100 <= 50  <=>  2*occupied <= total
+            func.count().filter(and_(occupied > 0, occupied * 2 <= total)).label("low"),
+            func.count().filter(and_(occupied * 2 > total, occupied < total)).label("high"),
+            func.count().filter(and_(total > 0, occupied == total)).label("full"),
+        ).select_from(per_cto)
+    ).one()
+    return CTOOccupancyBuckets(
+        empty_0_pct=row.empty,
+        low_1_to_50_pct=row.low,
+        high_51_to_99_pct=row.high,
+        full_100_pct=row.full,
+    )
+
+
 def calculate_dashboard_summary(db: Session) -> DashboardSummaryResponse:
     """Calcula indicadores consolidados, buckets de ocupação de CTOs e alertas técnicos sem inventar dados."""
-    total_sites = db.scalar(select(func.count(Site.id)).where(Site.status != "retired")) or 0
-    total_structures = (
-        db.scalar(select(func.count(Structure.id)).where(Structure.status != "retired")) or 0
+    totals = db.execute(
+        select(
+            select(func.count(Site.id)).where(Site.status != "retired").scalar_subquery(),
+            select(func.count(Structure.id)).where(Structure.status != "retired").scalar_subquery(),
+            select(func.count(Cable.id)).where(Cable.status != "retired").scalar_subquery(),
+            select(func.count(Customer.id)).scalar_subquery(),
+            select(func.count(ServiceLink.id))
+            .where(ServiceLink.status == "active")
+            .scalar_subquery(),
+        )
+    ).one()
+    total_sites, total_structures, total_cables, total_customers, total_active_links = (
+        int(v or 0) for v in totals
     )
-    total_cables = db.scalar(select(func.count(Cable.id)).where(Cable.status != "retired")) or 0
-    total_customers = db.scalar(select(func.count(Customer.id))) or 0
-    total_active_links = (
-        db.scalar(select(func.count(ServiceLink.id)).where(ServiceLink.status == "active")) or 0
-    )
 
-    # Busca todas as CTOs não aposentadas
-    ctos = db.scalars(
-        select(Structure).where(Structure.kind == "cto", Structure.status != "retired")
-    ).all()
-
-    empty_0 = 0
-    low_1_to_50 = 0
-    high_51_to_99 = 0
-    full_100 = 0
-
-    for cto in ctos:
-        ports = db.scalars(select(Port).where(Port.structure_id == cto.id)).all()
-        total_p = len(ports)
-        if total_p == 0:
-            empty_0 += 1
-            continue
-
-        port_ids = [p.id for p in ports]
-        # Atendimentos ativos nessas portas
-        active_links = db.scalars(
-            select(ServiceLink.port_id).where(
-                ServiceLink.port_id.in_(port_ids),
-                ServiceLink.status == "active",
-            )
-        ).all()
-        active_link_port_ids = set(active_links)
-
-        # Terminais dessas portas
-        terminals = db.scalars(
-            select(Terminal).where(
-                Terminal.entity_id.in_(port_ids),
-                Terminal.entity_type == "port",
-            )
-        ).all()
-        term_ids = [t.id for t in terminals]
-        term_map = {t.entity_id: t for t in terminals if t.entity_id}
-
-        # Conexões ativas
-        active_conns = set()
-        if term_ids:
-            conns = db.scalars(
-                select(Connection).where(
-                    Connection.is_active.is_(True),
-                    or_(
-                        Connection.terminal_a_id.in_(term_ids),
-                        Connection.terminal_b_id.in_(term_ids),
-                    ),
-                )
-            ).all()
-            for c in conns:
-                if c.terminal_a_id in term_ids:
-                    active_conns.add(c.terminal_a_id)
-                if c.terminal_b_id in term_ids:
-                    active_conns.add(c.terminal_b_id)
-
-        # Reservas ativas
-        active_res = set()
-        if term_ids:
-            res_list = db.scalars(
-                select(TerminalReservation.terminal_id).where(
-                    TerminalReservation.terminal_id.in_(term_ids),
-                    TerminalReservation.is_active.is_(True),
-                )
-            ).all()
-            active_res = set(res_list)
-
-        occupied_count = 0
-        for p in ports:
-            term = term_map.get(p.id)
-            if (
-                p.id in active_link_port_ids
-                or (
-                    term
-                    and (
-                        term.id in active_conns
-                        or term.occupancy in ("connected", "customer_connected")
-                    )
-                )
-                or (term and (term.id in active_res or term.occupancy == "reserved"))
-            ):
-                occupied_count += 1
-
-        occupancy_pct = (occupied_count / total_p) * 100.0 if total_p > 0 else 0.0
-
-        if occupancy_pct == 0:
-            empty_0 += 1
-        elif 0 < occupancy_pct <= 50:
-            low_1_to_50 += 1
-        elif 50 < occupancy_pct < 100:
-            high_51_to_99 += 1
-        else:
-            full_100 += 1
-
-    ctos_occupancy = CTOOccupancyBuckets(
-        empty_0_pct=empty_0,
-        low_1_to_50_pct=low_1_to_50,
-        high_51_to_99_pct=high_51_to_99,
-        full_100_pct=full_100,
-    )
+    ctos_occupancy = _cto_occupancy_buckets(db)
 
     # Alertas de documentação incompleta
     alerts: list[str] = []

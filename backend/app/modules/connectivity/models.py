@@ -55,6 +55,7 @@ class Terminal(Base, VersionedModelMixin):
         ),
         Index("idx_terminals_kind_structure", "kind", "structure_id"),
         Index("idx_terminals_occupancy", "occupancy"),
+        Index("idx_terminals_entity", "entity_type", "entity_id"),
     )
 
 
