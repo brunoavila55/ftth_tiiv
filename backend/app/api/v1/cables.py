@@ -246,7 +246,13 @@ def preview_segment_split(
 def split_segment(
     segment_id: str,
     payload: SegmentSplitRequest,
+    if_match: str | None = Header(
+        default=None,
+        description="Versão do trecho (If-Match). Obrigatório se expected_topology_revision faltar.",
+    ),
     current_user: User = Depends(require_permission("network:write")),
     db: Session = Depends(get_db),
 ) -> Any:
-    return service.split_cable_segment(db=db, segment_id=segment_id, payload=payload)
+    return service.split_cable_segment(
+        db=db, segment_id=segment_id, payload=payload, if_match=if_match
+    )

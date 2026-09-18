@@ -149,6 +149,15 @@ class SegmentSplitRequest(BaseModel):
     segment_2_slack_m: float = Field(
         default=0.0, ge=0.0, description="Reserva técnica alocada para o segundo trecho em metros"
     )
+    expected_topology_revision: int | None = Field(
+        default=None,
+        ge=0,
+        le=2147483647,
+        description=(
+            "Revisão topológica que o cliente viu (padrão do editor de fusão). Divergência → 409. "
+            "A divisão exige este campo OU o cabeçalho If-Match com a versão do trecho."
+        ),
+    )
 
 
 class SegmentSplitPreviewResponse(BaseModel):

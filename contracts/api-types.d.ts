@@ -118,7 +118,7 @@ export interface paths {
         };
         /**
          * Consultar trilha de auditoria append-only
-         * @description Retorna histórico ordenado de mutações e ações de usuários no sistema. Campos pessoais de clientes (phone, email, address) são mascarados para quem não tem customers:read.
+         * @description Trilha append-only (imutável no banco) de TODAS as mutações da API — cadastros, cabos e segmentos, conexões, medições, anexos, importações/exportações, usuários — e de autenticação (login, falha de login, logout, troca de senha). Cada evento traz ator, request_id e o diff da alteração (nunca segredos). Campos pessoais de clientes (phone, email, address) são mascarados para quem não tem customers:read.
          */
         get: operations["api_v1_audit_events_list_audit_events"];
         put?: never;
@@ -3605,6 +3605,11 @@ export interface components {
              */
             cut_fiber_ids?: string[];
             /**
+             * Expected Topology Revision
+             * @description Revisão topológica que o cliente viu (padrão do editor de fusão). Divergência → 409. A divisão exige este campo OU o cabeçalho If-Match com a versão do trecho.
+             */
+            expected_topology_revision?: number | null;
+            /**
              * Segment 1 Slack M
              * @description Reserva técnica alocada para o primeiro trecho em metros
              * @default 0
@@ -4917,7 +4922,10 @@ export interface operations {
     api_v1_cable_segments_segment_id_split_split_segment: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Versão do trecho (If-Match). Obrigatório se expected_topology_revision faltar. */
+                "if-match"?: string | null;
+            };
             path: {
                 segment_id: string;
             };

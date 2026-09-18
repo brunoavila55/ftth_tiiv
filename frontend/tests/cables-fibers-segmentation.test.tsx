@@ -340,7 +340,9 @@ describe("Cabos, Tubos e Fibras (F09)", () => {
           "seg-1",
           expect.objectContaining({
             access_structure_id: expect.any(String),
-          })
+          }),
+          // versão do trecho vai em If-Match (concorrência otimista da divisão)
+          mockSegment.version
         );
       });
       expect(onSuccess).toHaveBeenCalled();

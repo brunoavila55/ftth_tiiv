@@ -6,11 +6,10 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import check_if_match
 from app.core.errors import (
     ConflictError,
     NotFoundError,
-    PreconditionFailedError,
-    PreconditionRequiredError,
     UnprocessableEntityError,
 )
 from app.modules.audit.service import record_audit_event
@@ -26,17 +25,6 @@ from app.schemas.customers import (
     ServiceLinkStatus,
     ServiceLinkUpdate,
 )
-
-
-def _validate_if_match(if_match: str | None, current_version: int) -> None:
-    if not if_match or not if_match.strip():
-        raise PreconditionRequiredError()
-    try:
-        expected = int(if_match.strip('"'))
-    except ValueError:
-        raise PreconditionFailedError() from None
-    if current_version != expected:
-        raise PreconditionFailedError()
 
 
 def customer_to_customer_read(customer: Customer) -> CustomerRead:
@@ -157,7 +145,7 @@ def update_customer(
     if not customer:
         raise NotFoundError(f"Cliente {customer_id} não existe.")
 
-    _validate_if_match(if_match, customer.version)
+    check_if_match(if_match, customer.version)
 
     changes: dict[str, str | None] = {}
     if payload.name is not None:
@@ -205,7 +193,7 @@ def delete_customer(
     if not customer:
         raise NotFoundError(f"Cliente {customer_id} não existe.")
 
-    _validate_if_match(if_match, customer.version)
+    check_if_match(if_match, customer.version)
 
     # Verifica se há service_links vinculados ao cliente
     active_links = (
@@ -380,7 +368,7 @@ def update_service_link(
     if not link:
         raise NotFoundError(f"Atendimento {link_id} não existe.")
 
-    _validate_if_match(if_match, link.version)
+    check_if_match(if_match, link.version)
 
     changes: dict[str, str | None] = {}
     if payload.status is not None and payload.status.value != link.status:
@@ -422,7 +410,7 @@ def deactivate_service_link(
     if not link:
         raise NotFoundError(f"Atendimento {link_id} não existe.")
 
-    _validate_if_match(if_match, link.version)
+    check_if_match(if_match, link.version)
 
     now = datetime.now(UTC)
     link.status = "deactivated"

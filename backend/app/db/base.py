@@ -1,9 +1,10 @@
 import uuid
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import DateTime, Integer
 from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
+from sqlalchemy.orm import DeclarativeBase, Mapped, declared_attr, mapped_column
 
 
 class Base(DeclarativeBase):
@@ -42,3 +43,10 @@ class VersionedModelMixin(TimestampMixin):
         nullable=False,
         doc="Versão monotônica incremental para controle de concorrência otimista (If-Match)",
     )
+
+    @declared_attr.directive
+    def __mapper_args__(cls) -> dict[str, Any]:
+        # UPDATE/DELETE viram `... WHERE id = :id AND version = :versão_lida` (StaleDataError se
+        # outra transação gravou antes). O incremento continua sendo feito pelo serviço
+        # (`obj.version += 1`), por isso o gerador automático fica desligado.
+        return {"version_id_col": cls.version, "version_id_generator": False}

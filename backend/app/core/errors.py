@@ -2,6 +2,7 @@ from fastapi import FastAPI, HTTPException, Request, status
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field
+from sqlalchemy.orm.exc import StaleDataError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.logging import get_logger, request_id_ctx
@@ -304,9 +305,22 @@ HTTP_STATUS_TITLES: dict[int, str] = {
 }
 
 
+async def stale_data_exception_handler(request: Request, exc: StaleDataError) -> JSONResponse:
+    """Gravação com versão defasada (outra transação venceu): 412, nunca 500."""
+    return _build_problem_response(
+        status_code=status.HTTP_412_PRECONDITION_FAILED,
+        code="precondition_failed",
+        title="Precondição falhou",
+        detail=(
+            "O recurso foi alterado por outra operação. Recarregue os dados e tente novamente."
+        ),
+    )
+
+
 def register_exception_handlers(app: FastAPI) -> None:
     app.add_exception_handler(AppException, app_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(RequestValidationError, validation_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(StarletteHTTPException, http_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(HTTPException, http_exception_handler)  # type: ignore[arg-type]
+    app.add_exception_handler(StaleDataError, stale_data_exception_handler)  # type: ignore[arg-type]
     app.add_exception_handler(Exception, unhandled_exception_handler)

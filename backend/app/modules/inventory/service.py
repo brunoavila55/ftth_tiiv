@@ -5,11 +5,10 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import check_if_match
 from app.core.errors import (
     ConflictError,
     NotFoundError,
-    PreconditionFailedError,
-    PreconditionRequiredError,
     UnprocessableEntityError,
 )
 from app.modules.gis.helpers import point_geometry_to_wkb, wkb_to_point_geometry
@@ -33,18 +32,6 @@ from app.schemas.inventory import (
     StructureRead,
     StructureUpdate,
 )
-
-
-def _validate_if_match(if_match: str | None, current_version: int) -> None:
-    if not if_match or not if_match.strip():
-        raise PreconditionRequiredError()
-    try:
-        expected = int(if_match.strip('"'))
-    except ValueError:
-        raise PreconditionFailedError() from None
-    if current_version != expected:
-        raise PreconditionFailedError()
-
 
 # ==============================================================================
 # SITES (POPs / Locais Técnicos)
@@ -142,7 +129,7 @@ def update_site(
     if_match: str | None,
 ) -> Site:
     site = get_site_by_id(session, site_id)
-    _validate_if_match(if_match, site.version)
+    check_if_match(if_match, site.version)
 
     if payload.name is not None:
         site.name = payload.name.strip()
@@ -166,7 +153,7 @@ def update_site(
 
 def delete_site(session: Session, site_id: str, if_match: str | None) -> None:
     site = get_site_by_id(session, site_id)
-    _validate_if_match(if_match, site.version)
+    check_if_match(if_match, site.version)
 
     # Verifica integridade referencial antes de excluir
     has_structures = (
@@ -300,7 +287,7 @@ def update_structure(
     if_match: str | None,
 ) -> Structure:
     structure = get_structure_by_id(session, structure_id)
-    _validate_if_match(if_match, structure.version)
+    check_if_match(if_match, structure.version)
 
     if payload.location is not None:
         structure.location = point_geometry_to_wkb(payload.location)
@@ -330,7 +317,7 @@ def update_structure(
 
 def delete_structure(session: Session, structure_id: str, if_match: str | None) -> None:
     structure = get_structure_by_id(session, structure_id)
-    _validate_if_match(if_match, structure.version)
+    check_if_match(if_match, structure.version)
 
     has_devices = (
         session.scalar(select(func.count(Device.id)).where(Device.structure_id == structure.id))
@@ -492,7 +479,7 @@ def update_device(
     if_match: str | None,
 ) -> Device:
     device = get_device_by_id(session, device_id)
-    _validate_if_match(if_match, device.version)
+    check_if_match(if_match, device.version)
 
     if payload.manufacturer is not None:
         device.manufacturer = payload.manufacturer.strip()
@@ -567,7 +554,7 @@ def update_device(
 
 def delete_device(session: Session, device_id: str, if_match: str | None) -> None:
     device = get_device_by_id(session, device_id)
-    _validate_if_match(if_match, device.version)
+    check_if_match(if_match, device.version)
 
     has_ports = session.scalar(select(func.count(Port.id)).where(Port.device_id == device.id)) or 0
     if has_ports > 0:
@@ -733,7 +720,7 @@ def update_port(
     if_match: str | None,
 ) -> Port:
     port = get_port_by_id(session, port_id)
-    _validate_if_match(if_match, port.version)
+    check_if_match(if_match, port.version)
 
     if payload.name is not None:
         clean_name = payload.name.strip()
@@ -782,7 +769,7 @@ def update_port(
 
 def delete_port(session: Session, port_id: str, if_match: str | None) -> None:
     port = get_port_by_id(session, port_id)
-    _validate_if_match(if_match, port.version)
+    check_if_match(if_match, port.version)
 
     try:
         session.delete(port)

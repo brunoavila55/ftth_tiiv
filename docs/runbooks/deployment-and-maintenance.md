@@ -235,3 +235,10 @@ O mapa operacional do FTTH Manager utiliza MapLibre GL JS e requer acesso a um s
 - **Idempotência**: `POST /imports/{id}/commit` insere o job com `INSERT … ON CONFLICT (idempotency_key)`; a chave (até 128 caracteres) é escopada por usuário. Mesma chave + mesma prévia devolve o mesmo job; mesma chave com outra prévia, ou a mesma prévia com outra chave, responde `409`.
 - **Lease**: `JOB_LEASE_SECONDS` (60) é renovada a cada lease/3 por uma thread de heartbeat enquanto o job roda (o heartbeat do worker no healthcheck também). Antes de gravar o resultado o worker trava a linha do job e confere que ainda é o dono; se perdeu a lease, descarta tudo (inclusive entidades importadas) e o outro worker prevalece.
 - **Storage**: importações/exportações ficam em `STORAGE_PATH/imports|exports` e os caminhos são gravados **relativos** a essa raiz. Registros antigos (caminho absoluto ou relativo ao diretório de trabalho, ex.: `storage/exports/…`) continuam sendo resolvidos sem migração de dados.
+
+---
+
+## 14. Concorrência otimista
+
+- **If-Match atômico**: toda entidade versionada usa `version_id_col`: o `UPDATE`/`DELETE` é `… WHERE id = :id AND version = :versão_lida`. Duas requisições com o mesmo `If-Match` resultam em exatamente um `200` e um `412`; qualquer gravação defasada em outro fluxo também vira `412` (nunca `500`). A validação do cabeçalho é única (`app/core/concurrency.py`).
+- **Divisão de trecho** (`POST /cable-segments/{id}/split`): exige `If-Match` (versão do trecho) **ou** `expected_topology_revision` no corpo (padrão do editor de fusão); a linha de estado da topologia e o trecho são travados (`FOR UPDATE`). Sem nenhum dos dois: `428`; revisão divergente: `409`; versão defasada: `412`; divisões simultâneas do mesmo trecho: só uma vence.

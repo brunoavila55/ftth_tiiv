@@ -6,11 +6,10 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import check_if_match
 from app.core.errors import (
     ConflictError,
     NotFoundError,
-    PreconditionFailedError,
-    PreconditionRequiredError,
     TopologyRevisionConflictError,
     UnprocessableEntityError,
     ValidationErrorItem,
@@ -38,17 +37,6 @@ from app.schemas.connectivity import (
     TerminalRead,
     TerminalReservationRead,
 )
-
-
-def _validate_if_match(if_match: str | None, current_version: int) -> None:
-    if not if_match or not if_match.strip():
-        raise PreconditionRequiredError()
-    try:
-        expected = int(if_match.strip('"'))
-    except ValueError:
-        raise PreconditionFailedError() from None
-    if current_version != expected:
-        raise PreconditionFailedError()
 
 
 def terminal_to_read(t: Terminal) -> TerminalRead:
@@ -363,7 +351,7 @@ def deactivate_connection(
             detail="Conexão óptica não encontrada ou já inativa.",
         )
 
-    _validate_if_match(if_match, conn.version)
+    check_if_match(if_match, conn.version)
 
     sorted_ids = sorted([conn.terminal_a_id, conn.terminal_b_id])
     locked_terms = {

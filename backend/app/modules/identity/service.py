@@ -5,11 +5,11 @@ from typing import Any, cast
 from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import check_if_match
 from app.core.errors import (
     AppException,
     ConflictError,
     NotFoundError,
-    PreconditionFailedError,
     PreconditionRequiredError,
     UnauthorizedError,
 )
@@ -330,13 +330,7 @@ def update_user_by_admin(
     if not user:
         raise NotFoundError("Usuário não encontrado.", code="user_not_found")
 
-    try:
-        expected_version = int(if_match.strip('"'))
-    except ValueError:
-        raise PreconditionFailedError() from None
-
-    if user.version != expected_version:
-        raise PreconditionFailedError()
+    check_if_match(if_match, user.version)
 
     # Proteção do último administrador ativo
     if user.role == UserRole.ADMIN.value:

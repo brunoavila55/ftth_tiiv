@@ -376,17 +376,18 @@ def test_long_job_keeps_its_lease_and_runs_once_with_two_workers(
             time.sleep(0.15)
 
     rival = threading.Thread(target=rival_worker)
-    rival.start()
     try:
         with get_session_factory()() as db1:
             claimed = claim_next_job(
                 db1, "worker-A", lease_seconds=get_settings().JOB_LEASE_SECONDS
             )
             assert claimed is not None
+            rival.start()  # o 2º worker só tenta DEPOIS do worker A ter reivindicado o job
             assert jobs_service.process_claimed_job(db1, claimed, worker_id="worker-A") is True
     finally:
         stop.set()
-        rival.join()
+        if rival.is_alive():
+            rival.join()
 
     assert runs == [str(job.id)], "o job deveria executar uma única vez"
     assert all(c is None for c in claims), (

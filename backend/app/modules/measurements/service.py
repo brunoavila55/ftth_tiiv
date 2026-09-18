@@ -5,10 +5,9 @@ from typing import Any
 from sqlalchemy import desc, func, select
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import check_if_match
 from app.core.errors import (
     NotFoundError,
-    PreconditionFailedError,
-    PreconditionRequiredError,
     UnprocessableEntityError,
 )
 from app.modules.connectivity.models import Terminal
@@ -24,19 +23,6 @@ from app.schemas.measurements import (
 )
 from app.schemas.optical import BudgetCalculationRequest
 from app.schemas.topology import TraceDirection
-
-
-def _validate_if_match(if_match: str | None, current_version: int) -> None:
-    if not if_match:
-        raise PreconditionRequiredError(
-            "O cabeçalho If-Match com a versão do registro é obrigatório para esta operação."
-        )
-    try:
-        expected = int(if_match.strip('"'))
-    except ValueError:
-        raise PreconditionFailedError() from None
-    if current_version != expected:
-        raise PreconditionFailedError()
 
 
 def measurement_to_read(m: OpticalMeasurement) -> MeasurementRead:
@@ -198,7 +184,7 @@ def update_measurement(
     if_match: str | None,
 ) -> OpticalMeasurement:
     measurement = get_measurement_by_id(session, measurement_id)
-    _validate_if_match(if_match, measurement.version)
+    check_if_match(if_match, measurement.version)
 
     # Edição não altera leituras físicas ou terminal histórico; apenas anotações
     if payload.notes is not None:
@@ -217,7 +203,7 @@ def delete_measurement(
     if_match: str | None,
 ) -> None:
     measurement = get_measurement_by_id(session, measurement_id)
-    _validate_if_match(if_match, measurement.version)
+    check_if_match(if_match, measurement.version)
 
     session.delete(measurement)
     session.commit()

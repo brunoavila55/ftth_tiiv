@@ -324,6 +324,7 @@ def test_every_mutating_route_writes_exactly_one_audit_event(
             "segment_1_slack_m": 5.0,
             "segment_2_slack_m": 5.0,
         },
+        headers={"If-Match": '"2"'},  # divisão exige If-Match: versão do trecho após o PATCH
     ).json()
     assert tracker.last_event.action == "cable_segment:split"
     tracker.call(

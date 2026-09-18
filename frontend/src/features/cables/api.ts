@@ -188,6 +188,8 @@ export interface SegmentSplitRequest {
   cut_fiber_ids?: string[];
   segment_1_slack_m?: number;
   segment_2_slack_m?: number;
+  /** Revisão topológica vista pelo cliente (divergência → 409). Alternativa ao If-Match. */
+  expected_topology_revision?: number;
 }
 
 export interface SegmentSplitPreviewResponse {
@@ -221,9 +223,18 @@ export async function previewSegmentSplit(
   );
 }
 
+/**
+ * Divide o trecho. A API exige concorrência otimista: enviamos a versão do trecho em If-Match
+ * (412 se outro operador alterou o trecho; a divisão concorrente do mesmo trecho falha com 409/412/404).
+ */
 export async function splitSegment(
   segmentId: string,
-  payload: SegmentSplitRequest
+  payload: SegmentSplitRequest,
+  version: number
 ): Promise<SegmentSplitResponse> {
-  return api.post<SegmentSplitResponse>(`/cable-segments/${segmentId}/split`, payload);
+  return api.post<SegmentSplitResponse>(`/cable-segments/${segmentId}/split`, payload, {
+    headers: {
+      "If-Match": `"${version}"`,
+    },
+  });
 }

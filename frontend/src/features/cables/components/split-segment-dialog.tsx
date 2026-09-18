@@ -115,12 +115,16 @@ export function SplitSegmentDialog({
     setErrorMessage(null);
 
     try {
-      await splitSegment(segment.id, {
-        access_structure_id: selectedStructureId,
-        cut_fiber_ids: cutFiberNumbers.map((n) => String(n)),
-        segment_1_slack_m: Number(segment1Slack) || 0,
-        segment_2_slack_m: Number(segment2Slack) || 0,
-      });
+      await splitSegment(
+        segment.id,
+        {
+          access_structure_id: selectedStructureId,
+          cut_fiber_ids: cutFiberNumbers.map((n) => String(n)),
+          segment_1_slack_m: Number(segment1Slack) || 0,
+          segment_2_slack_m: Number(segment2Slack) || 0,
+        },
+        segment.version
+      );
       onSuccess();
       onOpenChange(false);
     } catch (err: unknown) {

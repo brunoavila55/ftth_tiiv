@@ -4777,6 +4777,20 @@
             "title": "Cut Fiber Ids",
             "type": "array"
           },
+          "expected_topology_revision": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Revisão topológica que o cliente viu (padrão do editor de fusão). Divergência → 409. A divisão exige este campo OU o cabeçalho If-Match com a versão do trecho.",
+            "title": "Expected Topology Revision"
+          },
           "segment_1_slack_m": {
             "default": 0.0,
             "description": "Reserva técnica alocada para o primeiro trecho em metros",
@@ -7420,6 +7434,24 @@
             "schema": {
               "title": "Segment Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Versão do trecho (If-Match). Obrigatório se expected_topology_revision faltar.",
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão do trecho (If-Match). Obrigatório se expected_topology_revision faltar.",
+              "title": "If-Match"
             }
           }
         ],

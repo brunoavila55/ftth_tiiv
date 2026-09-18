@@ -1,15 +1,16 @@
 import math
 import uuid
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session, selectinload
 
+from app.core.concurrency import check_if_match
 from app.core.config import get_settings
 from app.core.errors import (
     ConflictError,
     NotFoundError,
-    PreconditionFailedError,
     PreconditionRequiredError,
+    TopologyRevisionConflictError,
     UnprocessableEntityError,
 )
 from app.modules.cables.models import Cable, CableSegment, Fiber, FiberSegment, Tube
@@ -23,7 +24,11 @@ from app.modules.gis.helpers import (
     wkb_to_linestring_geometry,
     wkb_to_point_geometry,
 )
-from app.modules.gis.service import bump_topology_revision, calculate_postgis_length_m
+from app.modules.gis.service import (
+    bump_topology_revision,
+    calculate_postgis_length_m,
+    get_topology_revision,
+)
 from app.modules.inventory.catalogs import get_color_standard
 from app.modules.inventory.models import Structure
 from app.schemas.cables import (
@@ -42,26 +47,6 @@ from app.schemas.cables import (
     TubeRead,
 )
 from app.schemas.common import AdministrativeStatus, OccupancyStatus
-
-
-def _check_optimistic_lock(current_version: int, if_match: str | None) -> None:
-    """Valida precondição de concorrência otimista (If-Match) conforme RFC 7232."""
-    if not if_match:
-        raise PreconditionRequiredError(
-            "Cabeçalho If-Match é obrigatório para operações de modificação."
-        )
-    clean_match = if_match.strip().strip('"').strip("'")
-    try:
-        expected_version = int(clean_match)
-    except ValueError as err:
-        raise PreconditionFailedError(
-            f"Valor de If-Match inválido: '{if_match}'. Esperado um número inteiro de versão."
-        ) from err
-
-    if current_version != expected_version:
-        raise PreconditionFailedError(
-            f"Conflito de versão concorrente: a versão atual é {current_version}, mas If-Match forneceu {expected_version}."
-        )
 
 
 def create_cable(db: Session, payload: CableCreate, commit: bool = True) -> Cable:
@@ -198,7 +183,7 @@ def update_cable(
 ) -> Cable:
     """Atualiza metadados do cabo óptico com concorrência otimista."""
     cable = get_cable_by_id(db, cable_id)
-    _check_optimistic_lock(cable.version, if_match)
+    check_if_match(if_match, cable.version)
 
     if payload.status is not None:
         cable.status = payload.status.value
@@ -214,7 +199,7 @@ def update_cable(
 def delete_cable(db: Session, cable_id: str, if_match: str | None) -> None:
     """Desativa ou remove um cabo óptico garantindo integridade referencial."""
     cable = get_cable_by_id(db, cable_id)
-    _check_optimistic_lock(cable.version, if_match)
+    check_if_match(if_match, cable.version)
 
     has_segments = db.execute(
         select(CableSegment.id).where(CableSegment.cable_id == cable.id).limit(1)
@@ -430,7 +415,7 @@ def update_cable_segment(
 ) -> CableSegment:
     """Atualiza a geometria ou comprimentos de um trecho de cabo com controle de concorrência."""
     segment = get_cable_segment_by_id(db, segment_id)
-    _check_optimistic_lock(segment.version, if_match)
+    check_if_match(if_match, segment.version)
 
     affects_calculation = False
 
@@ -485,7 +470,7 @@ def update_cable_segment(
 def delete_cable_segment(db: Session, segment_id: str, if_match: str | None) -> None:
     """Desativa um trecho de cabo óptico."""
     segment = get_cable_segment_by_id(db, segment_id)
-    _check_optimistic_lock(segment.version, if_match)
+    check_if_match(if_match, segment.version)
 
     # Verifica se há conexões ativas nos terminais das fibras deste trecho
     stmt = (
@@ -585,6 +570,7 @@ def split_cable_segment(
     db: Session,
     segment_id: str,
     payload: SegmentSplitRequest,
+    if_match: str | None = None,
 ) -> SegmentSplitResponse:
     """Executa a divisão atômica de um segmento em local de acesso intermediário.
 
@@ -595,8 +581,47 @@ def split_cable_segment(
     - Para fibras cortadas: cria novas extremidades livres para emenda explícita na caixa.
     - Não duplica comprimentos nem reservas técnicas.
     - Toda a operação ocorre em uma única transação atômica (falha reverte tudo).
+
+    Concorrência (EST-04): exige If-Match (versão do trecho) OU expected_topology_revision; a
+    linha de estado da topologia e o trecho são travados (FOR UPDATE), então duas divisões do mesmo
+    trecho nunca correm juntas — a segunda recebe 409/412/404 e nada é duplicado.
     """
-    segment = get_cable_segment_by_id(db, segment_id)
+    if payload.expected_topology_revision is None and (if_match is None or not if_match.strip()):
+        raise PreconditionRequiredError(
+            "Informe If-Match (versão do trecho) ou expected_topology_revision para dividir o trecho."
+        )
+    try:
+        segment_uuid = uuid.UUID(segment_id)
+    except ValueError as err:
+        raise NotFoundError(f"Trecho de cabo com ID '{segment_id}' não encontrado.") from err
+
+    # Serializa mutações de topologia: quem chega depois espera o commit de quem já está dividindo.
+    # (SELECT ... FOR UPDATE devolve a revisão ATUAL após a espera; o objeto ORM cacheado ficaria velho.)
+    get_topology_revision(db)  # garante que a linha de estado existe
+    current_revision = int(
+        db.execute(
+            text("SELECT topology_revision FROM network_topology_state WHERE id = 1 FOR UPDATE")
+        ).scalar_one()
+    )
+    if (
+        payload.expected_topology_revision is not None
+        and payload.expected_topology_revision != current_revision
+    ):
+        raise TopologyRevisionConflictError(
+            detail=(
+                f"A revisão topológica esperada ({payload.expected_topology_revision}) diverge da "
+                f"revisão atual ({current_revision}). Recarregue a topologia antes de dividir."
+            )
+        )
+
+    segment = db.execute(
+        select(CableSegment).where(CableSegment.id == segment_uuid).with_for_update()
+    ).scalar_one_or_none()
+    if segment is None:
+        raise NotFoundError(f"Trecho de cabo com ID '{segment_id}' não encontrado.")
+    if if_match is not None and if_match.strip():
+        check_if_match(if_match, segment.version)
+
     try:
         access_uuid = uuid.UUID(payload.access_structure_id)
     except ValueError as err:
@@ -667,6 +692,7 @@ def split_cable_segment(
             select(FiberSegment)
             .where(FiberSegment.cable_segment_id == segment.id)
             .order_by(FiberSegment.fiber_number)
+            .with_for_update()
         )
         .scalars()
         .all()

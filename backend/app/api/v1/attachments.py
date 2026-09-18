@@ -15,6 +15,7 @@ from fastapi import (
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import parse_if_match
 from app.core.config import get_settings
 from app.core.dependencies import require_permission, validate_csrf
 from app.core.privacy import require_customer_access, user_can
@@ -238,13 +239,7 @@ def delete_attachment(
             detail=f"attachment_id inválido: '{attachment_id}'",
         ) from err
 
-    try:
-        expected_version = int(if_match.strip('"').strip())
-    except ValueError as err:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Header If-Match inválido: '{if_match}'. Deve ser um número inteiro.",
-        ) from err
+    expected_version = parse_if_match(if_match)
 
     existing = get_attachment_by_id(db, att_uuid)
     require_customer_access(current_user, existing.entity_type, write=True)
