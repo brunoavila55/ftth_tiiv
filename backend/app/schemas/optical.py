@@ -61,7 +61,12 @@ class OpticalProfileRead(BaseModel):
 
 
 class BudgetCalculationRequest(BaseModel):
-    service_link_id: str = Field(..., description="UUID do atendimento de cliente a orçar")
+    service_link_id: str | None = Field(
+        default=None, description="UUID do atendimento de cliente a orçar"
+    )
+    start_terminal_id: str | None = Field(
+        default=None, description="UUID do terminal óptico alternativo para orçar"
+    )
     direction: TraceDirection = Field(
         default=TraceDirection.DOWNSTREAM,
         description="Direção do orçamento óptico: downstream (OLT->ONU) ou upstream (ONU->OLT)",

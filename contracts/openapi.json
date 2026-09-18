@@ -155,6 +155,30 @@
       },
       "AttachmentRead": {
         "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Legenda ou anotação do anexo",
+            "title": "Caption"
+          },
+          "checksum_sha256": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Hash SHA-256 do arquivo",
+            "title": "Checksum Sha256"
+          },
           "created_at": {
             "format": "date-time",
             "title": "Created At",
@@ -166,7 +190,7 @@
             "type": "string"
           },
           "entity_id": {
-            "description": "UUID da entidade proprietária (site, structure, device, customer)",
+            "description": "UUID da entidade proprietária (site, structure, device, customer, etc.)",
             "title": "Entity Id",
             "type": "string"
           },
@@ -208,7 +232,20 @@
             "description": "URL da miniatura otimizada se o arquivo for imagem suportada",
             "title": "Thumbnail Url"
           },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "UUID do usuário autor do upload",
+            "title": "User Id"
+          },
           "version": {
+            "description": "Versão do registro para concorrência otimista",
             "title": "Version",
             "type": "integer"
           }
@@ -227,6 +264,42 @@
         "title": "AttachmentRead",
         "type": "object"
       },
+      "AttachmentReconciliationResponse": {
+        "properties": {
+          "missing_disk_files": {
+            "description": "Registros no banco cujos arquivos físicos estão ausentes",
+            "items": {
+              "type": "string"
+            },
+            "title": "Missing Disk Files",
+            "type": "array"
+          },
+          "orphans_removed": {
+            "description": "Arquivos órfãos sem registro que foram excluídos",
+            "items": {
+              "type": "string"
+            },
+            "title": "Orphans Removed",
+            "type": "array"
+          },
+          "total_db_records": {
+            "description": "Total de registros no banco de dados",
+            "title": "Total Db Records",
+            "type": "integer"
+          },
+          "total_disk_files": {
+            "description": "Total de arquivos encontrados em disco",
+            "title": "Total Disk Files",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "total_disk_files",
+          "total_db_records"
+        ],
+        "title": "AttachmentReconciliationResponse",
+        "type": "object"
+      },
       "AuditEventRead": {
         "properties": {
           "action": {
@@ -235,8 +308,15 @@
             "type": "string"
           },
           "actor_id": {
-            "title": "Actor Id",
-            "type": "string"
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor Id"
           },
           "actor_name": {
             "title": "Actor Name",
@@ -290,7 +370,6 @@
         },
         "required": [
           "id",
-          "actor_id",
           "actor_name",
           "action",
           "entity_type",
@@ -379,13 +458,25 @@
       },
       "Body_api_v1_attachments_upload_attachment": {
         "properties": {
+          "caption": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Legenda opcional ou anotação do anexo",
+            "title": "Caption"
+          },
           "entity_id": {
             "description": "UUID da entidade associada (ex: estrutura, site, cliente)",
             "title": "Entity Id",
             "type": "string"
           },
           "entity_type": {
-            "description": "Tipo da entidade (structure, site, customer, device)",
+            "description": "Tipo da entidade (structure, site, customer, device, etc.)",
             "title": "Entity Type",
             "type": "string"
           },
@@ -457,14 +548,30 @@
             "title": "Profile Id"
           },
           "service_link_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "UUID do atendimento de cliente a orçar",
-            "title": "Service Link Id",
-            "type": "string"
+            "title": "Service Link Id"
+          },
+          "start_terminal_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "UUID do terminal óptico alternativo para orçar",
+            "title": "Start Terminal Id"
           }
         },
-        "required": [
-          "service_link_id"
-        ],
         "title": "BudgetCalculationRequest",
         "type": "object"
       },
@@ -2273,6 +2380,54 @@
         "title": "ImportPreviewResponse",
         "type": "object"
       },
+      "InternalEdgeRead": {
+        "properties": {
+          "edge_type": {
+            "title": "Edge Type",
+            "type": "string"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_bidirectional": {
+            "title": "Is Bidirectional",
+            "type": "boolean"
+          },
+          "loss_db": {
+            "title": "Loss Db",
+            "type": "number"
+          },
+          "terminal_a_id": {
+            "title": "Terminal A Id",
+            "type": "string"
+          },
+          "terminal_b_id": {
+            "title": "Terminal B Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "terminal_a_id",
+          "terminal_b_id",
+          "edge_type",
+          "entity_type",
+          "entity_id",
+          "loss_db",
+          "is_bidirectional"
+        ],
+        "title": "InternalEdgeRead",
+        "type": "object"
+      },
       "JobRead": {
         "properties": {
           "created_at": {
@@ -2604,9 +2759,34 @@
             "$ref": "#/components/schemas/TraceDirection"
           },
           "excess_loss_db": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Perda excedente (previsto - medido). Valor positivo indica atenuação além da documentada em dB",
-            "title": "Excess Loss Db",
-            "type": "number"
+            "title": "Excess Loss Db"
+          },
+          "incompatibility_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Motivo da incompatibilidade (ex: comprimento de onda divergente, receptor sem rota contínua)",
+            "title": "Incompatibility Reason"
+          },
+          "is_compatible": {
+            "default": true,
+            "description": "Indica se a medição e a previsão são compatíveis em comprimento de onda, direção e receptor",
+            "title": "Is Compatible",
+            "type": "boolean"
           },
           "is_within_tolerance": {
             "description": "Indica se a medição de campo está dentro da margem de aceitação da engenharia",
@@ -2623,15 +2803,34 @@
             "type": "string"
           },
           "predicted_power_dbm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
             "description": "Potência teórica prevista pelo orçamento óptico em dBm",
-            "title": "Predicted Power Dbm",
-            "type": "number"
+            "title": "Predicted Power Dbm"
           },
           "tolerance_db": {
             "default": 2.0,
             "description": "Tolerância de desvio configurada em dB",
             "title": "Tolerance Db",
             "type": "number"
+          },
+          "topology_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Revisão topológica no momento do cálculo",
+            "title": "Topology Revision"
           },
           "wavelength_nm": {
             "title": "Wavelength Nm",
@@ -2641,8 +2840,6 @@
         "required": [
           "measurement_id",
           "measured_power_dbm",
-          "predicted_power_dbm",
-          "excess_loss_db",
           "wavelength_nm",
           "direction",
           "is_within_tolerance"
@@ -2693,6 +2890,11 @@
             ],
             "title": "Notes"
           },
+          "origin": {
+            "$ref": "#/components/schemas/MeasurementOrigin",
+            "default": "manual_entry",
+            "description": "Origem da medição: manual_entry, field_power_meter ou otdr"
+          },
           "power_dbm": {
             "description": "Potência óptica medida em dBm (ex: -21.50 dBm)",
             "title": "Power Dbm",
@@ -2731,6 +2933,15 @@
         "title": "MeasurementCreate",
         "type": "object"
       },
+      "MeasurementOrigin": {
+        "enum": [
+          "field_power_meter",
+          "otdr",
+          "manual_entry"
+        ],
+        "title": "MeasurementOrigin",
+        "type": "string"
+      },
       "MeasurementRead": {
         "properties": {
           "created_at": {
@@ -2740,6 +2951,17 @@
           },
           "direction": {
             "$ref": "#/components/schemas/TraceDirection"
+          },
+          "excess_loss_db": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Excess Loss Db"
           },
           "id": {
             "title": "Id",
@@ -2772,9 +2994,24 @@
             ],
             "title": "Notes"
           },
+          "origin": {
+            "$ref": "#/components/schemas/MeasurementOrigin",
+            "default": "manual_entry"
+          },
           "power_dbm": {
             "title": "Power Dbm",
             "type": "number"
+          },
+          "predicted_power_dbm": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Predicted Power Dbm"
           },
           "service_link_id": {
             "anyOf": [
@@ -2791,10 +3028,32 @@
             "title": "Terminal Id",
             "type": "string"
           },
+          "topology_revision": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Topology Revision"
+          },
           "updated_at": {
             "format": "date-time",
             "title": "Updated At",
             "type": "string"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id"
           },
           "version": {
             "title": "Version",
@@ -3139,6 +3398,45 @@
           "delta_predicted_rx_dbm"
         ],
         "title": "OpticalSimulationResponse",
+        "type": "object"
+      },
+      "PaginatedResponse_AttachmentRead_": {
+        "properties": {
+          "items": {
+            "description": "Lista de itens da página atual",
+            "items": {
+              "$ref": "#/components/schemas/AttachmentRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "description": "Página retornada",
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "description": "Tamanho de página aplicado",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total global de registros correspondentes",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PaginatedResponse[AttachmentRead]",
         "type": "object"
       },
       "PaginatedResponse_AuditEventRead_": {
@@ -4904,6 +5202,56 @@
         "title": "SplitterUpdate",
         "type": "object"
       },
+      "StructureConnectivityResponse": {
+        "properties": {
+          "connections": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectionRead"
+            },
+            "title": "Connections",
+            "type": "array"
+          },
+          "internal_edges": {
+            "items": {
+              "$ref": "#/components/schemas/InternalEdgeRead"
+            },
+            "title": "Internal Edges",
+            "type": "array"
+          },
+          "reservations": {
+            "items": {
+              "$ref": "#/components/schemas/TerminalReservationRead"
+            },
+            "title": "Reservations",
+            "type": "array"
+          },
+          "structure_id": {
+            "title": "Structure Id",
+            "type": "string"
+          },
+          "terminals": {
+            "items": {
+              "$ref": "#/components/schemas/TerminalRead"
+            },
+            "title": "Terminals",
+            "type": "array"
+          },
+          "topology_revision": {
+            "title": "Topology Revision",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "structure_id",
+          "topology_revision",
+          "terminals",
+          "connections",
+          "reservations",
+          "internal_edges"
+        ],
+        "title": "StructureConnectivityResponse",
+        "type": "object"
+      },
       "StructureCreate": {
         "properties": {
           "capacity": {
@@ -5182,6 +5530,120 @@
           }
         },
         "title": "StructureUpdate",
+        "type": "object"
+      },
+      "TerminalKind": {
+        "enum": [
+          "fiber_endpoint",
+          "port_front",
+          "port_back",
+          "splitter_input",
+          "splitter_output"
+        ],
+        "title": "TerminalKind",
+        "type": "string"
+      },
+      "TerminalRead": {
+        "properties": {
+          "entity_id": {
+            "description": "UUID do objeto proprietário (fibra, porta ou splitter)",
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "description": "Nome da entidade proprietária",
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_occupied": {
+            "description": "Indica se o terminal já possui uma conexão externa ativa",
+            "title": "Is Occupied",
+            "type": "boolean"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/TerminalKind"
+          },
+          "label": {
+            "description": "Rótulo identificador do terminal",
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "entity_id",
+          "entity_type",
+          "label",
+          "is_occupied"
+        ],
+        "title": "TerminalRead",
+        "type": "object"
+      },
+      "TerminalReservationRead": {
+        "properties": {
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "expires_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expires At"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "is_active": {
+            "title": "Is Active",
+            "type": "boolean"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          },
+          "reserved_by_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reserved By Id"
+          },
+          "terminal_id": {
+            "title": "Terminal Id",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "terminal_id",
+          "reason",
+          "is_active",
+          "version",
+          "created_at"
+        ],
+        "title": "TerminalReservationRead",
         "type": "object"
       },
       "TraceDirection": {
@@ -5626,6 +6088,97 @@
   "openapi": "3.1.0",
   "paths": {
     "/api/v1/attachments": {
+      "get": {
+        "description": "Retorna lista paginada de anexos cadastrados com filtro opcional por entidade.",
+        "operationId": "api_v1_attachments_list_attachments_endpoint",
+        "parameters": [
+          {
+            "description": "Filtrar por tipo de entidade",
+            "in": "query",
+            "name": "entity_type",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por tipo de entidade",
+              "title": "Entity Type"
+            }
+          },
+          {
+            "description": "Filtrar por UUID da entidade",
+            "in": "query",
+            "name": "entity_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por UUID da entidade",
+              "title": "Entity Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponse_AttachmentRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Listar anexos com paginação e filtros",
+        "tags": [
+          "Anexos e Fotos"
+        ]
+      },
       "post": {
         "description": "Armazena arquivo de imagem ou PDF com verificação de tipo de conteúdo e isolamento de path traversal.",
         "operationId": "api_v1_attachments_upload_attachment",
@@ -5662,6 +6215,52 @@
           }
         },
         "summary": "Upload de anexo ou foto de campo",
+        "tags": [
+          "Anexos e Fotos"
+        ]
+      }
+    },
+    "/api/v1/attachments/reconcile-orphans": {
+      "post": {
+        "description": "Identifica e remove arquivos físicos no disco não associados a registros no banco sem excluir anexos válidos.",
+        "operationId": "api_v1_attachments_reconcile_orphans_reconcile_orphans_endpoint",
+        "parameters": [
+          {
+            "description": "Se verdadeiro, apenas simula sem deletar",
+            "in": "query",
+            "name": "dry_run",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Se verdadeiro, apenas simula sem deletar",
+              "title": "Dry Run",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentReconciliationResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reconciliar arquivos órfãos no armazenamento",
         "tags": [
           "Anexos e Fotos"
         ]
@@ -5712,6 +6311,46 @@
         "tags": [
           "Anexos e Fotos"
         ]
+      },
+      "get": {
+        "operationId": "api_v1_attachments_attachment_id_get_attachment_metadata",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttachmentRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Obter metadados de anexo",
+        "tags": [
+          "Anexos e Fotos"
+        ]
       }
     },
     "/api/v1/attachments/{attachment_id}/download": {
@@ -5749,7 +6388,48 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Download de anexo",
+        "summary": "Download de anexo autorizado",
+        "tags": [
+          "Anexos e Fotos"
+        ]
+      }
+    },
+    "/api/v1/attachments/{attachment_id}/thumbnail": {
+      "get": {
+        "description": "Retorna imagem otimizada em miniatura gerada com segurança.",
+        "operationId": "api_v1_attachments_attachment_id_thumbnail_get_attachment_thumbnail",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "attachment_id",
+            "required": true,
+            "schema": {
+              "title": "Attachment Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Obter miniatura de anexo",
         "tags": [
           "Anexos e Fotos"
         ]
@@ -5761,6 +6441,7 @@
         "operationId": "api_v1_audit_events_list_audit_events",
         "parameters": [
           {
+            "description": "Filtrar por tipo de entidade",
             "in": "query",
             "name": "entity_type",
             "required": false,
@@ -5773,10 +6454,12 @@
                   "type": "null"
                 }
               ],
+              "description": "Filtrar por tipo de entidade",
               "title": "Entity Type"
             }
           },
           {
+            "description": "Filtrar por UUID da entidade",
             "in": "query",
             "name": "entity_id",
             "required": false,
@@ -5789,10 +6472,12 @@
                   "type": "null"
                 }
               ],
+              "description": "Filtrar por UUID da entidade",
               "title": "Entity Id"
             }
           },
           {
+            "description": "Filtrar por UUID do autor",
             "in": "query",
             "name": "actor_id",
             "required": false,
@@ -5805,7 +6490,26 @@
                   "type": "null"
                 }
               ],
+              "description": "Filtrar por UUID do autor",
               "title": "Actor Id"
+            }
+          },
+          {
+            "description": "Filtrar por tipo de ação",
+            "in": "query",
+            "name": "action",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por tipo de ação",
+              "title": "Action"
             }
           },
           {
@@ -6736,6 +7440,25 @@
             }
           },
           {
+            "description": "Filtrar por conexões ativas ou inativas",
+            "in": "query",
+            "name": "is_active",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "boolean"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": true,
+              "description": "Filtrar por conexões ativas ou inativas",
+              "title": "Is Active"
+            }
+          },
+          {
             "in": "query",
             "name": "page",
             "required": false,
@@ -6885,11 +7608,18 @@
             "description": "Versão atual do recurso (If-Match)",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],
@@ -8015,9 +8745,10 @@
     },
     "/api/v1/measurements": {
       "get": {
-        "operationId": "api_v1_measurements_list_measurements",
+        "operationId": "api_v1_measurements_list_measurements_endpoint",
         "parameters": [
           {
+            "description": "Filtrar por atendimento de cliente",
             "in": "query",
             "name": "service_link_id",
             "required": false,
@@ -8030,10 +8761,12 @@
                   "type": "null"
                 }
               ],
+              "description": "Filtrar por atendimento de cliente",
               "title": "Service Link Id"
             }
           },
           {
+            "description": "Filtrar por terminal óptico",
             "in": "query",
             "name": "terminal_id",
             "required": false,
@@ -8046,6 +8779,7 @@
                   "type": "null"
                 }
               ],
+              "description": "Filtrar por terminal óptico",
               "title": "Terminal Id"
             }
           },
@@ -8101,7 +8835,7 @@
         ]
       },
       "post": {
-        "operationId": "api_v1_measurements_create_measurement",
+        "operationId": "api_v1_measurements_create_measurement_endpoint",
         "requestBody": {
           "content": {
             "application/json": {
@@ -8142,7 +8876,7 @@
     },
     "/api/v1/measurements/{measurement_id}": {
       "delete": {
-        "operationId": "api_v1_measurements_measurement_id_delete_measurement",
+        "operationId": "api_v1_measurements_measurement_id_delete_measurement_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -8157,11 +8891,18 @@
             "description": "Versão atual do recurso (If-Match)",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],
@@ -8186,7 +8927,7 @@
         ]
       },
       "get": {
-        "operationId": "api_v1_measurements_measurement_id_get_measurement",
+        "operationId": "api_v1_measurements_measurement_id_get_measurement_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -8226,7 +8967,7 @@
         ]
       },
       "patch": {
-        "operationId": "api_v1_measurements_measurement_id_update_measurement",
+        "operationId": "api_v1_measurements_measurement_id_update_measurement_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -8241,11 +8982,18 @@
             "description": "Versão atual do recurso (If-Match)",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],
@@ -8290,7 +9038,7 @@
     "/api/v1/measurements/{measurement_id}/compare": {
       "get": {
         "description": "Calcula a perda excedente em dB comparando o valor medido com o orçamento óptico da revisão correspondente.",
-        "operationId": "api_v1_measurements_measurement_id_compare_compare_measurement",
+        "operationId": "api_v1_measurements_measurement_id_compare_compare_measurement_endpoint",
         "parameters": [
           {
             "in": "path",
@@ -8299,6 +9047,19 @@
             "schema": {
               "title": "Measurement Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Tolerância de atenuação excessiva aceitável em dB",
+            "in": "query",
+            "name": "tolerance_db",
+            "required": false,
+            "schema": {
+              "default": 2.0,
+              "description": "Tolerância de atenuação excessiva aceitável em dB",
+              "minimum": 0.0,
+              "title": "Tolerance Db",
+              "type": "number"
             }
           }
         ],
@@ -8630,7 +9391,7 @@
     },
     "/api/v1/optical/simulations": {
       "post": {
-        "description": "Compara o orçamento de potência original com um cenário hipotético que aplica overrides em perdas, comprimentos ou splitters.",
+        "description": "Compara o orçamento de potência original com um cenário hipotético que aplica overrides em perdas, comprimentos ou splitters sem alterar a rede física.",
         "operationId": "api_v1_optical_simulations_simulate_budget",
         "requestBody": {
           "content": {
@@ -10227,7 +10988,9 @@
           "200": {
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/StructureConnectivityResponse"
+                }
               }
             },
             "description": "Successful Response"
@@ -10246,6 +11009,48 @@
         "summary": "Conectividade interna da caixa CEO",
         "tags": [
           "Inventário"
+        ]
+      }
+    },
+    "/api/v1/structures/{structure_id}/cto-occupancy": {
+      "get": {
+        "operationId": "api_v1_structures_structure_id_cto_occupancy_get_cto_occupancy",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "structure_id",
+            "required": true,
+            "schema": {
+              "title": "Structure Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Api V1 Structures Structure Id Cto Occupancy Get Cto Occupancy"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Ocupação das portas da CTO",
+        "tags": [
+          "Clientes e Atendimentos"
         ]
       }
     },

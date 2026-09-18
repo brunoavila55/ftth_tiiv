@@ -1,8 +1,12 @@
 from typing import Any
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
+from sqlalchemy.orm import Session
 
 from app.core.contracts import pending_endpoint
+from app.core.dependencies import require_permission
+from app.db.session import get_db
+from app.modules.topology import service
 from app.schemas.topology import (
     ImpactAnalysisRequest,
     ImpactAnalysisResponse,
@@ -22,9 +26,13 @@ topology_router = APIRouter(prefix="/topology", tags=["Topologia e Grafo Óptico
         "Executa travessia consistente no grafo óptico a partir de um terminal de origem (PON ou ONU) "
         "com validação semântica de splitters e travessias internas."
     ),
+    dependencies=[Depends(require_permission("network:read"))],
 )
-def trace_path(payload: TraceRequest) -> Any:
-    pending_endpoint("B09")
+def trace_path(
+    payload: TraceRequest,
+    db: Session = Depends(get_db),
+) -> Any:
+    return service.trace_optical_path(db, payload)
 
 
 @topology_router.post(

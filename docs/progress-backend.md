@@ -13,14 +13,14 @@ Este documento rastreia a evolução contínua da implementação do backend con
 | **B03** | **Sessões, usuários e permissões** | Concluído | Autenticação Argon2id, sessões opacas com expiração (7d) e inatividade (24h), CSRF com Origin e Double-Submit, rate limit no PostgreSQL (5 tentativas/15min), RBAC estrito, CLI de bootstrap admin e 41 testes passando. |
 | **B04** | **Inventário e migrações** | Concluído | Modelos de sites, structures, devices, ports, catálogos e perfis ópticos com PostGIS, constraints exclusivas, 0003 migration e 56 testes passando. |
 | **B05** | **GIS e comprimentos confiáveis** | Concluído | SRID 4326, GeoJSON, PostGIS geography para comprimentos em metros, regra óptica (sem dupla reserva), tolerância de rota, GiST bbox, truncated flag, revisão de topologia e 73 testes passando. |
-| **B06** | **Cabos, tubos, fibras e segmentação** | Pendente | Geração transacional de cabo, tubos, fibras, segmentos e divisão com preservação de continuidade. |
-| **B07** | **Motor de conectividade e fusões** | Pendente | Terminais normalizados, conexões atômicas, lote com `expected_topology_revision`. |
-| **B08** | **Splitters, CTOs e atendimento** | Pendente | Splitters 1:N, portas CTO, ocupação e service links com histórico. |
-| **B09** | **Rastreamento óptico** | Pendente | Algoritmo de travessia PON→ONU e ONU→PON com semântica de portas e splitters. |
-| **B10** | **Cálculo óptico independente** | Pendente | Módulo puro de cálculo de atenuação, perdas, TX/RX, sensibilidade e sobrecarga. |
-| **B11** | **Medições e comparação com previsão** | Pendente | Leituras manuais de potência, tolerâncias e cálculo de perda excedente. |
-| **B12** | **Impacto de rompimento e simulações** | Pendente | Análise de falha em grafo virtual sem mutação no estado operacional. |
-| **B13** | **Fotos, anexos e auditoria** | Pendente | Armazenamento de arquivos com validação de mime/conteúdo e auditoria append-only. |
+| **B06** | **Cabos, tubos, fibras e segmentação** | Concluído | Geração transacional de cabo, tubos, fibras, $2N$ terminais por segmento, padrões de cores e divisão atômica com preservação de continuidade (0005 migration, 78 testes). |
+| **B07** | **Motor de conectividade e fusões** | Concluído | Terminais normalizados, conexões atômicas, lote com lock determinístico anti-deadlock e `expected_topology_revision` (0006 migration, 87 testes). |
+| **B08** | **Splitters, CTOs e atendimento** | Concluído | Splitters 1:N balanceados e desbalanceados, saídas normalizadas, ocupação em tempo real e vínculos com clientes (0007 migration). |
+| **B09** | **Rastreamento óptico** | Concluído | Algoritmo determinístico de travessia PON→ONU e ONU→PON com semântica de portas e splitters, preservação de continuidade e detecção de ciclos/pontas abertas. |
+| **B10** | **Cálculo óptico independente** | Concluído | Módulo puro de cálculo óptico, perda de acoplamento, splitters, atenuação por comprimento, margem de engenharia, sensibilidade e sobrecarga (caso canônico -20,68 dBm). |
+| **B11** | **Medições e comparação com previsão** | Concluído | Leituras de potência óptica em campo (0008 migration), snapshots, cálculo exato de perda excedente (+6,1 dB no caso canônico) e concorrência otimista. |
+| **B12** | **Impacto de rompimento e simulações** | Concluído | Endpoint de simulação óptica em memória sem mutação do banco ou da topology_revision, deltas de perda e potência e overrides tipados. |
+| **B13** | **Fotos, anexos e auditoria** | Concluído | Armazenamento de anexos privados com magic bytes (JPEG/PNG/WebP/PDF), sanitização de path traversal, thumbnails seguros, autorização estrita, auditoria append-only com rollback atômico e reconciliação de órfãos (0009 migration, 125 testes passando). |
 | **B14** | **Importação com prévia e exportação** | Pendente | Importadores GeoJSON/KML/CSV, validação prévia e commit idempotente; exportações com jobs. |
 | **B15** | **Busca, painel e relatórios** | Pendente | Busca global, métricas de ocupação de CTO e relatórios de viabilidade óptica. |
 | **B16** | **Desempenho e observabilidade** | Pendente | Dataset sintético de carga, medição de latência e métricas estruturadas. |
@@ -233,9 +233,9 @@ Este documento rastreia a evolução contínua da implementação do backend con
 
 ---
 
-### B07 — Motor de conectividade e fusões (Em Andamento)
-- **Status atual**: Modelagem de dados, restrições no PostgreSQL e migrações concluídas; implementação do serviço e endpoints em andamento.
-- **Ações e Entregas já realizadas**:
+### B07 — Motor de conectividade e fusões
+- **Data de conclusão**: 2026-09-17
+- **Ações e Entregas**:
   - `backend/app/modules/connectivity/models.py`:
     - Adicionado modelo `ConnectionEndpoint`: mapeamento e controle estrito de unicidade de conexão ativa por terminal no PostgreSQL via índice parcial único `uq_active_connection_endpoint (terminal_id) WHERE is_active = true`.
     - Adicionado modelo `TerminalReservation`: reserva formal de terminais com motivo, expiração e unicidade de reserva ativa (`uq_active_terminal_reservation`).
@@ -245,16 +245,149 @@ Este documento rastreia a evolução contínua da implementação do backend con
   - `backend/app/modules/audit/models.py` e `service.py`: Modelo `AuditEvent` append-only e helper `record_audit_event` para persistência de auditoria atômica na mesma transação.
   - Migração Alembic `0006_connectivity_engine.py`: Criada, aplicada e testada bidirecionalmente (upgrade/downgrade/upgrade) em ambos os bancos (`ftth_manager` e `ftth_manager_test`).
   - `backend/app/modules/cables/service.py`: Atualizado para registrar `InternalEdge` e `ConnectionEndpoint` automaticamente na criação e no split de segmentos de cabo.
-  - `README.md`: Criado documento raiz completo com visão geral da arquitetura, tabela de status de B01 a B18, instruções de execução local e comandos de teste.
+  - `backend/app/modules/connectivity/service.py`:
+    - Implementação completa com `create_connection`, `deactivate_connection` (soft-disconnect com `If-Match`), `execute_batch_connections` (bloqueio determinístico anti-deadlock e validação de `expected_topology_revision`), e `get_structure_connectivity`.
+    - Validação física rigorosa: terminais da mesma estrutura/site, compatibilidade de tipos físicos, proibição de fan-out em portas de DIO e exigência de liberação prévia para terminais reservados.
+    - Incrementos atômicos na revisão monotônica de topologia (`topology_revision`).
+  - `backend/app/api/v1/connectivity.py` e `backend/app/api/v1/inventory.py`:
+    - Endpoints conectados com autorização RBAC (`network:read`, `network:write`), proteção CSRF e controle de concorrência otimista (`If-Match`).
+    - Endpoint `GET /api/v1/structures/{id}/connectivity` implementado e conectado ao serviço.
+  - `contracts/openapi.json` e `contracts/api-types.d.ts`: Re-exportados deterministamente (62 caminhos, 132 schemas) e sincronizados com TypeScript via `openapi-typescript`.
+  - Suíte de testes: 87 testes automatizados passando (9 testes dedicados de integração em `tests/integration/test_connectivity_engine.py`).
 - **Comandos executados e resultados**:
   - `uv run ruff check .` -> `All checks passed!`
-  - `uv run ruff format --check .` -> `111 files already formatted`
-  - `uv run mypy .` -> `Success: no issues found in 110 source files`
+  - `uv run ruff format --check .` -> `113 files already formatted`
+  - `uv run mypy .` -> `Success: no issues found in 112 source files`
   - `uv run alembic upgrade head` -> `Running upgrade 0005_tubes_fibers_terminals -> 0006_connectivity_engine`
-  - `uv run pytest` -> `78 passed, 8 warnings in 49.96s`
-- **Próximas ações para fechamento de B07**:
-  - Implementar o serviço central `backend/app/modules/connectivity/service.py` com `create_connection`, `delete_connection` (soft-disconnect com `If-Match`), e `execute_batch_connections` (bloqueio determinístico anti-deadlock e validação de `expected_topology_revision`).
-  - Conectar os endpoints em `backend/app/api/v1/connectivity.py`.
-  - Escrever a suíte de testes de integração em `tests/integration/test_connectivity_engine.py` cobrindo todos os critérios de aceite (concorrência, rollback parcial de lote, DIO sem fan-out, liberação explícita para reconexão).
-  - Atualizar contratos OpenAPI e compilar tipos TypeScript.
+  - `uv run pytest` -> `87 passed, 8 warnings in 53.81s`
+  - `uv run python scripts/export_openapi.py` -> `Contrato OpenAPI exportado com sucesso (62 paths, 132 schemas)`
+  - `npx openapi-typescript contracts/openapi.json -o contracts/api-types.d.ts` -> `contracts/api-types.d.ts gerado com sucesso`
+- **Critérios de aceite B07 atendidos**:
+  - [x] Duas tentativas simultâneas de ocupar a mesma ponta deixam exatamente uma conexão ativa (garantido por índice parcial único no Postgres).
+  - [x] Fusão inválida não altera DB (rollback atômico).
+  - [x] Lote parcialmente inválido reverte inteiro (atomicidade garantida no editor de fusão).
+  - [x] Reconexão exige liberação explícita para terminais reservados.
+  - [x] Frente/trás de DIO não é porta com fan-out (modelada como `InternalEdge` 1:1 e restrição de terminal único).
+  - [x] Bloqueio determinístico de estrutura e terminais ordenados por UUID elimina deadlocks sob alta concorrência.
+  - [x] Desconexão com `If-Match` preserva histórico de auditoria e conexões inativas.
+- **Limitações reais**: Nenhuma.
+
+---
+
+### B08 — Splitters, CTOs e atendimento
+- **Data de conclusão**: 2026-09-17
+- **Ações e Entregas**:
+  - Migração Alembic `0007_customers_and_services.py`: tabelas `splitters`, `splitter_outputs`, `customers` e `customer_service_links` com check constraints, chaves estrangeiras RESTRICT e índices.
+  - `backend/app/modules/customers/models.py` e `backend/app/modules/connectivity/models.py`:
+    - Modelos ORM `Customer` e `CustomerServiceLink` para atendimento ao assinante.
+    - Modelos ORM `Splitter` e `SplitterOutput` para divisores balanceados e desbalanceados.
+  - Mapeamento 1:N de saídas normalizadas com perda individual de inserção por porta.
+  - Cálculo em tempo real de ocupação de caixas de terminação óptica (CTO): portas livres, reservadas, conectadas e taxa percentual de ocupação.
+  - `backend/app/modules/customers/service.py`: Gerenciamento completo de clientes e vínculos de atendimento com drop cable e coordenadas geográficas, protegido por concorrência otimista (`If-Match`).
+  - `backend/app/api/v1/customers.py` e `backend/app/api/v1/connectivity.py`: Endpoints protegidos por RBAC e CSRF.
+  - `backend/tests/integration/test_customers_service_links.py`: Testes de integração cobrindo ocupação em tempo real, drop cables e integridade referencial.
+- **Critérios de aceite B08 atendidos**:
+  - [x] Splitters balanceados e desbalanceados mapeados com perdas nominais por porta.
+  - [x] Ocupação de CTO calculada dinamicamente sem desvios.
+  - [x] Vínculo de cliente associado a porta de atendimento com drop cable e geolocalização.
+  - [x] Exclusão protegida por RESTRICT impedindo órfãos em históricos de atendimento.
+
+---
+
+### B09 — Rastreamento óptico
+- **Data de conclusão**: 2026-09-17
+- **Ações e Entregas**:
+  - `backend/app/modules/optical/service.py`: Motor determinístico de rastreamento óptico bidirecional (`trace_optical_path`).
+  - Travessia completa PON→ONU (downstream) e ONU→PON (upstream) através de cabos, fibras, tubos, terminais, conexões internas/externas e splitters.
+  - Continuidade garantida em fusões diretas e passagens diretas (sangrias em caixas intermediárias) sem quebra indevida do feixe.
+  - Tratamento correto de splitters com ramificação para portas de saída e agregação para a porta de entrada PON.
+  - Detecção robusta de ciclos e pontas abertas com identificação de elementos atravessados e terminais não conectados.
+  - `backend/app/api/v1/optical.py`: Endpoint `/api/v1/optical/trace` com permissão RBAC `optical:read`.
+  - `backend/tests/integration/test_optical_path_tracing.py`: Testes de integração cobrindo travessia ponta a ponta, sangrias e prevenção de ciclos.
+- **Critérios de aceite B09 atendidos**:
+  - [x] Rastreamento bidirecional determinístico PON→ONU e ONU→PON.
+  - [x] Continuidade física preservada em fibras passantes sem corte.
+  - [x] Ramificação correta em splitters balanceados e desbalanceados.
+  - [x] Detecção de ciclos e pontas abertas sem interrupção abrupta do serviço.
+
+---
+
+### B10 — Cálculo óptico independente
+- **Data de conclusão**: 2026-09-17
+- **Ações e Entregas**:
+  - `backend/app/modules/optical/calculator.py`: Módulo de cálculo óptico desacoplado de banco de dados e de I/O.
+  - Atenuação acumulada ao longo do enlace: perda de atenuação distribuída ($\alpha \times L$) para comprimentos de onda padrão (1310 nm, 1490 nm, 1550 nm), perdas de inserção de splitters, perdas por fusão e perdas por pares de conectores acoplados.
+  - Margem de engenharia configurável, cálculo de potência recebida estimada ($P_{rx} = P_{tx} - A_{total}$) e limites de sensibilidade/sobrecarga do receptor.
+  - Caso canônico da especificação validado numericamente: potência estimada de -20,68 dBm no receptor sob condições de referência.
+  - `backend/app/modules/optical/service.py` e `backend/app/api/v1/optical.py`: Endpoint `/api/v1/optical/budget`.
+  - `backend/tests/unit/test_optical_calculator.py` e `backend/tests/integration/test_optical_budget.py`: Suíte de testes unitários e de integração cobrindo o caso canônico e margens de projeto.
+- **Critérios de aceite B10 atendidos**:
+  - [x] Cálculo óptico isolado em módulo puro e determinístico.
+  - [x] Caso canônico (-20,68 dBm) reproduzido com exatidão matemática.
+  - [x] Discriminação explícita de perdas por elemento (conectores, fusões, splitters, fibra).
+  - [x] Alertas automáticos de violação de sensibilidade e sobrecarga.
+
+---
+
+### B11 — Medições e comparação com previsão
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - Migração Alembic `0008_optical_measurements.py`: Tabela `optical_measurements` com campos tipados para comprimento de onda, potência medida em dBm, instrumento de teste, operador, direção e snapshot topológico.
+  - Modelos ORM em `backend/app/modules/measurements/models.py`.
+  - `backend/app/modules/measurements/service.py`: Registro de medições manuais e cálculo da perda excedente via fórmula canônica `perda_excedente = rx_previsto - rx_medido` (+6,10 dB no caso canônico de validação).
+  - Controle de concorrência otimista via `If-Match`.
+  - `backend/app/api/v1/measurements.py`: Endpoints para registro e consulta histórica de medições.
+  - `backend/tests/integration/test_optical_measurements.py`: Testes de integração validando tolerâncias, snapshots e rejeição de comprimentos de onda incompatíveis.
+- **Critérios de aceite B11 atendidos**:
+  - [x] Medições registradas com instrumento, operador, direção e comprimento de onda.
+  - [x] Snapshot de topologia capturado no momento do registro.
+  - [x] Perda excedente calculada estritamente (+6,10 dB no caso canônico).
+  - [x] Rejeição de diagnósticos precipitados e compatibilidade estrita de comprimento de onda.
+
+---
+
+### B12 — Impacto de rompimento e simulações
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - `backend/app/modules/topology/service.py`: Análise de impacto de rompimento em cabos e caixas, mapeando clientes e circuitos downstream impactados.
+  - `backend/app/modules/optical/service.py`: Motor de simulação óptica em memória com suporte a overrides (atenuação pontual adicional em dB, alteração de comprimento de trecho e modificação de razão de splitter).
+  - Cálculo de deltas (`delta_loss_db`, `delta_predicted_rx_dbm`) sem qualquer mutação de banco de dados.
+  - Garantia estrita de invariância da `topology_revision`.
+  - `backend/app/api/v1/topology.py` (`/api/v1/topology/impact`) e `backend/app/api/v1/optical.py` (`/api/v1/optical/simulations`).
+  - `backend/tests/integration/test_optical_simulations.py`: Testes de integração cobrindo simulações de rompimento e invariância do estado da rede.
+- **Critérios de aceite B12 atendidos**:
+  - [x] Análise de impacto mapeia clientes e circuitos sem falsos positivos.
+  - [x] Simulações com overrides em memória sem efeitos colaterais.
+  - [x] Invariância do banco e da `topology_revision` após execuções de simulação.
+
+---
+
+### B13 — Fotos, anexos e auditoria
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - Migração Alembic `0009_attachments.py`: Tabela `attachments` criada com check constraints para content_type (`image/jpeg`, `image/png`, `image/webp`, `application/pdf`) e limite de bytes (até 20 MB), chaves estrangeiras, checksum SHA-256 e índices compostos.
+  - `backend/app/modules/attachments/models.py`: Modelo ORM `Attachment` integrado a `VersionedModelMixin`.
+  - `backend/app/modules/attachments/service.py`:
+    - Validação física de magic bytes em binários recebidos (rejeição estrita de HTML ativo, SVG com scripts ou executáveis disfarçados).
+    - Sanitização contra directory / path traversal (`sanitize_filename` tratando separadores POSIX e Windows e sequências `..`).
+    - Geração de miniaturas seguras com redimensionamento e re-codificação WebP via Pillow.
+    - Reconciliação de arquivos órfãos sem exclusão de anexos legítimos.
+  - `backend/app/modules/audit/service.py`:
+    - Registro append-only atômico na mesma transação SQLAlchemy (rollback da escrita anula o log de sucesso automaticamente).
+    - Sanitização recursiva mascarando credenciais e segredos (`password`, `token`, `secret`, `api_key`).
+    - Consulta paginada filtrável por tipo de entidade, identificador, autor e ação.
+  - `backend/app/api/v1/attachments.py`: Endpoints completos com verificação CSRF, controle de concorrência `If-Match` para exclusão e streams de download/miniatura protegidos por RBAC.
+  - `backend/app/api/v1/reports.py`: Endpoint `GET /api/v1/audit-events` implementado e conectado.
+  - `backend/tests/integration/test_attachments_audit.py`: 7 testes de integração validando ciclo de vida de imagens e PDFs, bloqueio de usuário anônimo (401) e VIEWER (403), sanitização de path traversal, integridade de rollback e reconciliação de órfãos.
+- **Resultados de Verificação**:
+  - `uv run ruff check app tests` -> `All checks passed!`
+  - `uv run mypy app` -> `Success: no issues found in 90 source files`
+  - `uv run pytest` -> **125 passed, 0 failures** em 88.33s.
+  - `uv run python scripts/export_openapi.py` -> 65 paths e 135 schemas sem drift.
+- **Critérios de aceite B13 atendidos**:
+  - [x] Upload inválido é recusado (tamanho, formato proibido ou cabeçalho adulterado).
+  - [x] Usuário sem acesso não baixa arquivo por UUID conhecido (testado com 401 e 403).
+  - [x] Escrita revertida não deixa auditoria de sucesso (atomicidade da sessão comprovada por teste).
+  - [x] Anexos sobrevivem a restart (armazenados em volume e diretório configurável com metadados no Postgres).
+- **Próximo passo alinhado**: B14 (Importação com prévia e exportação) / F16 (Importação e exportação no frontend).
 

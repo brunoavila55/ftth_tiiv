@@ -1,9 +1,14 @@
+import uuid
+
 from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.contracts import pending_endpoint
 from app.core.dependencies import require_permission, validate_csrf
 from app.db.session import get_db
+from app.modules.connectivity.service import (
+    get_structure_connectivity as fetch_structure_connectivity,
+)
 from app.modules.inventory.service import (
     create_device,
     create_port,
@@ -31,6 +36,7 @@ from app.modules.inventory.service import (
     update_structure,
 )
 from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.connectivity import StructureConnectivityResponse
 from app.schemas.inventory import (
     DeviceCreate,
     DeviceKind,
@@ -266,10 +272,15 @@ def get_structure_occupancy(structure_id: str) -> StructureOccupancyResponse:
 
 @inventory_router.get(
     "/structures/{structure_id}/connectivity",
+    response_model=StructureConnectivityResponse,
     summary="Conectividade interna da caixa CEO",
+    dependencies=[Depends(require_permission("network:read"))],
 )
-def get_structure_connectivity(structure_id: str) -> None:
-    pending_endpoint("B07")
+def get_structure_connectivity(
+    structure_id: str,
+    db: Session = Depends(get_db),
+) -> StructureConnectivityResponse:
+    return fetch_structure_connectivity(db, uuid.UUID(structure_id))
 
 
 # ==============================================================================

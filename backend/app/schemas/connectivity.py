@@ -109,3 +109,34 @@ class ConnectionBatchResponse(BaseModel):
     new_topology_revision: int = Field(
         ..., description="Nova revisão topológica monotônica incrementada após a transação"
     )
+
+
+class TerminalReservationRead(BaseModel):
+    id: str
+    terminal_id: str
+    reason: str
+    reserved_by_id: str | None = None
+    expires_at: datetime | None = None
+    is_active: bool
+    version: int
+    created_at: datetime
+
+
+class InternalEdgeRead(BaseModel):
+    id: str
+    terminal_a_id: str
+    terminal_b_id: str
+    edge_type: str
+    entity_type: str
+    entity_id: str
+    loss_db: float
+    is_bidirectional: bool
+
+
+class StructureConnectivityResponse(BaseModel):
+    structure_id: str
+    topology_revision: int
+    terminals: list[TerminalRead]
+    connections: list[ConnectionRead]
+    reservations: list[TerminalReservationRead]
+    internal_edges: list[InternalEdgeRead]

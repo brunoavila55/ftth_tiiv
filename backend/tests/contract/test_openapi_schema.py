@@ -95,22 +95,15 @@ def test_pending_endpoints_return_501_problem_details(client: TestClient) -> Non
     # Testar um endpoint de cada família principal
     pending_urls = [
         ("GET", "/api/v1/splitters"),
-        ("GET", "/api/v1/connections"),
-        ("GET", "/api/v1/customers"),
         (
             "POST",
-            "/api/v1/topology/trace",
+            "/api/v1/topology/impact",
             {
-                "start_terminal_id": "00000000-0000-0000-0000-000000000000",
-                "direction": "downstream",
+                "cable_segment_ids": ["00000000-0000-0000-0000-000000000000"],
+                "expected_topology_revision": 1,
             },
         ),
-        (
-            "POST",
-            "/api/v1/optical/budgets",
-            {"service_link_id": "00000000-0000-0000-0000-000000000000"},
-        ),
-        ("GET", "/api/v1/dashboard/summary"),
+        ("GET", "/api/v1/imports/jobs"),
         ("GET", "/api/v1/settings"),
     ]
 

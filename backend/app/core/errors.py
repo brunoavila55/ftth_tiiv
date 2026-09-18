@@ -102,12 +102,14 @@ class ConflictError(AppException):
         self,
         detail: str = "A operação solicitada gerou um conflito com o estado atual da rede.",
         code: str = "conflict",
+        errors: list[ValidationErrorItem] | None = None,
     ) -> None:
         super().__init__(
             status_code=status.HTTP_409_CONFLICT,
             code=code,
             title="Conflito de negócio",
             detail=detail,
+            errors=errors,
         )
 
 

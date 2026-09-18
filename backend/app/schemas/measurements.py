@@ -28,6 +28,10 @@ class MeasurementCreate(BaseModel):
         default=TraceDirection.DOWNSTREAM,
         description="Direção do sinal medido: downstream (chegando na ONU) ou upstream (chegando na OLT)",
     )
+    origin: MeasurementOrigin = Field(
+        default=MeasurementOrigin.MANUAL_ENTRY,
+        description="Origem da medição: manual_entry, field_power_meter ou otdr",
+    )
     instrument_model: str | None = Field(
         default=None, description="Fabricante e modelo do medidor óptico (Power Meter / OTDR)"
     )
@@ -48,8 +52,13 @@ class MeasurementRead(BaseModel):
     power_dbm: float
     wavelength_nm: int
     direction: TraceDirection
+    origin: MeasurementOrigin = MeasurementOrigin.MANUAL_ENTRY
     instrument_model: str | None = None
     measured_at: datetime
+    user_id: str | None = None
+    predicted_power_dbm: float | None = None
+    excess_loss_db: float | None = None
+    topology_revision: int | None = None
     notes: str | None = None
     version: int
     created_at: datetime
@@ -61,11 +70,11 @@ class MeasurementComparisonResponse(BaseModel):
     measured_power_dbm: float = Field(
         ..., description="Potência real obtida pelo instrumento em dBm"
     )
-    predicted_power_dbm: float = Field(
-        ..., description="Potência teórica prevista pelo orçamento óptico em dBm"
+    predicted_power_dbm: float | None = Field(
+        default=None, description="Potência teórica prevista pelo orçamento óptico em dBm"
     )
-    excess_loss_db: float = Field(
-        ...,
+    excess_loss_db: float | None = Field(
+        default=None,
         description="Perda excedente (previsto - medido). Valor positivo indica atenuação além da documentada em dB",
     )
     wavelength_nm: int
@@ -74,4 +83,16 @@ class MeasurementComparisonResponse(BaseModel):
     is_within_tolerance: bool = Field(
         ...,
         description="Indica se a medição de campo está dentro da margem de aceitação da engenharia",
+    )
+    is_compatible: bool = Field(
+        default=True,
+        description="Indica se a medição e a previsão são compatíveis em comprimento de onda, direção e receptor",
+    )
+    incompatibility_reason: str | None = Field(
+        default=None,
+        description="Motivo da incompatibilidade (ex: comprimento de onda divergente, receptor sem rota contínua)",
+    )
+    topology_revision: int | None = Field(
+        default=None,
+        description="Revisão topológica no momento do cálculo",
     )

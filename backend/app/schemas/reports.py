@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class CTOOccupancyBuckets(BaseModel):
@@ -47,8 +47,10 @@ class GlobalSearchResponse(BaseModel):
 
 
 class AuditEventRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
-    actor_id: str
+    actor_id: str | None = None
     actor_name: str
     action: str = Field(
         ..., description="Ação auditada: CREATE, UPDATE, DELETE, CONNECT, DISCONNECT, etc."

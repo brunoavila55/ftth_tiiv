@@ -1,15 +1,16 @@
 from fastapi import APIRouter, Depends, Header, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.contracts import pending_endpoint
 from app.core.dependencies import require_permission, validate_csrf
 from app.db.session import get_db
 from app.modules.optical.service import (
+    calculate_service_link_budget,
     create_optical_profile,
     delete_optical_profile,
     get_optical_profile_by_id,
     list_optical_profiles_paginated,
     optical_profile_to_read,
+    simulate_optical_budget,
     update_optical_profile,
 )
 from app.schemas.common import PaginatedResponse, PaginationParams
@@ -135,9 +136,13 @@ def delete_optical_profile_endpoint(
         "Calcula atenuação acumulada, potência RX prevista, margem de engenharia "
         "e sobrecarga para um atendimento documentado."
     ),
+    dependencies=[Depends(require_permission("optical:read"))],
 )
-def calculate_budget(payload: BudgetCalculationRequest) -> BudgetCalculationResponse:
-    pending_endpoint("B10")
+def calculate_budget(
+    payload: BudgetCalculationRequest,
+    db: Session = Depends(get_db),
+) -> BudgetCalculationResponse:
+    return calculate_service_link_budget(session=db, payload=payload)
 
 
 @optical_router.post(
@@ -147,8 +152,12 @@ def calculate_budget(payload: BudgetCalculationRequest) -> BudgetCalculationResp
     summary="Simulação óptica com parâmetros hipotéticos",
     description=(
         "Compara o orçamento de potência original com um cenário hipotético que aplica overrides "
-        "em perdas, comprimentos ou splitters."
+        "em perdas, comprimentos ou splitters sem alterar a rede física."
     ),
+    dependencies=[Depends(require_permission("optical:read"))],
 )
-def simulate_budget(payload: OpticalSimulationRequest) -> OpticalSimulationResponse:
-    pending_endpoint("B12")
+def simulate_budget(
+    payload: OpticalSimulationRequest,
+    db: Session = Depends(get_db),
+) -> OpticalSimulationResponse:
+    return simulate_optical_budget(session=db, payload=payload)

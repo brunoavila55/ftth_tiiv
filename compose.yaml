@@ -39,6 +39,20 @@ services:
       - backend_storage:/app/storage
     restart: unless-stopped
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ftth_frontend
+    environment:
+      NEXT_PUBLIC_API_BASE_URL: /api/v1
+      BACKEND_INTERNAL_URL: http://backend:8000
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
 volumes:
   pgdata:
   backend_storage:

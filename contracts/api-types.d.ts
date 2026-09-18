@@ -2250,6 +2250,25 @@ export interface components {
             /** Valid Records */
             valid_records: number;
         };
+        /** InternalEdgeRead */
+        InternalEdgeRead: {
+            /** Edge Type */
+            edge_type: string;
+            /** Entity Id */
+            entity_id: string;
+            /** Entity Type */
+            entity_type: string;
+            /** Id */
+            id: string;
+            /** Is Bidirectional */
+            is_bidirectional: boolean;
+            /** Loss Db */
+            loss_db: number;
+            /** Terminal A Id */
+            terminal_a_id: string;
+            /** Terminal B Id */
+            terminal_b_id: string;
+        };
         /** JobRead */
         JobRead: {
             /**
@@ -3498,6 +3517,21 @@ export interface components {
             /** Ports */
             ports?: components["schemas"]["SplitterPortLoss"][] | null;
         };
+        /** StructureConnectivityResponse */
+        StructureConnectivityResponse: {
+            /** Connections */
+            connections: components["schemas"]["ConnectionRead"][];
+            /** Internal Edges */
+            internal_edges: components["schemas"]["InternalEdgeRead"][];
+            /** Reservations */
+            reservations: components["schemas"]["TerminalReservationRead"][];
+            /** Structure Id */
+            structure_id: string;
+            /** Terminals */
+            terminals: components["schemas"]["TerminalRead"][];
+            /** Topology Revision */
+            topology_revision: number;
+        };
         /** StructureCreate */
         StructureCreate: {
             /**
@@ -3606,6 +3640,59 @@ export interface components {
             /** Site Id */
             site_id?: string | null;
             status?: components["schemas"]["AdministrativeStatus"] | null;
+        };
+        /**
+         * TerminalKind
+         * @enum {string}
+         */
+        TerminalKind: "fiber_endpoint" | "port_front" | "port_back" | "splitter_input" | "splitter_output";
+        /** TerminalRead */
+        TerminalRead: {
+            /**
+             * Entity Id
+             * @description UUID do objeto proprietário (fibra, porta ou splitter)
+             */
+            entity_id: string;
+            /**
+             * Entity Type
+             * @description Nome da entidade proprietária
+             */
+            entity_type: string;
+            /** Id */
+            id: string;
+            /**
+             * Is Occupied
+             * @description Indica se o terminal já possui uma conexão externa ativa
+             */
+            is_occupied: boolean;
+            kind: components["schemas"]["TerminalKind"];
+            /**
+             * Label
+             * @description Rótulo identificador do terminal
+             */
+            label: string;
+        };
+        /** TerminalReservationRead */
+        TerminalReservationRead: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at?: string | null;
+            /** Id */
+            id: string;
+            /** Is Active */
+            is_active: boolean;
+            /** Reason */
+            reason: string;
+            /** Reserved By Id */
+            reserved_by_id?: string | null;
+            /** Terminal Id */
+            terminal_id: string;
+            /** Version */
+            version: number;
         };
         /**
          * TraceDirection
@@ -4539,6 +4626,8 @@ export interface operations {
             query?: {
                 /** @description Filtrar por estrutura física (CEO/CTO) */
                 structure_id?: string | null;
+                /** @description Filtrar por conexões ativas ou inativas */
+                is_active?: boolean | null;
                 page?: number;
                 page_size?: number;
             };
@@ -4668,9 +4757,9 @@ export interface operations {
     api_v1_connections_connection_id_delete_connection: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+                "if-match"?: string | null;
             };
             path: {
                 connection_id: string;
@@ -6770,7 +6859,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["StructureConnectivityResponse"];
                 };
             };
             /** @description Validation Error */

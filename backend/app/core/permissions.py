@@ -17,6 +17,7 @@ ROLE_PERMISSIONS: dict[UserRole, set[str]] = {
         "measurements:write",
         "attachments:read",
         "attachments:write",
+        "audit:read",
     },
     UserRole.ENGINEER: {
         "network:read",
@@ -43,6 +44,7 @@ ROLE_PERMISSIONS: dict[UserRole, set[str]] = {
         "imports:write",
         "exports:read",
         "exports:write",
+        "audit:read",
     },
     UserRole.ADMIN: {
         "network:read",
