@@ -11,6 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { ApiError } from "@/lib/api/types";
+import { getCsrf } from "@/features/auth/api";
+import { setCachedCsrfToken } from "@/lib/api/csrf";
 
 function LoginForm() {
   const router = useRouter();
@@ -25,6 +27,17 @@ function LoginForm() {
 
   const rawReturnUrl = searchParams.get("returnUrl") || searchParams.get("redirect");
   const targetUrl = React.useMemo(() => sanitizeReturnUrl(rawReturnUrl, "/"), [rawReturnUrl]);
+
+  // Inicializa o token e cookie CSRF no carregamento da tela
+  React.useEffect(() => {
+    getCsrf()
+      .then((res) => {
+        if (res?.csrf_token) {
+          setCachedCsrfToken(res.csrf_token);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Se já estiver autenticado, redireciona para o destino
   React.useEffect(() => {
@@ -57,7 +70,7 @@ function LoginForm() {
         if (err.status === 401) {
           setErrorMessage("E-mail ou senha incorretos. Verifique suas credenciais.");
         } else if (err.status === 403) {
-          setErrorMessage("Este usuário está inativo ou suspenso. Contate o administrador.");
+          setErrorMessage(err.detail || "Acesso negado. Token de segurança expirado ou usuário suspenso.");
         } else {
           setErrorMessage(err.detail || err.message);
         }
@@ -184,6 +197,30 @@ function LoginForm() {
                 )}
               </Button>
             </form>
+
+            {/* Helper de Credenciais de Acesso */}
+            <div className="mt-4 pt-3 border-t border-dashed border-border/80">
+              <div className="rounded-lg bg-muted/60 p-3 text-xs space-y-2">
+                <div className="flex items-center justify-between text-muted-foreground font-medium">
+                  <span>Credenciais de Demonstração:</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEmail("admin@provedor.com.br");
+                      setPassword("AdminPass123!");
+                      setErrorMessage(null);
+                    }}
+                    className="text-primary hover:underline font-semibold cursor-pointer"
+                  >
+                    Preencher automático
+                  </button>
+                </div>
+                <div className="font-mono text-[11px] text-foreground bg-background/90 p-2 rounded border border-border/40 space-y-0.5 select-all">
+                  <div><span className="text-muted-foreground">E-mail:</span> admin@provedor.com.br</div>
+                  <div><span className="text-muted-foreground">Senha:</span> AdminPass123!</div>
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

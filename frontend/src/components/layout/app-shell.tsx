@@ -1,8 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { usePathname } from "next/navigation";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
+import { ConnectionStatusBanner } from "@/components/layout/connection-status-banner";
 import { GlobalSearchDialog } from "@/components/ui/global-search-dialog";
 import { cn } from "@/lib/utils";
 
@@ -43,8 +45,19 @@ export function AppShell({ children, className, contentClassName }: AppShellProp
     });
   };
 
+  const pathname = usePathname();
+  const isMapRoute = pathname === "/map" || pathname?.startsWith("/map/");
+
   return (
     <div className={cn("flex h-screen w-full overflow-hidden bg-background text-foreground", className)}>
+      {/* Skip Link para acessibilidade de teclado (WCAG 2.2 AA) */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:px-4 focus:py-2 focus:bg-primary focus:text-primary-foreground focus:rounded-md focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-ring font-medium text-xs"
+      >
+        Pular para o conteúdo principal
+      </a>
+
       {/* Sidebar lateral (Desktop + Mobile Drawer) */}
       <Sidebar
         collapsed={collapsed}
@@ -54,7 +67,10 @@ export function AppShell({ children, className, contentClassName }: AppShellProp
       />
 
       {/* Área central principal */}
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex flex-1 flex-col overflow-hidden min-w-0">
+        {/* Banner de alerta de conexão (offline / restabelecida) */}
+        <ConnectionStatusBanner />
+
         <Header
           onOpenMobileMenu={() => setMobileOpen(true)}
           onOpenSearch={() => setSearchOpen(true)}
@@ -64,7 +80,10 @@ export function AppShell({ children, className, contentClassName }: AppShellProp
           id="main-content"
           role="main"
           className={cn(
-            "flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 transition-colors",
+            "flex-1 min-w-0 transition-colors",
+            isMapRoute
+              ? "flex flex-col h-full overflow-hidden p-0"
+              : "overflow-y-auto p-4 sm:p-6 lg:p-8",
             contentClassName
           )}
         >

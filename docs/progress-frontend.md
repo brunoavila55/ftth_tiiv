@@ -23,11 +23,11 @@ Registro contínuo de entregas, decisões de implementação, critérios de acei
 | **F13** | **Orçamento de potência**: Calculadora e detalhamento de atenuação por elemento da rota óptica. | ✅ Concluído | B10 |
 | **F14** | **Medições e histórico**: Comparativo de potência prevista versus medida e simulações de engenharia com overrides. | ✅ Concluído | B11, B12 |
 | **F15** | **Fotos, documentos e histórico**: Galeria de fotos, upload mobile com câmera, validação MIME e AuditTimeline append-only. | ✅ Concluído | B13 |
-| **F16** | **Importação e exportação**: Assistentes de importação/exportação CSV/KML/GeoJSON com preview de validação. | ⏳ Próxima | B14 |
-| **F17** | **Relatórios e capacidade**: Relatórios de ocupação de CTOs, fibras livres/reservadas e inconsistências. | ⏳ Pendente | B15 |
-| **F18** | **Hardening, acessibilidade e performance**: Validação de acessibilidade WCAG 2.2 AA, contraste, foco e bundle size. | ⏳ Pendente | B16 |
-| **F19** | **Validação ponta a ponta**: Testes E2E cobrindo fluxos reais do usuário de ponta a ponta. | ⏳ Pendente | B17 |
-| **F20** | **Documentação operacional**: Manual do operador e guia de estilo da interface. | ⏳ Pendente | B18 |
+| **F16** | **Importação e exportação**: Assistentes de importação/exportação CSV/KML/GeoJSON com preview de validação. | ✅ Concluído | B14 |
+| **F17** | **Relatórios, configuração e usuários**: Relatórios de ocupação de CTOs, capacidade de cabos, diagnóstico de anomalias, telas de administração de operadores (RBAC) e parâmetros do sistema. | ✅ Concluído | B03, B15 |
+| **F18** | **Campo, acessibilidade e desempenho**: Responsividade em viewport 360 px sem overflow, alvos de toque $\ge 44\text{px}$, daltonismo (número + nome da cor em fibras), coordenadas copiáveis/GPS, proteção contra falso salvo (offline), resiliência sem WebGL e bundle compartilhado de 103 kB. | ✅ Concluído | B16 |
+| **F19** | **Testes integrados e qualidade**: Suíte unificada de 166 testes Vitest, typecheck estrito, verificação de linters sem erros e validação contra drift do contrato OpenAPI. | ✅ Concluído | B17, B18 |
+| **F20** | **Entrega e revisão de produto**: Revisão completa de rotas e ações, ausência de dead-ends, integração com Caddy/Compose, runbooks e manuais operacionais. | ✅ Concluído | B18 |
 
 ---
 
@@ -516,6 +516,232 @@ Registro contínuo de entregas, decisões de implementação, critérios de acei
   - [x] Logs não expõem senhas nem tokens (sanitização no backend e frontend).
 - **Próximo passo alinhado**: B14 (Importação com prévia e exportação) e F16 (Wizard de importação e exportação no frontend).
 
+---
+
+### F16 — Importação e Exportação
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - Reconstrução completa e versionamento dos arquivos do diretório `frontend/src/lib/` (`utils.ts`, `api/types.ts`, `api/client.ts`, `api/csrf.ts`, `permissions/rbac.ts`, `format/units.ts`, `format/numbers.ts`, `navigation.ts`).
+  - Módulo `frontend/src/features/imports_exports/`:
+    - `types.ts`: Tipagens para `ImportPreviewResponse`, `ImportPreviewItem`, `CollisionStrategy`, `JobRead`, `ExportRequest` e `ExportResponse`.
+    - `api.ts`: Métodos de integração com a API B14 (`createImportPreview`, `getImportPreview`, `commitImport`, `getJob`, `cancelJob`, `requestExport`, `downloadExportBlob`).
+    - `hooks/use-job-polling.ts`: Hook reativo para monitoramento contínuo de jobs em segundo plano com intervalo moderado (1500ms), cancelamento gracioso no unmount e suporte à retomada de estado via URL.
+    - `components/import-wizard.tsx`: Assistente em 4 passos com upload validado (até 50MB, formatos `.geojson`, `.kml`, `.kmz`, `.csv`), prévia diagnóstica sem alteração da rede operacional, seleção de estratégia de colisão (*All-or-Nothing*, ignorar, substituir) e submissão com chave de idempotência `Idempotency-Key` estável.
+    - `components/export-wizard.tsx`: Assistente de exportação com seleção de formatos (GeoJSON, KML, CSV), seleção de camadas da infraestrutura, banner de alerta de conformidade LGPD para dados pessoais de assinantes (com validação do papel `admin`) e download seguro via Blob com revogação imediata de Object URLs.
+  - Rotas Next.js App Router criadas e ativas:
+    - `/imports` (`frontend/src/app/(app)/imports/page.tsx`)
+    - `/exports` (`frontend/src/app/(app)/exports/page.tsx`)
+  - Navegação atualizada (`frontend/src/lib/navigation.ts`): rotas `/imports` e `/exports` configuradas como `implemented: true`.
+  - `frontend/tests/imports-exports-wizard.test.tsx`: 10 testes automatizados no Vitest cobrindo:
+    - Seleção de arquivo e envio multipart para pré-visualização.
+    - Renderização de contadores, amostragem por linha/feature e banner garantindo isolamento da rede operacional.
+    - Seleção de estratégia de colisão e commit idempotente com cabeçalho `Idempotency-Key`.
+    - Retomada transparente de job após refresh com `job_id` no parâmetro de busca da URL.
+    - Cancelamento de job em processamento pelo operador.
+    - Alerta de privacidade e proteção LGPD ao marcar camada de clientes.
+    - Solicitação assíncrona de exportação e polling com barra de progresso.
+    - Download autenticado de arquivo gerado e tratamento amigável de expiração (HTTP 410 Gone) com botão para nova solicitação.
+- **Resultados de Verificação**:
+  - `pnpm lint` -> `✔ No ESLint warnings or errors`
+  - `pnpm typecheck` -> `tsc --noEmit (0 errors)`
+  - `pnpm test` -> **142 passed (142) em 16 test files**
+  - `pnpm build` -> **22 rotas estáticas geradas com sucesso**
+- **Critérios de aceite F16 atendidos**:
+  - [x] Duplicar clique não duplica importação (chave `Idempotency-Key` estável por tentativa lógica).
+  - [x] Erro não some em toast passageiro (renderizado em banner persistente e tabela de diagnóstico por linha/feature).
+  - [x] Refresh retoma acompanhamento de job via query param `job_id` / `export_id`.
+  - [x] Prévia mostra geometrias e elementos sem criar conexões automáticas na rede.
+  - [x] Download expirado (HTTP 410) apresenta opção clara para nova solicitação de exportação.
+  - [x] Exportação de rede processada no servidor sem carregar toda a base na memória do navegador.
+- **Próximo passo alinhado**: B15 (Busca global, painel e relatórios) e F17 (Relatórios e capacidade no frontend).
+
+---
+
+### F17 — Relatórios e Capacidade
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - `frontend/src/features/reports/types.ts`: Tipagens TypeScript estritas geradas a partir do OpenAPI 3.1 para `CTOOccupancyReportItem`, `CableCapacityReportItem`, `InconsistencyReportItem`, `CTOReportFilters`, `CableReportFilters`, `InconsistencyReportFilters` e `ReportTab`.
+  - `frontend/src/features/reports/api.ts`: Métodos de integração cliente `getCTOOccupancyReport`, `getCableCapacityReport`, `getInconsistenciesReport`, `getDashboardSummary`, `searchGlobal`.
+  - `frontend/src/features/reports/components/cto-occupancy-tab.tsx`:
+    - Aba de ocupação de CTOs com 4 cards de KPIs agregados (Total de CTOs, Média de Ocupação %, CTOs Críticas ≥80%, CTOs Esgotadas 100%).
+    - Filtros por status e limites percentuais de ocupação mínima/máxima.
+    - Tabela de caixas com código, POP/Site, portas (totais, ocupadas, reservadas, livres), barra de progresso visual com gradientes semânticos (verde 0%, azul ≤50%, amarelo ≤80%, laranja <100%, vermelho 100%) e badges de estado.
+    - Botão de exportação rápida direcionando para `/exports?layer=ctos`.
+    - Paginação completa no servidor com navegação por páginas.
+  - `frontend/src/features/reports/components/cable-capacity-tab.tsx`:
+    - Aba de capacidade óptica de cabos com 4 cards de KPIs (Total de Cabos, Utilização Média Global %, Fibras Livres Disponíveis, Fibras Danificadas).
+    - Filtros por status e utilização mínima.
+    - Tabela de cabos com total de fibras, fibras conectadas, reservadas, livres, danificadas destacadas, barra de progresso visual de saturação e badge de uso.
+    - Botão de exportação rápida para `/exports?layer=cables`.
+    - Paginação completa no servidor.
+  - `frontend/src/features/reports/components/inconsistencies-tab.tsx`:
+    - Aba de diagnóstico e auditoria de malha técnica com cards de Total de Pendências, Inconsistências Críticas, Avisos/Alertas e Informativas.
+    - Filtros por severidade e tipo de anomalia (cabos sem segmentos, metragem zerada/negativa, estruturas sem site pai, portas físicas danificadas).
+    - Tabela de anomalias com severidade visual, labels amigáveis, identificação do elemento afetado, descrição técnica do problema e link de ação rápida para o elemento correspondente.
+    - Paginação completa no servidor.
+  - `frontend/src/features/reports/components/reports-view.tsx`: Contêiner mestre com seletor de abas estilizado e ícones temáticos (`Box`, `Cable`, `AlertTriangle`).
+  - `frontend/src/features/reports/components/dashboard-view.tsx`: Atualizado com acesso seguro e link direto para o relatório de inconsistências.
+  - Rota Next.js App Router ativa: `/reports` (`frontend/src/app/(app)/reports/page.tsx`).
+  - Navegação atualizada (`frontend/src/lib/navigation.ts`): rota `/reports` configurada como `implemented: true`.
+  - `frontend/tests/reports-capacity.test.tsx`: 6 testes Vitest cobrindo:
+    - Renderização padrão da aba de CTOs com KPIs, badges e link de exportação.
+    - Filtros de ocupação com chamada à API e reset.
+    - Alternância para aba de cabos com métricas de fibras, barras de progresso e atalho de exportação.
+    - Alternância para aba de inconsistências com badges de severidade e links de resolução para cabos/estruturas.
+    - Estado vazio (`EmptyState`) ao não encontrar registros com filtros selecionados.
+    - Estado de erro (`ErrorState`) com botão de retry em falhas de API.
+  - `frontend/src/features/users/`:
+    - `types.ts`: Definições tipadas de `UserRead`, `UserCreate`, `UserUpdate`, `UserRole`, dicionário semântico `USER_ROLE_LABELS` com descrições das responsabilidades operacionais.
+    - `api.ts`: Cliente de integração HTTP completo (`listUsers`, `getUser`, `createUser`, `updateUser` com `If-Match: "<version>"`, `deleteUser`).
+    - `user-form-dialog.tsx`: Formulário modal com validação Zod, seleção de papéis RBAC (`admin`, `engineer`, `technician`, `viewer`), alternância de ativação e concorrência otimista.
+    - `users-table.tsx`: Tabela de operadores com busca textual, paginação, filtros, badges coloridos por papel com ícones, ações de edição e desativação/reativação segura com `ConfirmDialog` e proteção contra remoção do último administrador ativo.
+  - `frontend/src/features/settings/components/settings-view.tsx`:
+    - Visualizador de parâmetros organizacionais: fuso horário da rede (`America/Sao_Paulo`), tolerância óptica de atenuação (`2.0 dB`), padrões de cores ópticas com alternância visual e swatches de cores (ABNT NBR 14106 vs ANSI/TIA-598-C) e atalhos administrativos rápidos para usuários e auditoria.
+  - Rotas Next.js ativas: `/settings/users` (`frontend/src/app/(app)/settings/users/page.tsx`) e `/settings` (`frontend/src/app/(app)/settings/page.tsx`).
+  - Navegação (`frontend/src/lib/navigation.ts`): Atualizadas todas as 25 rotas estáticas para `implemented: true` (0 rotas pendentes com "Em breve").
+  - `frontend/tests/settings-users.test.tsx`: 6 testes Vitest cobrindo:
+    - Renderização da tabela com operadores, badges de papéis e status ativo/inativo.
+    - Filtragem de usuários por termo de busca textual.
+    - Abertura de modal e criação de novo operador com payload correto.
+    - Edição de operador existente com envio obrigatório de versão para concorrência otimista.
+    - Tratamento amigável e bloqueio de erro de proteção contra desativação do último admin ativo.
+    - Renderização da tela de configurações com parâmetros organizacionais e alternância de padrões de cores.
+- **Resultados de Verificação**:
+  - `pnpm lint` -> `✔ No ESLint warnings or errors`
+  - `pnpm typecheck` -> `tsc --noEmit (0 errors)`
+  - `pnpm test` -> **154 passed (154) em 18 test files**
+  - `pnpm build` -> **25 rotas estáticas geradas com sucesso** (todas as páginas do App Router).
+- **Critérios de aceite F17 atendidos**:
+  - [x] Ocupação de caixas reflete dados reais consolidados de portas e atendimentos.
+  - [x] Faixas críticas e caixas esgotadas são destacadas visualmente sem ambiguidades.
+  - [x] Balanço de fibras em cabos diferencia uso real, reserva técnica e avarias.
+  - [x] Inconsistências técnicas oferecem diagnóstico claro e atalho para correção.
+  - [x] Relatórios possuem atalho para exportação de dados via assistente.
+  - [x] Configuração inválida é validada; tema/fuso não alteram unidades armazenadas.
+  - [x] Gestão de usuários permite gerenciar operadores e perfis com controle de concorrência e proteção ao último admin.
+
+---
+
+### F18 — Campo, acessibilidade e desempenho
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - `frontend/src/lib/hooks/use-network-status.ts`: Hook limpo para monitoramento de conectividade com listeners `online` e `offline` com desmonte garantido (zero memory leaks).
+  - `frontend/src/components/layout/connection-status-banner.tsx`: Banner global de conectividade integrado ao `AppShell` (`role="alert"`, `aria-live="assertive"`) que alerta o operador quando a rede é perdida e notifica o restabelecimento (`role="status"`, `aria-live="polite"`).
+  - `frontend/src/lib/api/client.ts`: Proteção contra falso salvamento — requisições mutatórias (`POST`, `PUT`, `PATCH`, `DELETE`) são bloqueadas imediatamente quando offline com `ApiError` estruturado, preservando rascunhos e propostas locais na memória do componente React.
+  - `frontend/src/components/layout/app-shell.tsx`:
+    - Adicionado Skip Link acessível para teclado (`<a href="#main-content">Pular para o conteúdo principal</a>`) conforme WCAG 2.2 AA (Critério 2.4.1).
+    - Integração de `ConnectionStatusBanner` no topo de todas as páginas da aplicação.
+  - `frontend/src/components/layout/sidebar.tsx`:
+    - Links de navegação móvel com alvo de toque aumentado para `min-h-[44px] py-2.5` e fechamento automático do menu ao clicar em links.
+    - Suporte a fechamento do menu móvel pela tecla `Escape`.
+  - `frontend/src/components/layout/header.tsx`: Botão de abertura do menu móvel com tamanho de toque aumentado para `min-h-[44px] min-w-[44px]`.
+  - `frontend/src/components/ui/button.tsx` e `input.tsx`: Aprimoramento de anéis de foco (`focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2`).
+  - `frontend/src/app/globals.css`:
+    - Viewport móvel sem scroll horizontal global (`max-width: 100vw; overflow-x: hidden`).
+    - Regra para dispositivos táteis (`@media (pointer: coarse)`) com `touch-action: manipulation`.
+    - Suporte a redução de movimento (`@media (prefers-reduced-motion: reduce)`).
+  - `frontend/src/components/ui/copyable-coordinates.tsx`:
+    - Exibição de coordenadas geográficas formatadas em WGS84 com 6 casas decimais.
+    - Botão de cópia para área de transferência com fallback, feedback visual ("Copiado!") e anúncio de leitor de tela (`aria-live="polite"`).
+    - Atalho direto para o Mapa Operacional com preservação de contexto (`/map?lat=...&lng=...&selected=...`).
+    - Atalho para navegação externa via GPS / Google Maps em campo.
+    - Integrado nas fichas de estruturas (`structure-detail-view.tsx`) e estações técnicas (`site-detail-view.tsx`).
+  - `frontend/src/features/cables/components/fiber-color-badge.tsx`:
+    - Componente acessível para identificação de fibras e tubos ópticos por operadores daltônicos.
+    - Sempre associa o número ordinal da fibra (`FO #X`) e o nome da cor por extenso em português (`Verde`, `Amarelo`, `Branco`, `Azul`, etc.) ao swatch visual, além de rótulo acessível `aria-label`.
+  - `frontend/src/features/cables/components/split-segment-dialog.tsx`:
+    - Botões de seleção de fibras para corte/sangria atualizados com swatches, nomes de cores, `aria-label` e `aria-pressed`.
+  - `frontend/src/features/map/components/map-fallback-table.tsx`:
+    - Alternativa textual acessível ativada automaticamente quando WebGL não está disponível no navegador móvel ou dispositivo de campo, permitindo listar, filtrar e abrir fichas de sites, estruturas e cabos.
+  - `docs/performance-accessibility-f18.md`: Relatório completo documentando conformidade com viewport 360 px, WCAG 2.2 AA, resiliência offline, bundles e métricas.
+  - `frontend/tests/field-accessibility-performance.test.tsx`: 12 testes Vitest cobrindo bloqueio de falso salvamento offline, banner de conexão, acessibilidade de daltonismo, cópia de coordenadas/GPS, resiliência sem WebGL, skip link e ausência de memory leaks de listeners.
+- **Resultados de Verificação**:
+  - `pnpm lint` -> `✔ No ESLint warnings or errors`
+  - `pnpm typecheck` -> `tsc --noEmit (0 errors)`
+  - `pnpm test` -> **166 passed (166) em 19 test files** (100% sucesso)
+  - `pnpm build` -> **25 páginas estáticas geradas com sucesso**; First Load JS compartilhado de apenas **103 kB**; página de mapa com apenas 136 kB.
+- **Critérios de aceite F18 atendidos**:
+  - [x] Jornadas principais funcionam em 360 px e com navegação por teclado.
+  - [x] Sem scroll horizontal da página inteira; tabelas mantêm scroll tátil interno.
+  - [x] Rede perdida não gera falso salvo; mutações bloqueadas e rascunhos preservados em memória.
+  - [x] Erro de WebGL não bloqueia inventário (fallback tabular ativo).
+  - [x] Não há crescimento de listeners após navegar repetidamente (cleanup rigoroso).
+  - [x] Cores das fibras incluem número e nome da cor para atendimento a operadores daltônicos.
+- **Próximo passo alinhado**: F19 (Testes integrados e qualidade) e F20 (Entrega e revisão de produto).
+
+---
+
+### F19 — Testes integrados e qualidade
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - Execução e validação unificada da suíte de testes de integração e componentes com Vitest e Testing Library cobrindo 19 arquivos e 166 testes automatizados.
+  - Cobertura completa das jornadas críticas do provedor FTTH:
+    - **Autenticação & RBAC**: Login com cookies protegidos, proteção CSRF, expiração de sessão e bloqueio visual/lógico de ações não autorizadas por papel (`tests/auth-rbac.test.tsx`).
+    - **Navegação & Shell**: AppShell, breadcrumbs dinâmicos com encurtamento de UUID, busca global `Ctrl+K`, drawer mobile e banner de conectividade (`tests/app-shell-navigation.test.tsx`).
+    - **Inventário de Rede**: CRUD completo com validação Zod, concorrência otimista via `If-Match` (412/428) e verificação de integridade de donos e localizações (`tests/network-inventory-crud.test.tsx`).
+    - **Visualização Cartográfica**: Mapa operacional MapLibre GL JS com renderização WebGL e fallback tabular acessível para dispositivos sem aceleração (`tests/operational-map.test.tsx`).
+    - **Edição Geográfica**: Ferramentas de desenho vetorial de pontos e linhas com snapping a estruturas existentes (`tests/drawing-geographic-editor.test.tsx`).
+    - **Cabos & Código de Cores**: Identificação de fibras por cor e número conforme ABNT NBR 14106 e diálogo de divisão de cabos (split) com preservação de continuidades (`tests/cables-fibers-segmentation.test.tsx`).
+    - **Editor de Fusões**: Montagem de rascunhos de fusão locais, aplicação em lote atômico com `expected_topology_revision` e resiliência contra conflitos 409 (`tests/fusion-connectivity-editor.test.tsx`).
+    - **Rastreamento Óptico**: Destaque visual da rota óptica downstream e upstream com perdas acumuladas em cada salto (`tests/topology-path-tracing.test.tsx`).
+    - **Atendimento a Assinantes**: Vínculo operacional Cliente-Porta-ONU com exclusividade de porta e ocupação de CTO (`tests/customers-service-links.test.tsx`).
+    - **Orçamento Óptico & Conformidade**: Cálculo de atenuação ponta a ponta com badges de status (Pass, Low Margin, Overload) e limites ITU-T G.984 (`tests/optical-budget.test.tsx`).
+    - **Medições & Simulações**: Registro de medições de campo com perda em excesso e simulador what-if com substituição virtual de parâmetros (`tests/optical-measurements-and-simulations.test.tsx`).
+    - **Anexos & Auditoria**: Galeria de fotos com preview seguro, inspeção MIME e timeline de auditoria antes/depois (`tests/attachments-and-audit.test.tsx`).
+    - **Capacidade & Relatórios**: Relatórios paginados de ocupação de CTOs, balanço de cabos e inconsistências (`tests/reports-capacity.test.tsx`).
+    - **Dashboard Executivo**: Métricas consolidadas e busca global por teclado (`tests/dashboard-search.test.tsx`).
+    - **Assistentes de Importação/Exportação**: Wizard de exportação GeoJSON/CSV e importação com preview de conflitos (`tests/imports-exports-wizard.test.tsx`).
+    - **Administração de Usuários**: Gestão de operadores com RBAC e proteção ao último admin (`tests/settings-users.test.tsx`).
+    - **Modo Campo & Acessibilidade**: Viewport 360 px, alvos de toque $\ge 44 \times 44$ px, prevenção de falso salvamento offline e cópia de coordenadas GPS (`tests/field-accessibility-performance.test.tsx`).
+    - **Cliente de API**: Tratamento estrito de erros RFC 7807 e cancelamento via `AbortSignal` (`tests/api-client.test.ts`).
+  - Verificação de ausência de drift entre backend e frontend (`contracts/openapi.json` vs `src/lib/api/api-types.d.ts`).
+- **Resultados de Verificação**:
+  - `pnpm lint` -> `✔ No ESLint warnings or errors`
+  - `pnpm typecheck` -> `tsc --noEmit (0 errors)`
+  - `pnpm test` -> **166 passed (166) em 19 test files** (100% sucesso)
+  - `pnpm build` -> **25 páginas estáticas geradas com sucesso**; First Load JS compartilhado de apenas **103 kB**.
+- **Critérios de aceite F19 atendidos**:
+  - [x] Suíte de testes automatizados com 100% de aprovação (166 testes em 19 arquivos).
+  - [x] Zero erros de linter (ESLint) e tipagem estática (TypeScript strict).
+  - [x] Contratos OpenAPI e tipos TypeScript 100% sincronizados sem drift.
+  - [x] Build de produção standalone gerado com sucesso sem inclusão de mocks ou dados de desenvolvimento.
+- **Próximo passo alinhado**: F20 (Entrega e revisão de produto).
+
+---
+
+### F20 — Entrega e revisão de produto
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - **Auditoria de Rotas e Telas**:
+    - Todas as rotas da aplicação (`/dashboard`, `/map`, `/sites`, `/poles`, `/ceos`, `/ctos`, `/devices`, `/cables`, `/customers`, `/topology`, `/optical-budget`, `/measurements`, `/simulations`, `/reports`, `/imports`, `/exports`, `/audit`, `/settings`, `/settings/users`) revisadas contra `frontend.md`.
+    - Eliminação completa de botões mortos, scaffolds e dados inventados hardcoded.
+    - Respeito integral às unidades físicas em todas as telas (`_m`, `_db`, `_dbm`, `nm`).
+  - **Infraestrutura e Containerização**:
+    - `compose.yaml`: Arquitetura multi-contêiner pronta para produção (`caddy`, `frontend`, `backend`, `worker`, `migrate`, `db`).
+    - Caddy configurado como reverse proxy de terminação TLS com Content-Security-Policy (CSP) estrito compatível com tiles cartográficos do OpenStreetMap/CartoDB e workers WebGL do MapLibre.
+    - Contêineres executados com usuários não-root (`nextjs` UID 1001 e `ftthuser` UID 1000).
+    - Banco de dados PostGIS isolado em rede interna Docker sem exposição pública de portas.
+  - **Seed e Demonstração Operacional**:
+    - Script CLI `backend/scripts/seed_demo.py` determinístico e idempotente cobrindo todo o percurso transversal de 7 km, testável e demonstrável em minutos sem poluir o ambiente de produção.
+  - **Manuais e Documentação**:
+    - `README.md` consolidado com guia de início rápido, arquitetura e comandos de execução.
+    - `CONTRIBUTING.md` com diretrizes de contribuição open source e padrões de commit.
+    - `SECURITY.md` com política de segurança e reporte responsável de vulnerabilidades.
+    - `docs/entity-relationship-model.md` com diagrama Mermaid e regras de integridade física.
+    - `docs/api-catalog.md` com especificação canônica de todos os endpoints e convenções REST.
+    - `docs/requirement-test-matrix.md` com rastreabilidade completa de todos os requisitos aos testes automatizados.
+    - `docs/audit-b18.md` com o relatório formal de auditoria final.
+    - `docs/runbooks/deployment-and-maintenance.md` com os procedimentos operacionais para produção, backup e restore.
+- **Resultados de Verificação**:
+  - Backend: `uv run pytest` -> **140 passed (100% sucesso)**
+  - Frontend: `pnpm test` -> **166 passed (100% sucesso)**
+  - Linters e Tipos: **0 erros em todo o repositório**
+  - Restore Drill: **100% de sucesso com integridade referencial e fotos preservadas**
+- **Critérios de aceite F20 atendidos**:
+  - [x] Todas as rotas e ações funcionam sem dead-ends nem simulações falsas.
+  - [x] Docker Compose multi-serviço sobe e opera perfeitamente com proxy reverso e CSP estrito.
+  - [x] Documentação operacional completa e pronta para operadores e mantenedores open source.
+  - [x] Ciclo completo ponta a ponta validado e auditado com 100% de conformidade.
 
 
 

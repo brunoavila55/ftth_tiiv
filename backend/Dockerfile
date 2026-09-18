@@ -43,6 +43,7 @@ COPY --from=builder --chown=ftthuser:ftthuser /app/.venv /app/.venv
 COPY --chown=ftthuser:ftthuser pyproject.toml README.md alembic.ini ./
 COPY --chown=ftthuser:ftthuser app ./app
 COPY --chown=ftthuser:ftthuser migrations ./migrations
+COPY --chown=ftthuser:ftthuser scripts ./scripts
 
 # Criar diretório de storage persistente
 RUN mkdir -p /app/storage && chown -R ftthuser:ftthuser /app/storage

@@ -63,3 +63,39 @@ class AuditEventRead(BaseModel):
     reason: str | None = None
     request_id: str | None = None
     created_at: datetime
+
+
+class CTOOccupancyReportItem(BaseModel):
+    structure_id: str
+    code: str
+    site_id: str | None = None
+    site_name: str | None = None
+    total_ports: int
+    occupied_ports: int
+    reserved_ports: int
+    free_ports: int
+    occupancy_pct: float
+    status: str
+
+
+class CableCapacityReportItem(BaseModel):
+    cable_id: str
+    code: str
+    model: str | None = None
+    cable_type: str
+    total_fibers: int
+    connected_fibers: int
+    reserved_fibers: int
+    free_fibers: int
+    damaged_fibers: int
+    usage_pct: float
+    status: str
+
+
+class InconsistencyReportItem(BaseModel):
+    inconsistency_type: str
+    entity_type: str
+    entity_id: str
+    code: str
+    severity: str = Field(..., description="critical, warning, info")
+    description: str

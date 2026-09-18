@@ -10,6 +10,7 @@ from app.api.v1.imports_exports import imports_exports_router
 from app.api.v1.inventory import inventory_router
 from app.api.v1.map import map_router
 from app.api.v1.measurements import measurements_router
+from app.api.v1.metrics import router as metrics_router
 from app.api.v1.optical import optical_router
 from app.api.v1.reports import reports_router
 from app.api.v1.settings import settings_router
@@ -36,3 +37,4 @@ api_v1_router.include_router(attachments_router)
 api_v1_router.include_router(imports_exports_router)
 api_v1_router.include_router(reports_router)
 api_v1_router.include_router(settings_router)
+api_v1_router.include_router(metrics_router)

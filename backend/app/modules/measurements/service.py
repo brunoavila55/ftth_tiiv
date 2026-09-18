@@ -47,7 +47,9 @@ def measurement_to_read(m: OpticalMeasurement) -> MeasurementRead:
         power_dbm=m.power_dbm,
         wavelength_nm=m.wavelength_nm,
         direction=TraceDirection(m.direction),
-        origin=MeasurementOrigin(m.origin) if m.origin in MeasurementOrigin.__members__.values() else MeasurementOrigin.MANUAL_ENTRY,
+        origin=MeasurementOrigin(m.origin)
+        if m.origin in MeasurementOrigin.__members__.values()
+        else MeasurementOrigin.MANUAL_ENTRY,
         instrument_model=m.instrument_model,
         measured_at=m.measured_at,
         user_id=str(m.user_id) if m.user_id else None,
@@ -65,7 +67,9 @@ def get_measurement_by_id(session: Session, measurement_id: str) -> OpticalMeasu
     try:
         uid = uuid.UUID(measurement_id)
     except ValueError:
-        raise NotFoundError("Medição óptica não encontrada.", code="measurement_not_found") from None
+        raise NotFoundError(
+            "Medição óptica não encontrada.", code="measurement_not_found"
+        ) from None
 
     measurement = session.scalar(select(OpticalMeasurement).where(OpticalMeasurement.id == uid))
     if not measurement:
@@ -129,10 +133,14 @@ def create_measurement(
         try:
             sl_uid = uuid.UUID(payload.service_link_id)
         except ValueError:
-            raise UnprocessableEntityError("UUID de atendimento inválido.", field="service_link_id") from None
+            raise UnprocessableEntityError(
+                "UUID de atendimento inválido.", field="service_link_id"
+            ) from None
         service_link = session.scalar(select(ServiceLink).where(ServiceLink.id == sl_uid))
         if not service_link:
-            raise NotFoundError("Atendimento de cliente não encontrado.", code="service_link_not_found")
+            raise NotFoundError(
+                "Atendimento de cliente não encontrado.", code="service_link_not_found"
+            )
 
     # 3. Tentar orçar a potência prevista de referência no momento do registro
     predicted_rx: float | None = None

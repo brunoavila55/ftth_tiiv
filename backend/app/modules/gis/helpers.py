@@ -3,7 +3,7 @@ from typing import Any
 
 from geoalchemy2.elements import WKBElement
 from geoalchemy2.shape import from_shape, to_shape
-from shapely.geometry import (  # type: ignore[import-untyped]
+from shapely.geometry import (
     LineString as ShapelyLineString,
 )
 from shapely.geometry import (

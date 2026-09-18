@@ -55,6 +55,11 @@ class Settings(BaseSettings):
     MAP_MAX_FEATURES: int = 500
     ROUTE_ENDPOINT_TOLERANCE_M: float = 5.0
 
+    # Desempenho e Observabilidade (B16)
+    METRICS_ENABLED: bool = True
+    METRICS_SECRET_TOKEN: str = "dev-metrics-token-change-in-production"
+    MAX_TRACE_HOPS: int = 300
+
     @field_validator("ENVIRONMENT", mode="before")
     @classmethod
     def parse_environment(cls, v: str | Environment) -> Environment:

@@ -822,6 +822,145 @@
         "title": "CTOOccupancyBuckets",
         "type": "object"
       },
+      "CTOOccupancyReportItem": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "free_ports": {
+            "title": "Free Ports",
+            "type": "integer"
+          },
+          "occupancy_pct": {
+            "title": "Occupancy Pct",
+            "type": "number"
+          },
+          "occupied_ports": {
+            "title": "Occupied Ports",
+            "type": "integer"
+          },
+          "reserved_ports": {
+            "title": "Reserved Ports",
+            "type": "integer"
+          },
+          "site_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Id"
+          },
+          "site_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Site Name"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "structure_id": {
+            "title": "Structure Id",
+            "type": "string"
+          },
+          "total_ports": {
+            "title": "Total Ports",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "structure_id",
+          "code",
+          "total_ports",
+          "occupied_ports",
+          "reserved_ports",
+          "free_ports",
+          "occupancy_pct",
+          "status"
+        ],
+        "title": "CTOOccupancyReportItem",
+        "type": "object"
+      },
+      "CableCapacityReportItem": {
+        "properties": {
+          "cable_id": {
+            "title": "Cable Id",
+            "type": "string"
+          },
+          "cable_type": {
+            "title": "Cable Type",
+            "type": "string"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "connected_fibers": {
+            "title": "Connected Fibers",
+            "type": "integer"
+          },
+          "damaged_fibers": {
+            "title": "Damaged Fibers",
+            "type": "integer"
+          },
+          "free_fibers": {
+            "title": "Free Fibers",
+            "type": "integer"
+          },
+          "model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Model"
+          },
+          "reserved_fibers": {
+            "title": "Reserved Fibers",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "total_fibers": {
+            "title": "Total Fibers",
+            "type": "integer"
+          },
+          "usage_pct": {
+            "title": "Usage Pct",
+            "type": "number"
+          }
+        },
+        "required": [
+          "cable_id",
+          "code",
+          "cable_type",
+          "total_fibers",
+          "connected_fibers",
+          "reserved_fibers",
+          "free_fibers",
+          "damaged_fibers",
+          "usage_pct",
+          "status"
+        ],
+        "title": "CableCapacityReportItem",
+        "type": "object"
+      },
       "CableCreate": {
         "properties": {
           "code": {
@@ -2380,6 +2519,45 @@
         "title": "ImportPreviewResponse",
         "type": "object"
       },
+      "InconsistencyReportItem": {
+        "properties": {
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "description": {
+            "title": "Description",
+            "type": "string"
+          },
+          "entity_id": {
+            "title": "Entity Id",
+            "type": "string"
+          },
+          "entity_type": {
+            "title": "Entity Type",
+            "type": "string"
+          },
+          "inconsistency_type": {
+            "title": "Inconsistency Type",
+            "type": "string"
+          },
+          "severity": {
+            "description": "critical, warning, info",
+            "title": "Severity",
+            "type": "string"
+          }
+        },
+        "required": [
+          "inconsistency_type",
+          "entity_type",
+          "entity_id",
+          "code",
+          "severity",
+          "description"
+        ],
+        "title": "InconsistencyReportItem",
+        "type": "object"
+      },
       "InternalEdgeRead": {
         "properties": {
           "edge_type": {
@@ -3478,6 +3656,84 @@
         "title": "PaginatedResponse[AuditEventRead]",
         "type": "object"
       },
+      "PaginatedResponse_CTOOccupancyReportItem_": {
+        "properties": {
+          "items": {
+            "description": "Lista de itens da página atual",
+            "items": {
+              "$ref": "#/components/schemas/CTOOccupancyReportItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "description": "Página retornada",
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "description": "Tamanho de página aplicado",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total global de registros correspondentes",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PaginatedResponse[CTOOccupancyReportItem]",
+        "type": "object"
+      },
+      "PaginatedResponse_CableCapacityReportItem_": {
+        "properties": {
+          "items": {
+            "description": "Lista de itens da página atual",
+            "items": {
+              "$ref": "#/components/schemas/CableCapacityReportItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "description": "Página retornada",
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "description": "Tamanho de página aplicado",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total global de registros correspondentes",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PaginatedResponse[CableCapacityReportItem]",
+        "type": "object"
+      },
       "PaginatedResponse_CableRead_": {
         "properties": {
           "items": {
@@ -3710,6 +3966,45 @@
           "page_size"
         ],
         "title": "PaginatedResponse[FiberSegmentRead]",
+        "type": "object"
+      },
+      "PaginatedResponse_InconsistencyReportItem_": {
+        "properties": {
+          "items": {
+            "description": "Lista de itens da página atual",
+            "items": {
+              "$ref": "#/components/schemas/InconsistencyReportItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "description": "Página retornada",
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "description": "Tamanho de página aplicado",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total global de registros correspondentes",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PaginatedResponse[InconsistencyReportItem]",
         "type": "object"
       },
       "PaginatedResponse_MeasurementRead_": {
@@ -5715,6 +6010,14 @@
             "$ref": "#/components/schemas/TraceDirection",
             "default": "downstream",
             "description": "Direção da propagação do sinal óptico: downstream (PON->ONU) ou upstream (ONU->PON)"
+          },
+          "max_hops": {
+            "default": 200,
+            "description": "Limite máximo de saltos ou elementos ópticos por caminho antes de truncar",
+            "maximum": 500.0,
+            "minimum": 1.0,
+            "title": "Max Hops",
+            "type": "integer"
           },
           "max_results": {
             "default": 50,
@@ -9091,6 +9394,74 @@
         ]
       }
     },
+    "/api/v1/metrics": {
+      "get": {
+        "description": "Retorna métricas operacionais no formato Prometheus (padrão) ou JSON estruturado (?format=json). Acesso restrito a administradores ou agentes com token.",
+        "operationId": "api_v1_metrics_get_metrics",
+        "parameters": [
+          {
+            "description": "Formato de saída: 'json' ou 'prometheus' (padrão)",
+            "in": "query",
+            "name": "format",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Formato de saída: 'json' ou 'prometheus' (padrão)",
+              "title": "Format"
+            }
+          },
+          {
+            "in": "header",
+            "name": "X-Metrics-Token",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "X-Metrics-Token"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "title": "Response Api V1 Metrics Get Metrics"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Obter métricas de latência, erros, banco de dados e observabilidade",
+        "tags": [
+          "Observabilidade e Métricas"
+        ]
+      }
+    },
     "/api/v1/optical-profiles": {
       "get": {
         "operationId": "api_v1_optical_profiles_list_optical_profiles",
@@ -9719,9 +10090,294 @@
         ]
       }
     },
+    "/api/v1/reports/cables": {
+      "get": {
+        "description": "Lista cabos com total de fibras, fibras conectadas, reservadas, livres, danificadas e taxa de utilização.",
+        "operationId": "api_v1_reports_cables_list_cable_capacity_report",
+        "parameters": [
+          {
+            "description": "Filtrar por status do cabo",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por status do cabo",
+              "title": "Status"
+            }
+          },
+          {
+            "description": "Utilização mínima %",
+            "in": "query",
+            "name": "min_usage_pct",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Utilização mínima %",
+              "title": "Min Usage Pct"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponse_CableCapacityReportItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Relatório de capacidade óptica de cabos",
+        "tags": [
+          "Relatórios, Busca e Auditoria"
+        ]
+      }
+    },
+    "/api/v1/reports/ctos": {
+      "get": {
+        "description": "Lista caixas CTO com contagem exata de portas totais, ocupadas, reservadas, livres e taxa de ocupação.",
+        "operationId": "api_v1_reports_ctos_list_cto_occupancy_report",
+        "parameters": [
+          {
+            "description": "Filtrar por UUID do Site",
+            "in": "query",
+            "name": "site_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por UUID do Site",
+              "title": "Site Id"
+            }
+          },
+          {
+            "description": "Ocupação mínima %",
+            "in": "query",
+            "name": "min_occupancy_pct",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Ocupação mínima %",
+              "title": "Min Occupancy Pct"
+            }
+          },
+          {
+            "description": "Ocupação máxima %",
+            "in": "query",
+            "name": "max_occupancy_pct",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maximum": 100,
+                  "minimum": 0,
+                  "type": "number"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Ocupação máxima %",
+              "title": "Max Occupancy Pct"
+            }
+          },
+          {
+            "description": "Filtrar por status da estrutura",
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Filtrar por status da estrutura",
+              "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponse_CTOOccupancyReportItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Relatório de capacidade e ocupação de CTOs",
+        "tags": [
+          "Relatórios, Busca e Auditoria"
+        ]
+      }
+    },
+    "/api/v1/reports/inconsistencies": {
+      "get": {
+        "description": "Lista anomalias técnicas, cadastros incompletos e problemas de integridade física e óptica.",
+        "operationId": "api_v1_reports_inconsistencies_list_inconsistencies_report",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponse_InconsistencyReportItem_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Relatório de inconsistências e pendências da rede",
+        "tags": [
+          "Relatórios, Busca e Auditoria"
+        ]
+      }
+    },
     "/api/v1/search": {
       "get": {
-        "description": "Realiza busca textual indexada por código, nome ou serial com agrupamento por tipo de entidade.",
+        "description": "Realiza busca textual indexada por código, nome ou serial com agrupamento por tipo de entidade e escopo autorizado.",
         "operationId": "api_v1_search_global_search",
         "parameters": [
           {

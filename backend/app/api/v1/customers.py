@@ -150,7 +150,11 @@ def list_service_links(
     cust_uuid = uuid.UUID(customer_id) if customer_id else None
     port_uuid = uuid.UUID(port_id) if port_id else None
     items, total = service.list_service_links(
-        db, customer_id=cust_uuid, port_id=port_uuid, page=pagination.page, page_size=pagination.page_size
+        db,
+        customer_id=cust_uuid,
+        port_id=port_uuid,
+        page=pagination.page,
+        page_size=pagination.page_size,
     )
     return PaginatedResponse[ServiceLinkRead](
         items=items,

@@ -393,7 +393,9 @@ def delete_attachment(
             thumb_path.unlink()
 
 
-def reconcile_storage_orphans(db: Session, dry_run: bool = False) -> AttachmentReconciliationResponse:
+def reconcile_storage_orphans(
+    db: Session, dry_run: bool = False
+) -> AttachmentReconciliationResponse:
     """Reconcilia arquivos órfãos no disco e registros sem arquivo físico sem excluir anexos válidos."""
     originals_dir, thumbnails_dir = get_storage_directories()
     settings = get_settings()

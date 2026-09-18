@@ -36,7 +36,9 @@ def create_user_with_role(db_session: Session, email: str, role: str) -> User:
     return user
 
 
-def test_measurement_crud_and_optimistic_concurrency(client: TestClient, db_session: Session) -> None:
+def test_measurement_crud_and_optimistic_concurrency(
+    client: TestClient, db_session: Session
+) -> None:
     """Testa o ciclo de vida completo de uma medição manual de campo com concorrência otimista."""
     eng = create_user_with_role(
         db_session, f"eng_{uuid.uuid4().hex[:6]}@provedor.com.br", UserRole.ENGINEER.value

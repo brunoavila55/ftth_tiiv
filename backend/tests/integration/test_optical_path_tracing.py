@@ -335,9 +335,15 @@ def test_optical_trace_splitter_cascade_and_sister_outputs(
     struct = create_structure(db_session, "CEO-SPLITTER-01", "ceo")
 
     # Splitter 1: Entrada e 2 Saídas (1:2)
-    term_in_1 = Terminal(kind="splitter_input", structure_id=struct.id, label="SPL-01 IN", version=1)
-    term_out_1_1 = Terminal(kind="splitter_output", structure_id=struct.id, label="SPL-01 OUT 1", version=1)
-    term_out_1_2 = Terminal(kind="splitter_output", structure_id=struct.id, label="SPL-01 OUT 2", version=1)
+    term_in_1 = Terminal(
+        kind="splitter_input", structure_id=struct.id, label="SPL-01 IN", version=1
+    )
+    term_out_1_1 = Terminal(
+        kind="splitter_output", structure_id=struct.id, label="SPL-01 OUT 1", version=1
+    )
+    term_out_1_2 = Terminal(
+        kind="splitter_output", structure_id=struct.id, label="SPL-01 OUT 2", version=1
+    )
     db_session.add_all([term_in_1, term_out_1_1, term_out_1_2])
     db_session.commit()
 
@@ -352,17 +358,39 @@ def test_optical_trace_splitter_cascade_and_sister_outputs(
     db_session.add(spl_1)
     db_session.commit()
 
-    out_1_1 = SplitterOutput(splitter_id=spl_1.id, output_number=1, terminal_id=term_out_1_1.id, nominal_loss_db=3.5, version=1)
-    out_1_2 = SplitterOutput(splitter_id=spl_1.id, output_number=2, terminal_id=term_out_1_2.id, nominal_loss_db=3.5, version=1)
+    out_1_1 = SplitterOutput(
+        splitter_id=spl_1.id,
+        output_number=1,
+        terminal_id=term_out_1_1.id,
+        nominal_loss_db=3.5,
+        version=1,
+    )
+    out_1_2 = SplitterOutput(
+        splitter_id=spl_1.id,
+        output_number=2,
+        terminal_id=term_out_1_2.id,
+        nominal_loss_db=3.5,
+        version=1,
+    )
     db_session.add_all([out_1_1, out_1_2])
     db_session.commit()
 
     # Splitter 2: Entrada ligada à saída 1 do Splitter 1, e 4 Saídas (1:4)
-    term_in_2 = Terminal(kind="splitter_input", structure_id=struct.id, label="SPL-02 IN", version=1)
-    term_out_2_1 = Terminal(kind="splitter_output", structure_id=struct.id, label="SPL-02 OUT 1", version=1)
-    term_out_2_2 = Terminal(kind="splitter_output", structure_id=struct.id, label="SPL-02 OUT 2", version=1)
-    term_out_2_3 = Terminal(kind="splitter_output", structure_id=struct.id, label="SPL-02 OUT 3", version=1)
-    term_out_2_4 = Terminal(kind="splitter_output", structure_id=struct.id, label="SPL-02 OUT 4", version=1)
+    term_in_2 = Terminal(
+        kind="splitter_input", structure_id=struct.id, label="SPL-02 IN", version=1
+    )
+    term_out_2_1 = Terminal(
+        kind="splitter_output", structure_id=struct.id, label="SPL-02 OUT 1", version=1
+    )
+    term_out_2_2 = Terminal(
+        kind="splitter_output", structure_id=struct.id, label="SPL-02 OUT 2", version=1
+    )
+    term_out_2_3 = Terminal(
+        kind="splitter_output", structure_id=struct.id, label="SPL-02 OUT 3", version=1
+    )
+    term_out_2_4 = Terminal(
+        kind="splitter_output", structure_id=struct.id, label="SPL-02 OUT 4", version=1
+    )
     db_session.add_all([term_in_2, term_out_2_1, term_out_2_2, term_out_2_3, term_out_2_4])
     db_session.commit()
 
@@ -378,7 +406,13 @@ def test_optical_trace_splitter_cascade_and_sister_outputs(
     db_session.commit()
 
     for idx, t in enumerate([term_out_2_1, term_out_2_2, term_out_2_3, term_out_2_4], 1):
-        so = SplitterOutput(splitter_id=spl_2.id, output_number=idx, terminal_id=t.id, nominal_loss_db=7.2, version=1)
+        so = SplitterOutput(
+            splitter_id=spl_2.id,
+            output_number=idx,
+            terminal_id=t.id,
+            nominal_loss_db=7.2,
+            version=1,
+        )
         db_session.add(so)
     db_session.commit()
 
@@ -411,7 +445,9 @@ def test_optical_trace_splitter_cascade_and_sister_outputs(
     assert len(data["paths"]) == 5
 
     # Caminho cascata para Splitter 2 saída 1:
-    cascade_paths = [p for p in data["paths"] if p["destination_terminal_id"] == str(term_out_2_1.id)]
+    cascade_paths = [
+        p for p in data["paths"] if p["destination_terminal_id"] == str(term_out_2_1.id)
+    ]
     assert len(cascade_paths) == 1
     p_casc = cascade_paths[0]
     # Perda: SPL-01 (3.5) + Patch (0.2) + SPL-02 (7.2) = 10.9 dB
@@ -499,9 +535,33 @@ def test_optical_trace_cycle_detection(
     db_session.commit()
 
     # Cria anel fechado: T1 -> T2 -> T3 -> T1
-    conn_12 = Connection(structure_id=struct.id, terminal_a_id=term_1.id, terminal_b_id=term_2.id, connection_type="patch_cord", loss_db=0.1, is_active=True, version=1)
-    conn_23 = Connection(structure_id=struct.id, terminal_a_id=term_2.id, terminal_b_id=term_3.id, connection_type="patch_cord", loss_db=0.1, is_active=True, version=1)
-    conn_31 = Connection(structure_id=struct.id, terminal_a_id=term_3.id, terminal_b_id=term_1.id, connection_type="patch_cord", loss_db=0.1, is_active=True, version=1)
+    conn_12 = Connection(
+        structure_id=struct.id,
+        terminal_a_id=term_1.id,
+        terminal_b_id=term_2.id,
+        connection_type="patch_cord",
+        loss_db=0.1,
+        is_active=True,
+        version=1,
+    )
+    conn_23 = Connection(
+        structure_id=struct.id,
+        terminal_a_id=term_2.id,
+        terminal_b_id=term_3.id,
+        connection_type="patch_cord",
+        loss_db=0.1,
+        is_active=True,
+        version=1,
+    )
+    conn_31 = Connection(
+        structure_id=struct.id,
+        terminal_a_id=term_3.id,
+        terminal_b_id=term_1.id,
+        connection_type="patch_cord",
+        loss_db=0.1,
+        is_active=True,
+        version=1,
+    )
     db_session.add_all([conn_12, conn_23, conn_31])
     db_session.commit()
 

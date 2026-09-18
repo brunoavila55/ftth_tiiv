@@ -393,51 +393,57 @@ export function DashboardView() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {data.incomplete_documentation_alerts.length === 0 ? (
-              <div className="flex flex-col items-center justify-center p-6 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-center">
-                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-2">
-                  <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
-                </div>
-                <p className="text-sm font-semibold text-foreground">
-                  Documentação em Conformidade
-                </p>
-                <p className="text-xs text-muted-foreground mt-1 max-w-sm">
-                  Todos os cabos cadastrados possuem segmentos georreferenciados e amarrações consistentes.
-                </p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <div className="flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400 pb-1">
-                  <AlertTriangle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
-                  <span>
-                    {data.incomplete_documentation_alerts.length} apontamento(s) requerem atenção
-                  </span>
-                </div>
-
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {data.incomplete_documentation_alerts.map((alertMsg, idx) => (
-                    <div
-                      key={idx}
-                      className="flex items-start justify-between gap-3 p-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs"
-                    >
-                      <div className="flex items-start gap-2">
-                        <AlertTriangle
-                          className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5"
-                          aria-hidden="true"
-                        />
-                        <span className="text-foreground">{alertMsg}</span>
-                      </div>
-                      <Link
-                        href="/cables"
-                        className="text-primary hover:underline font-medium flex-shrink-0 whitespace-nowrap text-[11px]"
-                      >
-                        Revisar
-                      </Link>
+            {(() => {
+              const alerts = data.incomplete_documentation_alerts ?? [];
+              if (alerts.length === 0) {
+                return (
+                  <div className="flex flex-col items-center justify-center p-6 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-center">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 mb-2">
+                      <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
                     </div>
-                  ))}
+                    <p className="text-sm font-semibold text-foreground">
+                      Documentação em Conformidade
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-sm">
+                      Todos os cabos cadastrados possuem segmentos georreferenciados e amarrações consistentes.
+                    </p>
+                  </div>
+                );
+              }
+              return (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-medium text-amber-600 dark:text-amber-400 pb-1">
+                    <AlertTriangle className="h-4 w-4 flex-shrink-0" aria-hidden="true" />
+                    <span>
+                      {alerts.length} apontamento(s) requerem atenção
+                    </span>
+                  </div>
+
+                  <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                    {alerts.map((alertMsg, idx) => (
+                      <div
+                        key={idx}
+                        className="flex items-start justify-between gap-3 p-2.5 rounded-lg border border-amber-500/20 bg-amber-500/5 text-xs"
+                      >
+                        <div className="flex items-start gap-2">
+                          <AlertTriangle
+                            className="h-3.5 w-3.5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5"
+                            aria-hidden="true"
+                          />
+                          <span className="text-foreground">{alertMsg}</span>
+                        </div>
+                        <Link
+                          href="/reports"
+                          className="text-xs text-primary hover:underline whitespace-nowrap font-medium ml-2"
+                        >
+                          Ver detalhes
+                        </Link>
+                      </div>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            )}
+              );
+            })()}
 
             {/* Ações Rápidas de Navegação */}
             <div className="mt-6 pt-4 border-t border-border grid grid-cols-2 gap-3">

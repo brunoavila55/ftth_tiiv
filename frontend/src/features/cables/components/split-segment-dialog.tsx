@@ -20,6 +20,7 @@ import {
   type SegmentSplitPreviewResponse,
 } from "@/features/cables/api";
 import { listStructures, type StructureRead } from "@/features/inventory/api";
+import { getColorForPosition } from "@/features/cables/utils/colors";
 import { Loader2, Scissors, AlertTriangle } from "lucide-react";
 
 export interface SplitSegmentDialogProps {
@@ -231,22 +232,35 @@ export function SplitSegmentDialog({
               </div>
             </div>
 
-            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-12 gap-1.5 pt-2">
+            <div className="grid grid-cols-4 sm:grid-cols-6 md:grid-cols-8 lg:grid-cols-12 gap-1.5 pt-2">
               {Array.from({ length: totalFibers }, (_, i) => i + 1).map((fiberNum) => {
                 const isCut = cutFiberNumbers.includes(fiberNum);
+                const fiberColor = getColorForPosition(fiberNum);
+                const buttonTitle = `Fibra #${fiberNum}: ${isCut ? "CORTADA" : "PASSANTE"} (${fiberColor.name})`;
+
                 return (
                   <button
                     key={fiberNum}
                     type="button"
                     onClick={() => toggleFiberCut(fiberNum)}
-                    className={`h-8 rounded flex items-center justify-center font-mono font-bold text-[11px] border transition-all ${
+                    className={`min-h-[36px] sm:h-8 px-1 rounded flex items-center justify-center gap-1 font-mono font-bold text-[11px] border transition-all focus-visible:ring-2 focus-visible:ring-primary focus-visible:outline-none ${
                       isCut
                         ? "bg-destructive text-destructive-foreground border-destructive shadow-sm"
                         : "bg-background text-foreground border-border hover:bg-muted"
                     }`}
-                    title={isCut ? `Fibra #${fiberNum}: CORTADA` : `Fibra #${fiberNum}: PASSANTE`}
+                    title={buttonTitle}
+                    aria-label={buttonTitle}
+                    aria-pressed={isCut}
                   >
-                    {fiberNum}
+                    <span
+                      className="h-2 w-2 rounded-full border shrink-0"
+                      style={{
+                        backgroundColor: fiberColor.hex,
+                        borderColor: fiberColor.border || fiberColor.hex,
+                      }}
+                      aria-hidden="true"
+                    />
+                    <span>{fiberNum}</span>
                   </button>
                 );
               })}

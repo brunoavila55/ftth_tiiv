@@ -307,17 +307,25 @@ def calculate_service_link_budget(
         try:
             sl_uuid = uuid.UUID(payload.service_link_id)
         except ValueError:
-            raise UnprocessableEntityError("service_link_id inválido.", field="service_link_id") from None
+            raise UnprocessableEntityError(
+                "service_link_id inválido.", field="service_link_id"
+            ) from None
 
         link = session.get(ServiceLink, sl_uuid)
         if not link:
-            raise NotFoundError("Atendimento óptico de cliente não encontrado.", code="service_link_not_found")
+            raise NotFoundError(
+                "Atendimento óptico de cliente não encontrado.", code="service_link_not_found"
+            )
 
         cto_term = session.scalar(
-            select(Terminal).where(Terminal.entity_type == "port", Terminal.entity_id == link.port_id)
+            select(Terminal).where(
+                Terminal.entity_type == "port", Terminal.entity_id == link.port_id
+            )
         )
         if not cto_term:
-            raise NotFoundError("Terminal óptico da porta CTO não localizado.", code="terminal_not_found")
+            raise NotFoundError(
+                "Terminal óptico da porta CTO não localizado.", code="terminal_not_found"
+            )
 
         # No downstream, traçamos upstream da CTO para descobrir a OLT e os passos
         if payload.direction == TraceDirection.DOWNSTREAM:
@@ -593,14 +601,22 @@ def calculate_service_link_budget(
         assumptions=assumptions,
         missing_fields=calc_res.missing_fields,
         steps=budget_steps,
-        total_loss_db=round(calc_res.total_loss_db, 4) if calc_res.total_loss_db is not None else None,
+        total_loss_db=round(calc_res.total_loss_db, 4)
+        if calc_res.total_loss_db is not None
+        else None,
         tx_dbm=round(calc_res.tx_dbm, 4) if calc_res.tx_dbm is not None else None,
-        predicted_rx_dbm=round(calc_res.predicted_rx_dbm, 4) if calc_res.predicted_rx_dbm is not None else None,
+        predicted_rx_dbm=round(calc_res.predicted_rx_dbm, 4)
+        if calc_res.predicted_rx_dbm is not None
+        else None,
         rx_min_dbm=round(calc_res.rx_min_dbm, 4) if calc_res.rx_min_dbm is not None else None,
         rx_max_dbm=round(calc_res.rx_max_dbm, 4) if calc_res.rx_max_dbm is not None else None,
         engineering_margin_db=calc_res.engineering_margin_db,
-        remaining_margin_db=round(calc_res.remaining_margin_db, 4) if calc_res.remaining_margin_db is not None else None,
-        overload_headroom_db=round(calc_res.overload_headroom_db, 4) if calc_res.overload_headroom_db is not None else None,
+        remaining_margin_db=round(calc_res.remaining_margin_db, 4)
+        if calc_res.remaining_margin_db is not None
+        else None,
+        overload_headroom_db=round(calc_res.overload_headroom_db, 4)
+        if calc_res.overload_headroom_db is not None
+        else None,
         assessment=assessment_map.get(calc_res.assessment, BudgetAssessment.UNKNOWN),
     )
 

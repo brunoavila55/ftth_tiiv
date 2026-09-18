@@ -34,7 +34,7 @@ export function Header({ onOpenMobileMenu, onOpenSearch, className }: HeaderProp
         <Button
           variant="ghost"
           size="icon"
-          className="h-9 w-9 md:hidden text-muted-foreground hover:text-foreground"
+          className="h-11 w-11 min-h-[44px] min-w-[44px] md:hidden text-muted-foreground hover:text-foreground"
           onClick={onOpenMobileMenu}
           aria-label="Abrir menu lateral"
         >

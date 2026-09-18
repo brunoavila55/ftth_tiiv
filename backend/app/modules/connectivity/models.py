@@ -291,4 +291,3 @@ class SplitterOutput(Base, VersionedModelMixin):
         CheckConstraint("nominal_loss_db >= 0.0", name="chk_splitter_output_nominal_loss_positive"),
         Index("uq_splitter_outputs_num", "splitter_id", "output_number", unique=True),
     )
-

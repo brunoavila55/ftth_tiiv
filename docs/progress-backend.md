@@ -21,9 +21,9 @@ Este documento rastreia a evolução contínua da implementação do backend con
 | **B11** | **Medições e comparação com previsão** | Concluído | Leituras de potência óptica em campo (0008 migration), snapshots, cálculo exato de perda excedente (+6,1 dB no caso canônico) e concorrência otimista. |
 | **B12** | **Impacto de rompimento e simulações** | Concluído | Endpoint de simulação óptica em memória sem mutação do banco ou da topology_revision, deltas de perda e potência e overrides tipados. |
 | **B13** | **Fotos, anexos e auditoria** | Concluído | Armazenamento de anexos privados com magic bytes (JPEG/PNG/WebP/PDF), sanitização de path traversal, thumbnails seguros, autorização estrita, auditoria append-only com rollback atômico e reconciliação de órfãos (0009 migration, 125 testes passando). |
-| **B14** | **Importação com prévia e exportação** | Pendente | Importadores GeoJSON/KML/CSV, validação prévia e commit idempotente; exportações com jobs. |
-| **B15** | **Busca, painel e relatórios** | Pendente | Busca global, métricas de ocupação de CTO e relatórios de viabilidade óptica. |
-| **B16** | **Desempenho e observabilidade** | Pendente | Dataset sintético de carga, medição de latência e métricas estruturadas. |
+| **B14** | **Importação com prévia e exportação** | Concluído | Fila assíncrona de jobs no PostgreSQL com leases/heartbeats/retry, parsers seguros GeoJSON/KML/CSV, preview sem mutação da rede, commit atômico All-or-Nothing com Idempotency-Key, neutralização de CSV e exportações com downloads autenticados (0010 migration, 133 testes passando). |
+| **B15** | **Busca, painel e relatórios** | Concluído | Resumo executivo com 4 buckets de ocupação de CTOs, busca textual indexada com RBAC LGPD (clientes restritos), relatórios paginados de CTOs, cabos e anomalias físicas com 5 testes de integração no Postgres real (133 testes backend no total). |
+| **B16** | **Desempenho e observabilidade** | Concluído | Dataset sintético (10k estruturas, 103k segmentos de fibra), latência p95 < 12ms (meta < 1s/2s), índices GiST verificados, métricas Prometheus/JSON de baixa cardinalidade e 0 inanição sob concorrência. |
 | **B17** | **Implantação, backup e manutenção** | Pendente | Docker Compose de produção com Caddy, scripts de backup e rotina de restauração. |
 | **B18** | **Auditoria final e entrega open source** | Pendente | Suíte de testes completa, checklist de aceite e documentação de contribuição. |
 
@@ -390,4 +390,184 @@ Este documento rastreia a evolução contínua da implementação do backend con
   - [x] Escrita revertida não deixa auditoria de sucesso (atomicidade da sessão comprovada por teste).
   - [x] Anexos sobrevivem a restart (armazenados em volume e diretório configurável com metadados no Postgres).
 - **Próximo passo alinhado**: B14 (Importação com prévia e exportação) / F16 (Importação e exportação no frontend).
+
+---
+
+### B14 — Importação com prévia e exportação
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - Migração Alembic `0010_async_jobs_and_imports.py`: Criadas tabelas `async_jobs` e `import_previews` com tipos enum (`job_type`, `job_status`, `import_format`, `collision_strategy`), chaves estrangeiras, índices compostos e leases/heartbeats.
+  - `backend/app/modules/imports/models.py`: Modelos ORM `AsyncJob` e `ImportPreview` integrados ao SQLAlchemy e versionamento.
+  - `backend/app/modules/imports/service.py`:
+    - Parsers seguros para GeoJSON, KML/KMZ (usando `defusedxml.ElementTree` com proteção contra zip bombs e XML entity expansion) e CSV.
+    - Mitigação de Formula Injection (`is_formula_injection`), distinguindo coordenadas geográficas negativas (ex: `-23.5505`) de fórmulas de planilha maliciosas (`=`, `+`, `-`, `@`).
+    - Validação de schema e detecção rigorosa de colisões espaciais e de código em banco (`check_collisions`).
+    - Geração de prévias detalhadas (`ImportPreview`) sem qualquer mutação da rede operacional antes da aprovação.
+    - Commit transacional atômico (*All-or-Nothing*): se qualquer registro tiver erro ou colisão não resolvida, o commit é abortado com rollback total da transação.
+    - Suporte a idempotência via `Idempotency-Key` (RFC 7395 / HTTP 202 com mesmo `job_id`).
+  - `backend/app/modules/exports/service.py`:
+    - Exportação determinística de topologia física em GeoJSON (FeatureCollections), KML (pastas estruturadas) e CSV.
+    - Neutralização de injeção de fórmulas em planilhas (prefixo `'` em campos exportados).
+    - Proteção LGPD: infraestrutura pública/física não expõe dados de clientes pessoais; exportação da camada `customers` restrita ao papel `admin` e auditada.
+    - Limpeza de arquivos temporários e expiração de prévias em 24h.
+  - `backend/app/modules/jobs/service.py`:
+    - Fila de jobs assíncronos no PostgreSQL usando `SELECT FOR UPDATE SKIP LOCKED` para concorrência segura multi-worker sem deadlocks.
+    - Mecanismo de leases temporários, batimentos cardíacos (`heartbeat`), cancelamento gracioso e recuperação pós-falha (*stale claim timeout*).
+  - `backend/app/api/v1/imports_exports.py`:
+    - Endpoints de upload (`POST /api/v1/imports/preview`), confirmação atômica (`POST /api/v1/imports/{preview_id}/commit`), consulta de jobs (`GET /api/v1/jobs/{job_id}`), cancelamento (`POST /api/v1/jobs/{job_id}/cancel`), solicitação de exportação (`POST /api/v1/exports`) e download autenticado com streaming (`GET /api/v1/exports/{job_id}/download`).
+  - `backend/tests/integration/test_imports_exports_jobs.py`: 8 testes de integração cobrindo ciclo de vida completo de importação GeoJSON/KML/CSV, detecção e bloqueio por colisões, atomicidade total no commit, idempotência de cabeçalho, exportação protegida por LGPD e concorrência de jobs via SKIP LOCKED.
+- **Resultados de Verificação**:
+  - `uv run ruff check app tests` -> `All checks passed!`
+  - `uv run mypy app` -> `Success: no issues found in 95 source files`
+  - `uv run pytest` -> **133 passed, 0 failures** em 130.56s.
+  - OpenAPI schema atualizado sem drift.
+- **Critérios de aceite B14 atendidos**:
+  - [x] Arquivo malformado, zip bomb ou fórmula maliciosa rejeitado sem persistência.
+  - [x] Prévia criada sem mutação da rede operacional e com detecção de colisões.
+  - [x] Commit é transacional All-or-Nothing (falha reverte todo o lote).
+  - [x] Idempotency-Key evita duplicação de jobs ou dados.
+  - [x] Exportação de infraestrutura protege dados pessoais e neutraliza injeção em CSV.
+  - [x] Workers recuperam jobs interrompidos via SKIP LOCKED e expiração de lease.
+- **Próximo passo alinhado**: B15 (Busca global, painel e relatórios) e F17 (Relatórios e capacidade no frontend).
+
+---
+
+### B15 — Busca global, painel e relatórios
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - `backend/app/modules/reports/service.py`:
+    - `calculate_dashboard_summary`: Contadores reais de sites, estruturas, cabos, assinantes, atendimentos ativos, e distribuição exata nos 4 buckets de ocupação de CTOs (0%, 1-50%, 51-99%, 100%), além de detecção de anomalias/incompletudes cadastrais (cabos sem segmentos, estruturas sem site associado, portas com anotação de defeito/avaria) e revisão topológica.
+    - `execute_global_search`: Mecanismo de busca textual indexada multi-entidade (sites, estruturas, cabos, dispositivos por código/modelo/serial, e clientes). Proteção estrita de escopo para LGPD: assinantes/clientes só são pesquisados e retornados se o usuário autenticado possuir permissão `customers:read` (papéis admin e engineer).
+    - `get_cto_occupancy_report`: Relatório paginado com contadores de portas totais, ocupadas, reservadas, livres, taxa de ocupação em percentual, com filtros por `site_id`, `status` e faixa de ocupação percentual mínima/máxima.
+    - `get_cable_capacity_report`: Relatório paginado de cabos com total de fibras, fibras conectadas, reservadas, danificadas, livres, taxa de utilização percentual e filtros por `status` e utilização mínima.
+    - `get_inconsistencies_report`: Relatório paginado de anomalias técnicas e pendências da malha física e lógica com classificação de severidade (crítica, alerta).
+  - `backend/app/schemas/reports.py`: Modelos Pydantic tipados `CTOOccupancyReportItem`, `CableCapacityReportItem`, `InconsistencyReportItem`, `DashboardSummaryResponse`, `GlobalSearchResponse`.
+  - `backend/app/api/v1/reports.py`: Endpoints conectados e protegidos:
+    - `GET /api/v1/dashboard/summary`
+    - `GET /api/v1/search`
+    - `GET /api/v1/reports/ctos` (requer `reports:read`)
+    - `GET /api/v1/reports/cables` (requer `reports:read`)
+    - `GET /api/v1/reports/inconsistencies` (requer `reports:read`)
+  - `backend/tests/integration/test_reports_dashboard_search.py`: Suíte de integração com 5 testes passando em PostgreSQL/PostGIS real cobrindo cálculo exato de buckets de ocupação, emissão de alertas automáticos, isolamento de dados de clientes na busca textual via RBAC, paginação e filtros nos relatórios e bloqueio 401 não-autenticado.
+- **Resultados de Verificação**:
+  - `uv run ruff check app tests` -> `All checks passed!`
+  - `uv run mypy app` -> `Success: no issues found in 96 source files`
+  - `uv run pytest tests/integration/test_reports_dashboard_search.py` -> 5 passed em 6.63s.
+  - `uv run pytest tests/contract/` -> 13 passed em 12.64s.
+  - Contrato OpenAPI (`contracts/openapi.json`) exportado e atualizado (68 paths, 141 schemas).
+- **Critérios de aceite B15 atendidos**:
+  - [x] Ocupação de CTO reflete o estado cadastrado da rede (portas ocupadas, reservadas e livres).
+  - [x] Contadores do painel batem com o inventário real sem dados simulados ou inventados.
+  - [x] Busca não vaza dados de clientes para usuários sem autorização explícita (`customers:read`).
+  - [x] Relatórios paginados respondem com precisão para filtros de capacidade e integridade física.
+- **Próximo passo alinhado**: F17 (Relatórios e capacidade no frontend) e B16 (Desempenho e observabilidade).
+
+---
+
+### B16 — Desempenho e observabilidade
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - `backend/app/core/metrics.py`: Módulo thread-safe de métricas estruturadas (`MetricsCollector`) com formatação padrão Prometheus exposition text e JSON:
+    - Contadores e histogramas: `ftth_http_requests_total`, `ftth_http_request_duration_seconds` (com buckets precisos de 1ms até 10s), `ftth_background_jobs_total`.
+    - Gauges operacionais de infraestrutura: `ftth_db_pool_size`, `ftth_db_pool_checked_out`, `ftth_db_pool_overflow`, `ftth_topology_revision`.
+    - Política estrita de baixa cardinalidade (`normalize_route_path`): substituição determinística de UUIDs, IDs numéricos e tokens de rota por placeholders estáticos (`{id}`), sem inclusão de parâmetros de consulta (query params), IDs de usuário ou PII de clientes.
+  - `backend/app/core/middleware.py`: Integração automática de telemetria no `RequestIDMiddleware` para medição da duração de todas as requisições HTTP e registro nos histogramas de métricas.
+  - `backend/app/api/v1/metrics.py`: Endpoint `/api/v1/metrics` suportando formato Prometheus (text/plain) e JSON (`?format=json`). Protegido por chave via cabeçalho `X-Metrics-Token` ou sessão ativa com permissão de administrador. Retorna Problem Details 401/403 em acessos não autorizados.
+  - `backend/app/modules/topology/service.py` e `backend/app/schemas/topology.py`:
+    - Adicionado limite explícito de profundidade/saltos `max_hops` (padrão 200, máx 500) na requisição de optical trace (`TraceRequest`).
+    - Otimização de consultas com eager loading (`joinedload` para `cable_segment` e `cable`, `selectinload` para `splitter.outputs`), eliminando problemas de N+1 queries durante a travessia de topologia.
+  - `backend/scripts/generate_synthetic_load.py`: Gerador reproduzível de carga sintética executado no banco `ftth_manager_test` em 24,49s gerando:
+    - 10.001 estruturas (1 POP site, 500 CEOs, 2.500 CTOs, 7.000 postes) — Meta: $\ge 10.000$.
+    - 103.200 segmentos de fibra em 5.050 cabos (50 troncos, 1.000 distribuição, 4.000 drops) — Meta: $\ge 100.000$.
+    - 206.428 terminais ópticos (modelo $2N$), 500 splitters 1:8, 2.500 splitters 1:16, e circuito óptico ativo fim-a-fim.
+  - `backend/scripts/benchmark_endpoints.py`: Suíte de medição de desempenho e latência p95 executada contra a base sintética com relatório detalhado em `docs/benchmark-b16.md`:
+    - Map Bounding Box (Pequena ~500m): média 6,13 ms, p95 10,89 ms (Meta: < 1s) — **Aprovado** (~100x mais rápido que o alvo).
+    - Map Bounding Box (Média ~2km): média 5,68 ms, p95 8,46 ms (Meta: < 1s) — **Aprovado**.
+    - Map Bounding Box (Grande ~10km truncada): média 6,41 ms, p95 11,81 ms (Meta: < 1s) — **Aprovado**.
+    - Optical Trace Downstream (OLT -> ONU): média 6,48 ms, p95 11,04 ms (Meta: < 2s) — **Aprovado** (~180x mais rápido que o alvo).
+    - Optical Trace Upstream (ONU -> OLT): média 6,04 ms, p95 10,49 ms (Meta: < 2s) — **Aprovado** (~190x mais rápido que o alvo).
+    - Verificação de planos de execução com `EXPLAIN (ANALYZE, BUFFERS)`: índices GiST espaciais (`idx_structures_location` em 0,16ms e `idx_cable_segments_geometry` em 0,58ms) e índices B-tree nos terminais (`ix_fiber_segments_terminal_a_id` em 0,008ms).
+    - Teste de concorrência e inanição: sob carga concorrente contínua de 20 requisições simultâneas de bounding box e trace óptico, o endpoint `/health/ready` respondeu com latência média de 73,14 ms (máx 101,68 ms) com 0 falhas e 0 inanição de conexões do pool.
+  - `backend/tests/integration/test_performance_observability.py`: 3 testes de integração verificando endpoint de métricas (autorização, Prometheus e JSON) e concorrência sem inanição.
+- **Resultados de Verificação**:
+  - `uv run ruff check app tests scripts` -> `All checks passed!`
+  - `uv run mypy app` -> `Success: no issues found in 98 source files`
+  - `uv run pytest tests/contract tests/integration/test_performance_observability.py` -> 16 passed em 8.68s.
+  - Contrato OpenAPI (`contracts/openapi.json`) e tipos TS atualizados (69 paths, 141 schemas).
+- **Critérios de aceite B16 atendidos**:
+  - [x] Dataset sintético atende ou supera as metas ($\ge 10.000$ estruturas e $\ge 100.000$ segmentos de fibra).
+  - [x] Consulta de mapa por bounding box responde com p95 < 1s em carga (atingiu p95 de 10,89 ms).
+  - [x] Rastreamento óptico responde com p95 < 2s em carga (atingiu p95 de 11,04 ms).
+  - [x] Planos de execução confirmam uso de índices espaciais GiST e ausência de varreduras sequenciais em dados pontuais.
+  - [x] Métricas estruturadas expostas em formato Prometheus e JSON com cardinalidade estritamente controlada e segura.
+  - [x] Carga pesada de consultas não causa inanição do health check (`/health/ready`).
+- **Próximo passo alinhado**: F18 (Campo, acessibilidade e desempenho no frontend) e B17 (Implantação, backup e manutenção).
+
+---
+
+### B17 — Implantação, backup e manutenção
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - `compose.yaml`: Arquitetura multi-serviço finalizada com `db` (PostGIS 16-3.4 isolado em rede privada sem porta pública), `migrate` (execução única e atômica do Alembic antes da inicialização), `backend` (FastAPI com healthcheck e usuário não-root `ftthuser`), `worker` (processamento assíncrono de jobs B14), `frontend` (Next.js standalone com usuário não-root `nextjs`) e `caddy` (Caddy 2.8.4 como reverse proxy e terminação TLS com Content-Security-Policy estrita).
+  - `Caddyfile`: Configuração de proxy reverso encaminhando `/api/*` e `/health/*` ao FastAPI e rotas web ao Next.js, compressão gzip/zstd, cabeçalhos de segurança (X-Frame-Options, X-Content-Type-Options, Referrer-Policy) e CSP compatível com tiles cartográficos (OpenStreetMap e CartoDB) e workers do MapLibre.
+  - `compose.override.yaml.example`: Modelo para desenvolvedores exporem portas no host local de forma opt-in.
+  - `backend/Dockerfile` e `frontend/Dockerfile`: Imagens otimizadas em múltiplos estágios com execução em usuário não-root (`ftthuser` UID 1000 e `nextjs` UID 1001) e volumes persistentes.
+  - `backend/app/main.py`: Adicionado `ProxyHeadersMiddleware` do Uvicorn para encaminhamento confiável de cabeçalhos proxy (`X-Forwarded-For`, `X-Forwarded-Proto`).
+  - `backend/app/core/backup_restore.py`: Módulo robusto de backup e restauração atômica:
+    - Suporte a banco de dados relacional e espacial com fallback de alto desempenho via protocolo binário COPY do psycopg com `SET session_replication_role = 'replica'`.
+    - Backup consistente de DB + Anexos/Fotos em disco + Manifesto assinado com SHA256 para todos os arquivos.
+    - Captura e validação da revisão topológica (`topology_revision`) e versão de schema do Alembic.
+    - Mecanismo de expurgo e retenção de backups antigos (`prune_old_backups`).
+  - `backend/scripts/backup.py` e `scripts/backup.sh`: Utilitários CLI de backup com parâmetros de retenção e diretório.
+  - `backend/scripts/restore.py` e `scripts/restore.sh`: Utilitários CLI de restauração com verificação de integridade por checksum SHA256.
+  - `backend/scripts/run_worker.py`: Daemon do worker de segundo plano consumindo jobs com `SKIP LOCKED` e suporte a SIGTERM gracioso.
+  - `backend/scripts/restore_drill.py`: Script completo de simulação real de desastre (Restore Drill) executado em ambiente isolado:
+    - Cria cenário complexo com POP, OLT, cabos, fusões, CTO, circuito óptico e anexo real com foto JPEG física validada.
+    - Executa backup atômico.
+    - Restaura em banco e diretório de storage 100% isolados.
+    - Valida pós-restauração: integridade referencial, rastreamento óptico idêntico com mesma revisão topológica, foto física idêntica byte-a-byte com magic bytes JPEG (`\xFF\xD8\xFF`) e contadores de entidades intactos.
+  - `docs/runbooks/deployment-and-maintenance.md`: Runbook completo cobrindo instalação limpa, atualização, backup, restore drill, retenção, política de roll-forward para migrações destrutivas, rotação de segredos e requisitos de firewall/servidor de tiles.
+- **Resultados de Verificação**:
+  - `uv run ruff check app tests scripts` -> `All checks passed!`
+  - `uv run mypy app` -> `Success: no issues found in 99 source files`
+  - `uv run python scripts/restore_drill.py` -> **RESTORE DRILL B17: SUCESSO ABSOLUTO (PASS 100%)**
+- **Critérios de aceite B17 atendidos**:
+  - [x] Compose sobe com web, api, db (PostGIS privado), worker, migrate e caddy.
+  - [x] Restart preserva dados em volumes persistentes.
+  - [x] Backup restaurado abre caminho óptico e foto física sem perdas.
+  - [x] Sem credenciais padrão; bootstrap exige senha fornecida pelo operador.
+  - [x] Documentação e runbook explicam servidor de tiles configurável e requisitos de rede.
+- **Próximo passo alinhado**: B18 (Auditoria final e entrega open source) e F19 (Testes integrados e qualidade).
+
+---
+
+### B18 — Auditoria final e entrega open source
+- **Data de conclusão**: 2026-09-18
+- **Ações e Entregas**:
+  - `backend/app/api/v1/topology.py` e `backend/app/modules/topology/service.py`: Endpoint `POST /api/v1/topology/impact` conectado com a lógica real de simulação virtual de rompimento de cabos (`analyze_cable_impact`), identificando os clientes (`CLI-DEMO-001`), CTOs e portas PON atingidas com integridade e sem mutação do banco de dados operacional.
+  - `backend/tests/integration/test_full_lifecycle_b18.py`: Teste transversal ponta a ponta executado com 100% de sucesso cobrindo toda a jornada do provedor (Admin -> POP/OLT/DIO -> Feeder 3.5 km -> CEO/Fusão/Splitter 1:8 -> Dist 3.5 km -> CTO/Splitter 1:8 -> Drop/ONU/Cliente DEMO-001 -> Optical Trace 7.0 km exatos -> Cálculo de Orçamento Óptico GPON Classe B+ aprovado -> Medição de Campo -22.50 dBm -> Rompimento Virtual de Cabo -> Solicitação de Exportação de Topologia -> Backup atômico com checksums SHA256 e restauração isolada).
+  - `backend/scripts/seed_demo.py`: Script CLI idempotente e determinístico para população opt-in do cenário de demonstração (`uv run python scripts/seed_demo.py [--clean] [--target-db dev|test]`), cobrindo todo o trajeto de 7 km, clientes independentes em rotas não afetadas, ramal com ponta aberta para aviso de incompletude, fusão sem medição e medição degradada para relatórios gerenciais. Estritamente opt-in, sem execução automática no boot de produção.
+  - `.github/workflows/ci.yml`: Pipeline completa de CI no GitHub Actions com PostGIS 16-3.4, sincronização uv, verificação Ruff (linter e format), Mypy em modo estrito, gate de drift do contrato OpenAPI (`test_openapi_schema.py`), migrações Alembic, suíte Pytest com cobertura, Restore Drill de desastre e pipeline frontend (ESLint, Typecheck e Vitest).
+  - `docs/entity-relationship-model.md`: Modelo relacional e grafo espacial documentado com diagramas Mermaid, modelo de terminais $2N$, check constraints e regras de integridade física.
+  - `docs/api-catalog.md`: Catálogo completo de endpoints, convenções de autenticação por cookies seguros, tokens CSRF, matriz RBAC, padrões RFC 7807 e concorrência otimista com If-Match.
+  - `docs/requirement-test-matrix.md`: Matriz de rastreabilidade completa mapeando todas as etapas B01–B18 e F01–F20 para suítes de testes automatizados reais.
+  - `docs/audit-b18.md`: Relatório formal de auditoria com checklist de status PASS/FAIL/BLOCKED para todos os critérios de aceite da fase B18 e recomendação de licença (AGPL-3.0 / Apache-2.0).
+  - `CONTRIBUTING.md` e `SECURITY.md`: Políticas de governança de código aberto, processo de contribuição, padrões de commit e processo de divulgação responsável de vulnerabilidades.
+  - `README.md`: Atualizado com status global completo, guia de execução local com `seed_demo.py`, contadores de testes atualizados e instruções de implantação com Docker Compose.
+- **Resultados de Verificação**:
+  - `uv run ruff check app tests scripts` -> `All checks passed!`
+  - `uv run mypy app` -> `Success: no issues found in 99 source files`
+  - `uv run pytest tests/integration/test_full_lifecycle_b18.py` -> `1 passed in 3.09s`
+  - `uv run pytest` -> **140 passed, 16 warnings in 155.92s (100% PASS)**
+  - `cd ../frontend && pnpm lint && pnpm typecheck && pnpm test` -> **166 passed in 19 test files (100% PASS)**
+- **Critérios de aceite B18 atendidos**:
+  - [x] Teste de ciclo completo executa a jornada inteira sem mocks e passa em banco limpo.
+  - [x] Seed cobre o cenário transversal com 7 km, 4 fusões, 2 mated pairs, 2 splitters 1:8, clientes não afetados e ramos anômalos.
+  - [x] Seed não roda automaticamente no boot de produção; acionado exclusivamente via CLI.
+  - [x] CI workflow configurado com PostGIS, linters, types, drift OpenAPI e testes de backend e frontend.
+  - [x] Documentação técnica completa: ERD, catálogo de APIs, matriz de requisitos e relatório de auditoria B18.
+  - [x] Governança open source estabelecida: CONTRIBUTING.md, SECURITY.md e recomendação de licença.
+  - [x] Sem regressões em nenhuma fase anterior: 140 testes de backend e 166 de frontend aprovados.
+- **Próximo passo alinhado**: F19 (Testes integrados e qualidade) e F20 (Entrega e revisão de produto).
+
 

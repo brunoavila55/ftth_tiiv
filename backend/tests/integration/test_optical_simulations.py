@@ -38,7 +38,9 @@ def create_engineer(db_session: Session, email: str) -> User:
     return user
 
 
-def test_optical_simulation_with_loss_and_length_overrides(client: TestClient, db_session: Session) -> None:
+def test_optical_simulation_with_loss_and_length_overrides(
+    client: TestClient, db_session: Session
+) -> None:
     """Valida simulação óptica com overrides de perda e comprimento, garantindo invariância operacional."""
     eng = create_engineer(db_session, f"eng_sim_{uuid.uuid4().hex[:6]}@provedor.com.br")
     _csrf_token = auth_client_login(client, eng.email)
@@ -47,7 +49,9 @@ def test_optical_simulation_with_loss_and_length_overrides(client: TestClient, d
     rev_before = get_current_topology_revision(db_session)
 
     # Localizar uma conexão de fusão no banco que faça parte da topologia
-    fusion_conn = db_session.scalar(select(Connection).where(Connection.connection_type == "fusion"))
+    fusion_conn = db_session.scalar(
+        select(Connection).where(Connection.connection_type == "fusion")
+    )
     assert fusion_conn is not None
 
     # 1. Simulação: aumentar atenuação da fusão de 0.10 para 3.50 dB (simulando fusão degradada)
@@ -88,7 +92,9 @@ def test_optical_simulation_with_loss_and_length_overrides(client: TestClient, d
     assert rev_after == rev_before
 
 
-def test_optical_simulation_with_splitter_ratio_override(client: TestClient, db_session: Session) -> None:
+def test_optical_simulation_with_splitter_ratio_override(
+    client: TestClient, db_session: Session
+) -> None:
     """Valida simulação de troca de splitter de 1:8 para 1:16."""
     eng = create_engineer(db_session, f"eng_sim_{uuid.uuid4().hex[:6]}@provedor.com.br")
     _csrf_token = auth_client_login(client, eng.email)

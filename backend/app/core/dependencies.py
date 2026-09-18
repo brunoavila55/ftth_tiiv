@@ -155,6 +155,29 @@ def get_current_user(
     return user
 
 
+def get_optional_current_user(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Extrai o usuário autenticado se presente e válido; retorna None caso anônimo."""
+    raw_token = request.cookies.get(SESSION_COOKIE_NAME)
+    if not raw_token:
+        auth_header = request.headers.get("authorization") or request.headers.get("Authorization")
+        if auth_header and auth_header.lower().startswith("bearer "):
+            raw_token = auth_header[7:].strip()
+
+    if not raw_token:
+        return None
+
+    try:
+        user_session = get_active_session_by_token(db, raw_token)
+        if not user_session or not user_session.user or not user_session.user.is_active:
+            return None
+        return user_session.user
+    except Exception:
+        return None
+
+
 def require_permission(permission: str) -> Callable[..., User]:
     """Fábrica de dependências para validação granular de permissões RBAC."""
 
