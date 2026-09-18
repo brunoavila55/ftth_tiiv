@@ -242,3 +242,12 @@ O mapa operacional do FTTH Manager utiliza MapLibre GL JS e requer acesso a um s
 
 - **If-Match atômico**: toda entidade versionada usa `version_id_col`: o `UPDATE`/`DELETE` é `… WHERE id = :id AND version = :versão_lida`. Duas requisições com o mesmo `If-Match` resultam em exatamente um `200` e um `412`; qualquer gravação defasada em outro fluxo também vira `412` (nunca `500`). A validação do cabeçalho é única (`app/core/concurrency.py`).
 - **Divisão de trecho** (`POST /cable-segments/{id}/split`): exige `If-Match` (versão do trecho) **ou** `expected_topology_revision` no corpo (padrão do editor de fusão); a linha de estado da topologia e o trecho são travados (`FOR UPDATE`). Sem nenhum dos dois: `428`; revisão divergente: `409`; versão defasada: `412`; divisões simultâneas do mesmo trecho: só uma vence.
+
+---
+
+## 15. Rastreio óptico e análise de impacto
+
+- **Trace** (`POST /topology/trace`) e **impacto** (`POST /topology/impact`) carregam o subgrafo relevante em um número fixo de queries (CTE recursiva com `LATERAL` + uma query por tipo de elemento) e percorrem o grafo em memória (`app/modules/topology/graph.py`). O impacto carrega o grafo de todos os vínculos ativos uma única vez; o nº de statements não depende do nº de clientes nem de `max_hops`.
+- **Teto de saltos**: efetivo = `min(max_hops, MAX_TRACE_HOPS)` (padrão 300).
+- **Índices**: `idx_terminals_entity` (0011) e `idx_splitters_input_terminal` (0013), ambos `CREATE INDEX CONCURRENTLY`.
+- `tests/legacy_topology_service.py` guarda a implementação anterior apenas como **oráculo** dos testes de caracterização (mesmos resultados em grafos aleatórios); não é usada em produção.

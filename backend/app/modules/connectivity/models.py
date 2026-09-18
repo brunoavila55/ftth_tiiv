@@ -261,6 +261,7 @@ class Splitter(Base, VersionedModelMixin):
             name="chk_splitter_location_defined",
         ),
         Index("idx_splitters_structure", "structure_id"),
+        Index("idx_splitters_input_terminal", "input_terminal_id"),
     )
 
 
