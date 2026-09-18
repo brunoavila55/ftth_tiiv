@@ -56,4 +56,6 @@ ENV PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Workers por variável (padrão 2). O pool de conexões é POR processo (ver DB_POOL_SIZE).
+ENV WEB_CONCURRENCY=2
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-2}"]

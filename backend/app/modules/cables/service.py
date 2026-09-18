@@ -216,7 +216,10 @@ def delete_cable(db: Session, cable_id: str, if_match: str | None) -> None:
 
 
 def create_cable_segment(
-    db: Session, payload: CableSegmentCreate, commit: bool = True
+    db: Session,
+    payload: CableSegmentCreate,
+    commit: bool = True,
+    bump_revision: bool = True,
 ) -> CableSegment:
     """Cria um trecho de cabo gerando 2 terminais ópticos (A e B) para cada fibra."""
     try:
@@ -342,7 +345,8 @@ def create_cable_segment(
         )
         db.add(edge)
 
-    bump_topology_revision(db)
+    if bump_revision:  # o chamador em lote (importação) bumpa UMA vez, no fim da transação
+        bump_topology_revision(db)
     if commit:
         db.commit()
         db.refresh(segment)

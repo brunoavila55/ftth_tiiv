@@ -68,10 +68,19 @@ class Settings(BaseSettings):
 
     # Banco de dados
     DATABASE_URL: str = "postgresql+psycopg://ftth_user:ftth_password@127.0.0.1:5432/ftth_manager"
-    DB_POOL_SIZE: int = 10
-    DB_MAX_OVERFLOW: int = 20
+    # O pool é POR PROCESSO: com WEB_CONCURRENCY=2 workers a API abre no máximo 2 × (5+5) = 20
+    # conexões (o PostgreSQL padrão aceita 100, dividindo com worker de jobs, migrate e leitura).
+    DB_POOL_SIZE: int = Field(default=5, ge=1)
+    DB_MAX_OVERFLOW: int = Field(default=5, ge=0)
     DB_POOL_TIMEOUT: int = 30
     DB_POOL_RECYCLE: int = 1800
+    # Timeouts no servidor: nenhuma query da API prende uma conexão por mais de 30 s; o worker de
+    # jobs (importações grandes) usa um teto separado e maior.
+    DB_STATEMENT_TIMEOUT_MS: int = Field(default=30_000, ge=100)
+    DB_WORKER_STATEMENT_TIMEOUT_MS: int = Field(default=600_000, ge=100)
+    DB_CONNECT_TIMEOUT_SECONDS: int = Field(default=10, ge=1)
+    # Readiness: conexão dedicada e curta (não usa o pool da aplicação)
+    HEALTH_DB_TIMEOUT_SECONDS: int = Field(default=2, ge=1)
 
     # CORS
     CORS_ORIGINS: list[str] = [

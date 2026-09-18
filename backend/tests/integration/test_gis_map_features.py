@@ -241,7 +241,10 @@ def test_spatial_bbox_query_and_gist_index(
         "EXPLAIN (FORMAT JSON) "
         "SELECT id FROM structures WHERE ST_Intersects(location, ST_MakeEnvelope(-46.64, -23.56, -46.62, -23.54, 4326));"
     )
+    # Tabela minúscula: sem isto o planner pode preferir Seq Scan conforme as estatísticas do banco
+    db_session.execute(text("SET LOCAL enable_seqscan = off"))
     plan_result = db_session.execute(explain_sql).scalar_one()
+    db_session.rollback()
     plan_str = str(plan_result)
     assert (
         "Index Scan" in plan_str

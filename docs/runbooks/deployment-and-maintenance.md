@@ -251,3 +251,23 @@ O mapa operacional do FTTH Manager utiliza MapLibre GL JS e requer acesso a um s
 - **Teto de saltos**: efetivo = `min(max_hops, MAX_TRACE_HOPS)` (padrão 300).
 - **Índices**: `idx_terminals_entity` (0011) e `idx_splitters_input_terminal` (0013), ambos `CREATE INDEX CONCURRENTLY`.
 - `tests/legacy_topology_service.py` guarda a implementação anterior apenas como **oráculo** dos testes de caracterização (mesmos resultados em grafos aleatórios); não é usada em produção.
+
+---
+
+## 16. Banco de dados: pool, timeouts e health
+
+Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
+
+| Variável | Padrão | Observação |
+|---|---|---|
+| `WEB_CONCURRENCY` | `2` | processos uvicorn da API (Dockerfile) |
+| `DB_POOL_SIZE` / `DB_MAX_OVERFLOW` | `5` / `5` | **por processo**: API = workers × (5+5) = 20 conexões; PostgreSQL padrão aceita 100 (folga para worker, migrate e ferramentas) |
+| `DB_STATEMENT_TIMEOUT_MS` | `30000` | qualquer query da API é cancelada em 30 s |
+| `DB_WORKER_STATEMENT_TIMEOUT_MS` | `600000` | teto separado do worker de jobs (importações longas) |
+| `DB_CONNECT_TIMEOUT_SECONDS` | `10` | banco inalcançável falha em ≤ 10 s |
+| `HEALTH_DB_TIMEOUT_SECONDS` | `2` | conexão dedicada e curta da readiness |
+
+- `/health/ready` usa uma conexão própria (sem pool, timeouts de 2 s) e a head do Alembic é lida uma única vez (cache): responde mesmo com a API saturada.
+- Com mais de um worker, as **métricas em memória** e o **rate limit em memória** são por processo (ver R16/R21).
+- `GET /auth/me` executa 1 SELECT; `last_activity_at` só é gravado após 60 s de inatividade da sessão.
+- A revisão topológica (`bump_topology_revision`) é o último passo antes do commit nas transações longas (divisão de trecho e importação): o lock da linha de estado dura só até o commit.

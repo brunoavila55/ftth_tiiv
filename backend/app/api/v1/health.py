@@ -1,11 +1,9 @@
 from typing import Any
 
-from fastapi import APIRouter, Depends, Response, status
+from fastapi import APIRouter, Response, status
 from pydantic import BaseModel
-from sqlalchemy.orm import Session
 
 from app.db.health import check_database_connectivity, check_database_migrations
-from app.db.session import get_db
 
 health_router = APIRouter(tags=["Health"])
 
@@ -36,8 +34,9 @@ def liveness() -> dict[str, str]:
     summary="Verificação de Readiness",
     description="Valida conectividade com o banco de dados e estado das migrações do Alembic sem expor credenciais.",
 )
-def readiness(response: Response, db: Session = Depends(get_db)) -> dict[str, Any]:
-    db_health = check_database_connectivity(db)
+def readiness(response: Response) -> dict[str, Any]:
+    # Conexão dedicada e curta (não usa o pool da aplicação): responde mesmo com a API saturada
+    db_health = check_database_connectivity()
     if db_health.get("status") != "connected":
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {
@@ -46,7 +45,7 @@ def readiness(response: Response, db: Session = Depends(get_db)) -> dict[str, An
             "migrations": {"status": "skipped", "message": "Banco inacessível"},
         }
 
-    migration_health = check_database_migrations(db)
+    migration_health = check_database_migrations()
     if migration_health.get("status") not in ("applied",):
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
         return {

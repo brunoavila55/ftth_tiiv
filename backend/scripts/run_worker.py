@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
 from app.core.logging import job_id_ctx, setup_logging
-from app.db.session import get_session_factory
+from app.db.session import build_engine, get_session_factory, set_engine_and_factory
 from app.modules.jobs.service import (
     claim_next_job,
     clean_expired_previews_and_exports,
@@ -109,6 +109,8 @@ def main() -> int:
         "FTTH Manager Worker iniciado [ID: %s] (Ambiente: %s)", worker_id, settings.ENVIRONMENT
     )
 
+    # Worker: teto de statement maior/separado da API (importações longas)
+    set_engine_and_factory(build_engine(settings.DB_WORKER_STATEMENT_TIMEOUT_MS))
     factory = get_session_factory()
     heartbeat_file = Path(settings.WORKER_HEARTBEAT_FILE)
     cleanup_state: dict[str, float] = {"last": 0.0}

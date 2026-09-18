@@ -380,13 +380,11 @@ def execute_import_commit(db: Session, job: AsyncJob) -> dict[str, Any]:
                 slack_length_m=float(c_it["props"].get("slack_length_m") or 0.0),
             ),
             commit=False,
+            bump_revision=False,
         )
         created_cables += 1
 
-    # 4. Incrementar revisão monotônica de topologia
-    bump_topology_revision(db)
-
-    # 5. Auditoria atômica
+    # 4. Auditoria atômica
     record_audit_event(
         db,
         actor_id=job.user_id,
@@ -402,6 +400,10 @@ def execute_import_commit(db: Session, job: AsyncJob) -> dict[str, Any]:
         },
         reason="Execução bem-sucedida de importação de rede física",
     )
+
+    # 5. Incrementar a revisão monotônica de topologia como ÚLTIMO passo antes do commit: o UPDATE
+    # trava a linha de estado até o commit e não deve segurar outras mutações durante o import.
+    bump_topology_revision(db)
 
     return {
         "created_sites": created_sites,

@@ -3,7 +3,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any, cast
 
 from sqlalchemy import CursorResult, func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager
 
 from app.core.concurrency import check_if_match
 from app.core.errors import (
@@ -189,6 +189,7 @@ def get_active_session_by_token(session: Session, raw_token: str) -> UserSession
     user_session = session.scalar(
         select(UserSession)
         .join(User)
+        .options(contains_eager(UserSession.user))  # usuário no MESMO select (sem 2ª query)
         .where(
             UserSession.token_hash == token_hash,
             UserSession.is_revoked.is_(False),
