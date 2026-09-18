@@ -5,7 +5,7 @@ services:
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-ftth_manager}
       POSTGRES_USER: ${POSTGRES_USER:-ftth_user}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-ftth_password}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
     container_name: ftth_migrate
     command: ["alembic", "upgrade", "head"]
     environment:
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:-ftth_password}@db:5432/${POSTGRES_DB:-ftth_manager}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/${POSTGRES_DB:-ftth_manager}
     depends_on:
       db:
         condition: service_healthy
@@ -39,14 +39,14 @@ services:
     container_name: ftth_backend
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:-ftth_password}@db:5432/${POSTGRES_DB:-ftth_manager}
-      SECRET_KEY: ${SECRET_KEY:-dev-insecure-secret-key-replace-in-production-minimum-32-chars-long}
-      CSRF_SECRET: ${CSRF_SECRET:-dev-insecure-csrf-secret-replace-in-production}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/${POSTGRES_DB:-ftth_manager}
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env (openssl rand -hex 32)}
+      CSRF_SECRET: ${CSRF_SECRET:?defina CSRF_SECRET no .env (openssl rand -hex 32)}
       API_V1_PREFIX: /api/v1
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://127.0.0.1:3000"]}
-      METRICS_TOKEN: ${METRICS_TOKEN:-}
+      METRICS_SECRET_TOKEN: ${METRICS_SECRET_TOKEN:?defina METRICS_SECRET_TOKEN no .env (openssl rand -hex 16)}
       STORAGE_PATH: /app/storage
     depends_on:
       migrate:
@@ -72,8 +72,10 @@ services:
     command: ["python", "scripts/run_worker.py"]
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
-      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:-ftth_password}@db:5432/${POSTGRES_DB:-ftth_manager}
-      SECRET_KEY: ${SECRET_KEY:-dev-insecure-secret-key-replace-in-production-minimum-32-chars-long}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/${POSTGRES_DB:-ftth_manager}
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env (openssl rand -hex 32)}
+      CSRF_SECRET: ${CSRF_SECRET:?defina CSRF_SECRET no .env (openssl rand -hex 32)}
+      METRICS_SECRET_TOKEN: ${METRICS_SECRET_TOKEN:?defina METRICS_SECRET_TOKEN no .env (openssl rand -hex 16)}
       STORAGE_PATH: /app/storage
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       WORKER_HEARTBEAT_FILE: /tmp/ftth-worker.heartbeat

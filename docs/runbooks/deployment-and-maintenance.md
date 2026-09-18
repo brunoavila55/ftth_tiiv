@@ -49,11 +49,16 @@ openssl rand -hex 32
 # Gerar segredo CSRF
 openssl rand -hex 32
 
-# Gerar token para endpoint de métricas Prometheus
+# Gerar token para endpoint de métricas Prometheus (METRICS_SECRET_TOKEN; mínimo de 32 caracteres)
 openssl rand -hex 16
+
+# Senha do PostgreSQL (POSTGRES_PASSWORD) — sem valor padrão
+openssl rand -base64 24
 ```
 > [!IMPORTANT]
-> **Sem credenciais padrão**: O FTTH Manager recusa subir em modo de produção se `SECRET_KEY` contiver valores de exemplo ou strings fracas.
+> **Sem credenciais padrão**: com `ENVIRONMENT=production` o backend **recusa subir** (erro de validação na inicialização, sem ecoar os valores) se `SECRET_KEY`, `CSRF_SECRET` ou `METRICS_SECRET_TOKEN` forem valores de exemplo/padrão, tiverem menos de 32 caracteres ou baixa variedade de caracteres, ou se a senha do `DATABASE_URL` for a de exemplo. O `compose.yaml` também exige `SECRET_KEY`, `CSRF_SECRET`, `METRICS_SECRET_TOKEN` e `POSTGRES_PASSWORD` (`${VAR:?...}`): sem elas o `docker compose up` falha antes de subir. Os placeholders do `.env.example` (`change-me-...`) são rejeitados de propósito.
+>
+> **Métricas**: o nome canônico da variável é `METRICS_SECRET_TOKEN` (aceito pelo backend e injetado pelo compose). O endpoint `/api/v1/metrics` aceita o cabeçalho `X-Metrics-Token` (comparação em tempo constante) ou sessão de administrador; `METRICS_ENABLED=false` o desliga (404). Ele **não** é publicado pelo Caddy — ver pendência da etapa R17.
 
 ### 2.3 Inicialização da Pilha
 ```bash
@@ -159,7 +164,7 @@ docker compose start backend worker
 1. **SECRET_KEY**:
    - Atualize `SECRET_KEY` no `.env`.
    - Reinicie `backend` e `worker`.
-   - *Impacto*: Sessões ativas de usuários serão invalidadas por segurança, exigindo novo login.
+   - *Impacto*: hoje a `SECRET_KEY` é apenas validada (a sessão é um token opaco em banco); ela passará a assinar o CSRF/sessões na etapa R09 da auditoria, quando a rotação invalidará esses tokens.
 2. **Senha do Banco (`POSTGRES_PASSWORD`)**:
    - Altere a senha no PostgreSQL: `ALTER USER ftth_user WITH PASSWORD 'nova_senha';`
    - Atualize `POSTGRES_PASSWORD` e `DATABASE_URL` no `.env`.

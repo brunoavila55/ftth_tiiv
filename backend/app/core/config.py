@@ -1,8 +1,30 @@
 from enum import StrEnum
 from functools import lru_cache
+from urllib.parse import urlsplit
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+MIN_SECRET_LENGTH = 32
+# Fragmentos que denunciam valores de exemplo/padrão publicados no repositório ou em documentação
+_INSECURE_MARKERS = (
+    "dev-insecure",
+    "change-me",
+    "changeme",
+    "replace-in-production",
+    "change-in-production",
+    "example",
+    "ftth_password",
+)
+
+
+def _is_weak_secret(value: str) -> bool:
+    candidate = value.strip()
+    return (
+        len(candidate) < MIN_SECRET_LENGTH
+        or len(set(candidate)) < 8  # ex.: "aaaa…" ou "abababab…"
+        or any(marker in candidate.lower() for marker in _INSECURE_MARKERS)
+    )
 
 
 class Environment(StrEnum):
@@ -16,14 +38,18 @@ class Settings(BaseSettings):
         env_file=".env",
         env_file_encoding="utf-8",
         extra="ignore",
+        # Erros de validação não devem ecoar segredos (input_value) em logs de inicialização
+        hide_input_in_errors=True,
     )
 
     APP_NAME: str = "FTTH Manager"
     ENVIRONMENT: Environment = Environment.DEVELOPMENT
-    DEBUG: bool = False
     LOG_LEVEL: str = "INFO"
 
-    # Segurança
+    # Segurança. Em produção, SECRET_KEY/CSRF_SECRET/METRICS_SECRET_TOKEN não podem ser os padrões
+    # de desenvolvimento nem valores fracos (ver `reject_insecure_production_config`).
+    # SECRET_KEY e CSRF_SECRET ainda não são consumidas: serão usadas na R09 (token CSRF assinado
+    # e sessões); permanecem declaradas para que a validação de produção já as proteja.
     SECRET_KEY: str = Field(
         default="dev-insecure-secret-key-replace-in-production-minimum-32-chars-long",
         min_length=32,
@@ -56,8 +82,9 @@ class Settings(BaseSettings):
     ROUTE_ENDPOINT_TOLERANCE_M: float = 5.0
 
     # Desempenho e Observabilidade (B16)
-    METRICS_ENABLED: bool = True
+    METRICS_ENABLED: bool = True  # False → /metrics responde 404
     METRICS_SECRET_TOKEN: str = "dev-metrics-token-change-in-production"
+    # Teto de saltos do rastreio óptico: ainda não aplicado; será usado na R14
     MAX_TRACE_HOPS: int = 300
 
     # Worker de jobs assíncronos: heartbeat consultado pelo HEALTHCHECK do compose
@@ -70,6 +97,28 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return Environment(v.lower())
         return v
+
+    @model_validator(mode="after")
+    def reject_insecure_production_config(self) -> "Settings":
+        """Produção recusa segredos padrão/fracos e a senha de banco de exemplo (SEC-05)."""
+        if self.ENVIRONMENT != Environment.PRODUCTION:
+            return self
+
+        problems: list[str] = []
+        for name in ("SECRET_KEY", "CSRF_SECRET", "METRICS_SECRET_TOKEN"):
+            if _is_weak_secret(getattr(self, name)):
+                problems.append(
+                    f"{name} é um valor padrão/fraco (use `openssl rand -hex 32`, "
+                    f"mínimo {MIN_SECRET_LENGTH} caracteres)"
+                )
+        db_password = urlsplit(self.DATABASE_URL).password
+        if not db_password or any(m in db_password.lower() for m in _INSECURE_MARKERS):
+            problems.append("DATABASE_URL usa senha ausente ou de exemplo")
+        if problems:
+            raise ValueError(
+                "Configuração insegura para ENVIRONMENT=production: " + "; ".join(problems)
+            )
+        return self
 
     @property
     def is_production(self) -> bool:

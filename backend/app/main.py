@@ -21,7 +21,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging(settings.LOG_LEVEL)
     logger.info(
         f"Iniciando {settings.APP_NAME} em ambiente [{settings.ENVIRONMENT}]",
-        extra={"environment": settings.ENVIRONMENT, "debug": settings.DEBUG},
+        extra={"environment": settings.ENVIRONMENT},
     )
     yield
     logger.info(f"Encerrando {settings.APP_NAME}")
