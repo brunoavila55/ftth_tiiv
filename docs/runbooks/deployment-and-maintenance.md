@@ -199,3 +199,13 @@ O mapa operacional do FTTH Manager utiliza MapLibre GL JS e requer acesso a um s
 - **Rate limit** (`429` + `Retry-After`, janela de 1 minuto, por usuário autenticado): `RATE_LIMIT_COMPUTE_PER_MINUTE` (trace/impact/budgets/simulations, 30), `RATE_LIMIT_SEARCH_PER_MINUTE` (60), `RATE_LIMIT_UPLOAD_PER_MINUTE` (anexos e prévia de importação, 20), `RATE_LIMIT_EXPORT_PER_MINUTE` (10); `RATE_LIMIT_ENABLED=false` desliga.
   > [!WARNING]
   > O limitador é **em memória, por processo**. Com mais de um worker do uvicorn ou mais de uma réplica do backend, o teto efetivo é multiplicado pelo número de processos, e reiniciar o processo zera os contadores. A interface `RateLimiter` (`app/core/rate_limit.py`) permite trocar por um backend compartilhado (Postgres/Redis) quando houver escala horizontal (ver R21).
+
+---
+
+## 10. Login, sessões, CSRF e proxy reverso
+
+- **Rate limit de login**: por par (IP, e-mail) — 5 falhas iniciam um backoff progressivo (30 s, dobrando a cada nova falha, teto de 15 min) — e teto por IP de 50 falhas/15 min (password spraying). Falhas de um IP **não** bloqueiam o mesmo e-mail vindo de outro IP; um login bem-sucedido reinicia a contagem do par. Bloqueios respondem `429` com `Retry-After`.
+- **Respostas indistinguíveis**: conta inexistente, desativada ou senha errada retornam o mesmo `401 invalid_credentials`.
+- **Sessões**: `POST /auth/change-password` e `python -m app.cli.bootstrap_admin --reset-password` revogam as outras sessões do usuário (a atual é mantida na troca; o reset derruba todas).
+- **Proxies confiáveis (`TRUSTED_PROXIES`)**: `X-Forwarded-For`/`X-Forwarded-Proto` só são respeitados quando o par TCP está na lista (IPs/CIDRs em JSON). O IP do cliente é a entrada mais à direita do XFF que não seja um proxy confiável; cabeçalho inválido/longo é ignorado. Padrão do compose: redes privadas do Docker. Fora do compose, **defina** a variável, ou o IP visto será o do proxy.
+- **CSRF**: token assinado (HMAC-SHA256 com `CSRF_SECRET`; rotacionar o segredo invalida os tokens em circulação, o cliente obtém outro em `GET /auth/csrf`). O cabeçalho `Origin` é comparado por igualdade exata de esquema+host+porta contra `CORS_ORIGINS` e a própria origem da requisição. **Em produção inclua a origem pública (https) em `CORS_ORIGINS`.**

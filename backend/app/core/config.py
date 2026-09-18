@@ -1,3 +1,4 @@
+import ipaddress
 from enum import StrEnum
 from functools import lru_cache
 from urllib.parse import urlsplit
@@ -57,6 +58,11 @@ class Settings(BaseSettings):
     COOKIE_SECURE: bool = False
     CSRF_SECRET: str = "dev-insecure-csrf-secret-replace-in-production"
 
+    # Proxies reversos confiáveis (IPs ou CIDRs, formato JSON list). Só de pares nesta lista o backend
+    # aceita X-Forwarded-For/-Proto. Vazio = não confia em nenhum (usa o IP do socket). Em produção
+    # atrás do Caddy, informe a rede do compose (ex.: ["172.16.0.0/12"]).
+    TRUSTED_PROXIES: list[str] = []
+
     # API
     API_V1_PREFIX: str = "/api/v1"
 
@@ -100,6 +106,16 @@ class Settings(BaseSettings):
     # Worker de jobs assíncronos: heartbeat consultado pelo HEALTHCHECK do compose
     WORKER_HEARTBEAT_FILE: str = "/tmp/ftth-worker.heartbeat"
     WORKER_HEARTBEAT_MAX_AGE_SECONDS: int = 300
+
+    @field_validator("TRUSTED_PROXIES")
+    @classmethod
+    def validate_trusted_proxies(cls, value: list[str]) -> list[str]:
+        for entry in value:
+            try:
+                ipaddress.ip_network(entry, strict=False)
+            except ValueError as err:
+                raise ValueError(f"TRUSTED_PROXIES contém entrada inválida: {entry!r}") from err
+        return value
 
     @field_validator("ENVIRONMENT", mode="before")
     @classmethod

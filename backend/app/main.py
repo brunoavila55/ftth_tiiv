@@ -10,7 +10,7 @@ from app.api.v1.router import api_v1_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import get_logger, setup_logging
-from app.core.middleware import RequestIDMiddleware
+from app.core.middleware import RequestIDMiddleware, TrustedProxyMiddleware
 
 logger = get_logger("app.main")
 
@@ -56,9 +56,8 @@ def create_app() -> FastAPI:
     )
 
     # Middlewares globais
-    from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
-
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+    # X-Forwarded-* só de proxies listados em TRUSTED_PROXIES (padrão: nenhum)
+    app.add_middleware(TrustedProxyMiddleware, trusted_proxies=settings.TRUSTED_PROXIES)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,

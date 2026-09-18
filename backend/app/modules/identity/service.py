@@ -1,13 +1,13 @@
 import uuid
 from datetime import UTC, datetime, timedelta
+from typing import Any, cast
 
-from sqlalchemy import func, select
+from sqlalchemy import CursorResult, func, select, update
 from sqlalchemy.orm import Session
 
 from app.core.errors import (
     AppException,
     ConflictError,
-    ForbiddenError,
     NotFoundError,
     PreconditionFailedError,
     PreconditionRequiredError,
@@ -28,14 +28,21 @@ from app.schemas.common import UserRole
 # Configurações de expiração de sessão
 SESSION_ABSOLUTE_EXPIRY_DAYS = 7
 SESSION_INACTIVITY_EXPIRY_HOURS = 24
-RATE_LIMIT_WINDOW_MINUTES = 15
-RATE_LIMIT_MAX_ATTEMPTS = 5
+
+# Rate limit de login (SEC-06): por par (IP, e-mail), com backoff progressivo, mais um teto por IP
+LOGIN_WINDOW_MINUTES = 15
+LOGIN_PAIR_MAX_FAILURES = 5  # falhas do par (IP, e-mail) antes de começar o backoff
+LOGIN_BACKOFF_BASE_SECONDS = 30  # espera após a 5ª falha; dobra a cada nova falha
+LOGIN_BACKOFF_MAX_SECONDS = LOGIN_WINDOW_MINUTES * 60
+LOGIN_IP_MAX_FAILURES = 50  # teto por IP (todas as contas): freia password spraying
+
+INVALID_CREDENTIALS = "E-mail ou senha incorretos."
 
 
 def record_login_attempt(session: Session, ip_address: str, email: str, success: bool) -> None:
     attempt = LoginAttempt(
-        ip_address=ip_address,
-        email=email.strip().lower(),
+        ip_address=ip_address[:45],
+        email=email.strip().lower()[:255],
         attempted_at=datetime.now(UTC),
         success=success,
     )
@@ -43,28 +50,65 @@ def record_login_attempt(session: Session, ip_address: str, email: str, success:
     session.commit()
 
 
-def check_login_rate_limit(session: Session, ip_address: str, email: str) -> None:
-    window_start = datetime.now(UTC) - timedelta(minutes=RATE_LIMIT_WINDOW_MINUTES)
-    clean_email = email.strip().lower()
-
-    # Conta tentativas falhas recentes por IP ou por e-mail
-    failed_attempts_count = (
-        session.scalar(
-            select(func.count(LoginAttempt.id)).where(
-                LoginAttempt.attempted_at >= window_start,
-                LoginAttempt.success.is_(False),
-                (LoginAttempt.ip_address == ip_address) | (LoginAttempt.email == clean_email),
-            )
-        )
-        or 0
+def _rate_limited(retry_after: int, detail: str) -> AppException:
+    return AppException(
+        status_code=429,
+        code="rate_limit_exceeded",
+        title="Muitas tentativas de login",
+        detail=detail,
+        headers={"Retry-After": str(max(1, retry_after))},
     )
 
-    if failed_attempts_count >= RATE_LIMIT_MAX_ATTEMPTS:
-        raise AppException(
-            status_code=429,
-            code="rate_limit_exceeded",
-            title="Muitas tentativas de login",
-            detail="Muitas tentativas consecutivas de login sem sucesso. Aguarde 15 minutos antes de tentar novamente.",
+
+def check_login_rate_limit(session: Session, ip_address: str, email: str) -> None:
+    """Limita tentativas por par (IP, e-mail) com backoff progressivo e por IP (teto maior).
+
+    Falhas de um IP não bloqueiam o mesmo e-mail vindo de outro IP (ninguém trava a conta alheia)
+    e falhas de um e-mail não bloqueiam outras contas do mesmo IP (CGNAT). Um login bem-sucedido
+    do par reinicia a contagem daquele par.
+    """
+    now = datetime.now(UTC)
+    window_start = now - timedelta(minutes=LOGIN_WINDOW_MINUTES)
+    clean_email = email.strip().lower()[:255]
+    ip_address = ip_address[:45]
+
+    pair_filter = (LoginAttempt.ip_address == ip_address) & (LoginAttempt.email == clean_email)
+
+    last_success = session.scalar(
+        select(func.max(LoginAttempt.attempted_at)).where(
+            pair_filter, LoginAttempt.success.is_(True), LoginAttempt.attempted_at >= window_start
+        )
+    )
+    since = max(window_start, last_success) if last_success else window_start
+
+    pair_failures, last_failure = session.execute(
+        select(func.count(LoginAttempt.id), func.max(LoginAttempt.attempted_at)).where(
+            pair_filter, LoginAttempt.success.is_(False), LoginAttempt.attempted_at > since
+        )
+    ).one()
+
+    if pair_failures >= LOGIN_PAIR_MAX_FAILURES and last_failure is not None:
+        exponent = min(pair_failures - LOGIN_PAIR_MAX_FAILURES, 10)
+        wait = min(LOGIN_BACKOFF_BASE_SECONDS * 2**exponent, LOGIN_BACKOFF_MAX_SECONDS)
+        remaining = wait - (now - last_failure).total_seconds()
+        if remaining > 0:
+            raise _rate_limited(
+                int(remaining) + 1,
+                f"Muitas tentativas de login sem sucesso. Aguarde {int(remaining) + 1} segundo(s).",
+            )
+
+    ip_failures, oldest_ip_failure = session.execute(
+        select(func.count(LoginAttempt.id), func.min(LoginAttempt.attempted_at)).where(
+            LoginAttempt.ip_address == ip_address,
+            LoginAttempt.success.is_(False),
+            LoginAttempt.attempted_at >= window_start,
+        )
+    ).one()
+    if ip_failures >= LOGIN_IP_MAX_FAILURES and oldest_ip_failure is not None:
+        remaining = LOGIN_WINDOW_MINUTES * 60 - (now - oldest_ip_failure).total_seconds()
+        raise _rate_limited(
+            int(remaining) + 1,
+            "Muitas tentativas de login sem sucesso a partir deste endereço. Tente novamente mais tarde.",
         )
 
 
@@ -75,7 +119,11 @@ def authenticate_user(
     ip_address: str,
     user_agent: str | None = None,
 ) -> tuple[User, str]:
-    """Autentica o usuário com mitigação de enumeração, rate limiting e criação de sessão."""
+    """Autentica o usuário com mitigação de enumeração, rate limiting e criação de sessão.
+
+    Inexistente, desativado e senha errada produzem a MESMA resposta (status, código e corpo), e a
+    senha é sempre verificada antes de qualquer decisão (tempo equivalente).
+    """
     clean_email = email.strip().lower()
     check_login_rate_limit(session, ip_address, clean_email)
 
@@ -83,16 +131,13 @@ def authenticate_user(
 
     if user is None:
         dummy_verify_password(password)
-        record_login_attempt(session, ip_address, clean_email, success=False)
-        raise UnauthorizedError("E-mail ou senha incorretos.", code="invalid_credentials")
+        password_ok = False
+    else:
+        password_ok = verify_password(user.password_hash, password)
 
-    if not user.is_active:
+    if user is None or not password_ok or not user.is_active:
         record_login_attempt(session, ip_address, clean_email, success=False)
-        raise ForbiddenError("Esta conta de usuário está desativada.", code="user_deactivated")
-
-    if not verify_password(user.password_hash, password):
-        record_login_attempt(session, ip_address, clean_email, success=False)
-        raise UnauthorizedError("E-mail ou senha incorretos.", code="invalid_credentials")
+        raise UnauthorizedError(INVALID_CREDENTIALS, code="invalid_credentials")
 
     # Autenticado com sucesso
     record_login_attempt(session, ip_address, clean_email, success=True)
@@ -103,7 +148,7 @@ def authenticate_user(
     user_session = UserSession(
         user_id=user.id,
         token_hash=token_hash,
-        ip_address=ip_address,
+        ip_address=ip_address[:45],
         user_agent=user_agent[:255] if user_agent else None,
         created_at=now,
         last_activity_at=now,
@@ -165,14 +210,35 @@ def revoke_session_by_token(session: Session, raw_token: str) -> None:
         session.commit()
 
 
+def revoke_user_sessions(
+    session: Session, user_id: uuid.UUID, keep_session_id: uuid.UUID | None = None
+) -> int:
+    """Revoga todas as sessões ativas do usuário (exceto `keep_session_id`). Não faz commit."""
+    stmt = (
+        update(UserSession)
+        .where(UserSession.user_id == user_id, UserSession.is_revoked.is_(False))
+        .values(is_revoked=True)
+    )
+    if keep_session_id is not None:
+        stmt = stmt.where(UserSession.id != keep_session_id)
+    result = cast(CursorResult[Any], session.execute(stmt))
+    return result.rowcount or 0
+
+
 def change_user_password(
-    session: Session, user: User, current_password: str, new_password: str
+    session: Session,
+    user: User,
+    current_password: str,
+    new_password: str,
+    keep_session_id: uuid.UUID | None = None,
 ) -> None:
+    """Troca a senha e revoga as demais sessões do usuário (mantém `keep_session_id`)."""
     if not verify_password(user.password_hash, current_password):
         raise UnauthorizedError("Senha atual incorreta.", code="invalid_current_password")
 
     user.password_hash = hash_password(new_password)
     user.updated_at = datetime.now(UTC)
+    revoke_user_sessions(session, user.id, keep_session_id=keep_session_id)
     session.commit()
 
 
