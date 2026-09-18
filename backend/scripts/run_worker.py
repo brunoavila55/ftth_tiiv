@@ -31,7 +31,6 @@ logger = logging.getLogger("ftth.worker")
 
 running = True
 CLEANUP_INTERVAL_SECONDS = 60
-LEASE_SECONDS = 60
 
 
 def handle_shutdown(signum: int, frame: object) -> None:
@@ -62,14 +61,20 @@ def run_iteration(
     cleanup_state = cleanup_state if cleanup_state is not None else {"last": 0.0}
 
     with factory() as db:
-        job = claim_next_job(db, worker_id=worker_id, lease_seconds=LEASE_SECONDS)
+        job = claim_next_job(db, worker_id=worker_id)
         touch_heartbeat(heartbeat_file)
         if job:
             token = job_id_ctx.set(str(job.id))
             try:
                 logger.info("Processando job '%s' [Tipo: %s]...", job.id, job.type)
                 start_t = time.time()
-                success = process_claimed_job(db, job, worker_id=worker_id)
+                success = process_claimed_job(
+                    db,
+                    job,
+                    worker_id=worker_id,
+                    # jobs longos: a thread de lease também mantém o heartbeat do healthcheck
+                    on_heartbeat=lambda: touch_heartbeat(heartbeat_file),
+                )
                 duration = time.time() - start_t
                 logger.info(
                     "Job '%s' finalizado com %s em %.2fs.",

@@ -21,6 +21,7 @@ from sqlalchemy.orm import Session
 
 from app.core.logging import JSONFormatter
 from app.core.metrics import metrics_collector
+from app.core.storage import resolve_storage_path
 from app.db.session import get_session_factory
 from app.modules.imports.models import AsyncJob
 from app.schemas.common import UserRole
@@ -76,7 +77,7 @@ def test_worker_loop_iteration_processes_export_end_to_end(
     job = db_session.get(AsyncJob, job_id)
     assert job is not None
     assert job.status == "succeeded"
-    assert job.result_path is not None and Path(job.result_path).exists()
+    assert job.result_path is not None and resolve_storage_path(job.result_path).exists()
     assert heartbeat_file.exists()
     assert ("export_geojson", "succeeded") in metrics_collector._job_counts
 

@@ -64,7 +64,7 @@ def _check_optimistic_lock(current_version: int, if_match: str | None) -> None:
         )
 
 
-def create_cable(db: Session, payload: CableCreate) -> Cable:
+def create_cable(db: Session, payload: CableCreate, commit: bool = True) -> Cable:
     """Cria transacionalmente um cabo óptico com seus tubos loose e fibras numeradas."""
     # 1. Unicidade do código
     existing = db.execute(select(Cable).where(Cable.code == payload.code)).scalar_one_or_none()
@@ -147,8 +147,11 @@ def create_cable(db: Session, payload: CableCreate) -> Cable:
             db.add(fiber)
             global_fiber_num += 1
 
-    db.commit()
-    db.refresh(cable)
+    if commit:
+        db.commit()
+        db.refresh(cable)
+    else:  # chamador (ex.: importação em lote) controla a transação
+        db.flush()
     return cable
 
 
@@ -227,7 +230,9 @@ def delete_cable(db: Session, cable_id: str, if_match: str | None) -> None:
     db.commit()
 
 
-def create_cable_segment(db: Session, payload: CableSegmentCreate) -> CableSegment:
+def create_cable_segment(
+    db: Session, payload: CableSegmentCreate, commit: bool = True
+) -> CableSegment:
     """Cria um trecho de cabo gerando 2 terminais ópticos (A e B) para cada fibra."""
     try:
         cable_uuid = uuid.UUID(payload.cable_id)
@@ -353,8 +358,11 @@ def create_cable_segment(db: Session, payload: CableSegmentCreate) -> CableSegme
         db.add(edge)
 
     bump_topology_revision(db)
-    db.commit()
-    db.refresh(segment)
+    if commit:
+        db.commit()
+        db.refresh(segment)
+    else:
+        db.flush()
     return segment
 
 

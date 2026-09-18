@@ -226,3 +226,12 @@ O mapa operacional do FTTH Manager utiliza MapLibre GL JS e requer acesso a um s
 - **Dados pessoais**: exportações com a camada `customers` só são baixáveis por `admin` — o papel é revalidado no download (`exports:read` + conhecer o `job_id` não basta).
 - **Retenção (`EXPORT_TTL_DAYS`, padrão 7)**: o worker remove os arquivos de exportação vencidos (o registro do job permanece) e o download responde `410 Gone` após o prazo, mesmo antes da limpeza.
 - **Erros de job**: `GET /jobs/{id}` devolve só mensagens seguras (validações de negócio) ou uma mensagem genérica; o detalhe técnico (SQL, caminhos, traceback) fica no log do worker com o `job_id`. A leitura exige `exports:read` (jobs de exportação) ou `imports:read` (importação).
+
+---
+
+## 13. Pipeline de importação
+
+- **Cabos**: um cabo importado gera `Cable` + `CableSegment` com a geometria do arquivo (tubos, fibras e terminais incluídos). As pontas são resolvidas por (a) `origin_code`/`destination_code` (propriedade GeoJSON ou coluna CSV) e, na falta deles, (b) proximidade com estruturas do próprio arquivo ou já cadastradas, dentro de `ROUTE_ENDPOINT_TOLERANCE_M` (5 m). Se uma ponta não resolve, o item vira **erro na prévia** e o commit é recusado (All-or-Nothing). Nunca há coordenadas padrão: CSV de cabo sem coluna `coordinates` é erro.
+- **Idempotência**: `POST /imports/{id}/commit` insere o job com `INSERT … ON CONFLICT (idempotency_key)`; a chave (até 128 caracteres) é escopada por usuário. Mesma chave + mesma prévia devolve o mesmo job; mesma chave com outra prévia, ou a mesma prévia com outra chave, responde `409`.
+- **Lease**: `JOB_LEASE_SECONDS` (60) é renovada a cada lease/3 por uma thread de heartbeat enquanto o job roda (o heartbeat do worker no healthcheck também). Antes de gravar o resultado o worker trava a linha do job e confere que ainda é o dono; se perdeu a lease, descarta tudo (inclusive entidades importadas) e o outro worker prevalece.
+- **Storage**: importações/exportações ficam em `STORAGE_PATH/imports|exports` e os caminhos são gravados **relativos** a essa raiz. Registros antigos (caminho absoluto ou relativo ao diretório de trabalho, ex.: `storage/exports/…`) continuam sendo resolvidos sem migração de dados.

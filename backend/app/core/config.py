@@ -82,6 +82,8 @@ class Settings(BaseSettings):
     # Armazenamento
     STORAGE_PATH: str = "./storage"
     MAX_UPLOAD_SIZE_BYTES: int = 10_485_760  # 10 MB (anexos)
+    # Jobs assíncronos: lease do worker (renovada por heartbeat a cada lease/3 enquanto o job roda)
+    JOB_LEASE_SECONDS: float = Field(default=60.0, gt=0)
     EXPORT_TTL_DAYS: int = Field(default=7, ge=1)  # arquivos de exportação vencem após N dias
     MAX_IMAGE_PIXELS: int = 25_000_000  # 25 Mpx: acima disso a imagem é rejeitada sem decodificar
     MAX_IMPORT_SIZE_BYTES: int = 20_971_520  # 20 MB (arquivos de importação GeoJSON/KML/CSV)

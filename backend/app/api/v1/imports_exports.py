@@ -1,4 +1,3 @@
-import os
 import uuid
 from datetime import UTC, datetime, timedelta
 
@@ -11,6 +10,7 @@ from app.core.dependencies import get_current_user, require_permission, validate
 from app.core.errors import ForbiddenError
 from app.core.privacy import user_can
 from app.core.rate_limit import rate_limit
+from app.core.storage import resolve_storage_path
 from app.core.uploads import read_upload_limited
 from app.db.session import get_db
 from app.modules.audit.service import record_audit_event
@@ -184,7 +184,8 @@ def download_export(
     expired = job.finished_at is not None and job.finished_at < datetime.now(UTC) - timedelta(
         days=get_settings().EXPORT_TTL_DAYS
     )
-    if expired or not os.path.exists(job.result_path):
+    export_file = resolve_storage_path(job.result_path)
+    if expired or not export_file.exists():
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="O arquivo exportado expirou ou foi removido do servidor.",
@@ -201,7 +202,7 @@ def download_export(
     )
     db.commit()
 
-    filename = os.path.basename(job.result_path)
+    filename = export_file.name
     content_type = "application/octet-stream"
     if filename.endswith(".geojson") or filename.endswith(".json"):
         content_type = "application/geo+json"
@@ -211,7 +212,7 @@ def download_export(
         content_type = "text/csv; charset=utf-8"
 
     return FileResponse(
-        path=job.result_path,
+        path=str(export_file),
         media_type=content_type,
         filename=filename,
     )

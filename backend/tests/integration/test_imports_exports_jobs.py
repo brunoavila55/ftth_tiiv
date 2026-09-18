@@ -199,9 +199,9 @@ def test_import_idempotency_key_does_not_duplicate(client: TestClient, db_sessio
     # Deve retornar o mesmo job sem duplicar
     assert job1_id == job2_id
 
-    # Garantir que só há 1 job no banco
+    # Garantir que só há 1 job no banco (a chave é escopada por usuário: "<user_id>:<chave>")
     jobs_count = db_session.scalars(
-        select(AsyncJob).where(AsyncJob.idempotency_key == idemp_key)
+        select(AsyncJob).where(AsyncJob.idempotency_key == f"{admin.id}:{idemp_key}")
     ).all()
     assert len(jobs_count) == 1
 

@@ -5,7 +5,6 @@ import json
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
-from pathlib import Path
 
 import pytest
 from fastapi import status
@@ -14,6 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.storage import resolve_storage_path
 from app.modules.audit.models import AuditEvent
 from app.modules.customers.models import Customer
 from app.modules.imports.models import AsyncJob
@@ -110,8 +110,9 @@ def test_expired_export_files_are_removed_and_download_returns_410(
     job_id = request_export(client, csrf, ["sites"])
     assert process_next_job(db_session) is True
     job = db_session.get(AsyncJob, uuid.UUID(job_id))
-    assert job is not None and job.result_path and Path(job.result_path).exists()
-    file_path = Path(job.result_path)
+    assert job is not None and job.result_path
+    file_path = resolve_storage_path(job.result_path)
+    assert file_path.exists()
 
     ttl_days = get_settings().EXPORT_TTL_DAYS
     assert ttl_days == 7  # padrão confirmado com o operador (sugestão do roteiro)

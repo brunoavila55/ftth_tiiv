@@ -12,7 +12,7 @@ from shapely import to_geojson
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.storage import ensure_storage_dir
 from app.modules.audit.service import record_audit_event
 from app.modules.cables.models import CableSegment
 from app.modules.customers.models import Customer
@@ -26,10 +26,8 @@ FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 
 
 def get_export_storage_path() -> str:
-    settings = get_settings()
-    base_dir = os.path.join(getattr(settings, "STORAGE_DIR", "storage"), "exports")
-    os.makedirs(base_dir, exist_ok=True)
-    return base_dir
+    """Diretório absoluto/efetivo de exportações: `<STORAGE_PATH>/exports`."""
+    return str(ensure_storage_dir("exports"))
 
 
 def is_formula_injection(val: str) -> bool:
@@ -344,6 +342,7 @@ def execute_export_job(db: Session, job: AsyncJob) -> str:
 
     storage_dir = get_export_storage_path()
     ext = fmt_str.lower()
+    stored_path = f"exports/{job.id}.{ext}"  # gravado relativo à raiz do storage
     file_path = os.path.join(storage_dir, f"{job.id}.{ext}")
 
     if fmt_str == "geojson":
@@ -361,4 +360,4 @@ def execute_export_job(db: Session, job: AsyncJob) -> str:
     else:
         raise JobValidationError(f"Formato de exportação desconhecido: {fmt_str}")
 
-    return file_path
+    return stored_path
