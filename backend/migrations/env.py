@@ -20,8 +20,10 @@ if config.config_file_name is not None:
 target_metadata = Base.metadata
 
 # Configurar URL a partir das configurações tipadas
-settings = get_settings()
-config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
+current_url = config.get_main_option("sqlalchemy.url")
+if not current_url or current_url.startswith("driver://") or "user:pass@localhost" in current_url:
+    settings = get_settings()
+    config.set_main_option("sqlalchemy.url", settings.DATABASE_URL)
 
 POSTGIS_SYSTEM_TABLES = {
     "spatial_ref_sys",

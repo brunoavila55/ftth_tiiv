@@ -28,6 +28,12 @@ class TraceRequest(BaseModel):
         le=200,
         description="Limite máximo de caminhos ou derivações retornados",
     )
+    max_hops: int = Field(
+        default=200,
+        ge=1,
+        le=500,
+        description="Limite máximo de saltos ou elementos ópticos por caminho antes de truncar",
+    )
 
 
 class TraceStep(BaseModel):

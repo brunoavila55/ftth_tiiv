@@ -9,18 +9,20 @@ export const metadata = {
 
 export default function MapPage() {
   return (
-    <React.Suspense
-      fallback={
-        <div className="py-12">
-          <LoadingState
-            message="Carregando visualizador geográfico..."
-            description="Preparando camadas de rede e parâmetros espaciais."
-            size="lg"
-          />
-        </div>
-      }
-    >
-      <MapView />
-    </React.Suspense>
+    <div className="flex-1 w-full h-full min-h-0 flex flex-col">
+      <React.Suspense
+        fallback={
+          <div className="flex flex-1 h-full w-full items-center justify-center p-12">
+            <LoadingState
+              message="Carregando visualizador geográfico..."
+              description="Preparando camadas de rede e parâmetros espaciais."
+              size="lg"
+            />
+          </div>
+        }
+      >
+        <MapView />
+      </React.Suspense>
+    </div>
   );
 }

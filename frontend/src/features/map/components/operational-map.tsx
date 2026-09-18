@@ -3,7 +3,8 @@
 import * as React from "react";
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
-import { Plus, Minus, Maximize2, Locate, AlertTriangle } from "lucide-react";
+import { useTheme } from "next-themes";
+import { Plus, Minus, Maximize2, Locate, AlertTriangle, Fullscreen, Minimize2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { MapFeature, LayerFilters, MapInteractionMode } from "../types";
 import type { SnapCandidate } from "../utils/geometry";
@@ -26,24 +27,58 @@ export interface OperationalMapProps {
   onDoubleClick?: () => void;
 }
 
-// Estilo raster OpenStreetMap padrão e configurável sem dependência de chaves pagas
-const OSM_RASTER_STYLE: maplibregl.StyleSpecification = {
+// Estilo raster CARTO Voyager (padrão de alto desempenho, CDN global com CORS liberado)
+export const CARTO_VOYAGER_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
-    osm: {
+    carto: {
       type: "raster",
-      tiles: ["https://tile.openstreetmap.org/{z}/{x}/{y}.png"],
+      tiles: [
+        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+        "https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+      ],
       tileSize: 256,
-      attribution: '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors',
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a>',
     },
   },
   layers: [
     {
-      id: "osm-tiles",
+      id: "carto-tiles",
       type: "raster",
-      source: "osm",
+      source: "carto",
       minzoom: 0,
-      maxzoom: 19,
+      maxzoom: 20,
+    },
+  ],
+};
+
+// Estilo raster CARTO Dark Matter (modo escuro com alto contraste para cabos ópticos)
+export const CARTO_DARK_STYLE: maplibregl.StyleSpecification = {
+  version: 8,
+  sources: {
+    carto: {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      attribution:
+        '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a>',
+    },
+  },
+  layers: [
+    {
+      id: "carto-tiles",
+      type: "raster",
+      source: "carto",
+      minzoom: 0,
+      maxzoom: 20,
     },
   ],
 };
@@ -79,17 +114,48 @@ export function OperationalMap({
   onMouseMove,
   onDoubleClick,
 }: OperationalMapProps) {
+  const { resolvedTheme } = useTheme();
+  const isDark = resolvedTheme === "dark";
+
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<maplibregl.Map | null>(null);
   const [webglSupported, setWebglSupported] = React.useState<boolean>(true);
   const [locating, setLocating] = React.useState<boolean>(false);
   const [geoError, setGeoError] = React.useState<string | null>(null);
+  const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
 
   // 1. Verificação de suporte a WebGL
   React.useEffect(() => {
     if (!checkWebGLSupport()) {
       setWebglSupported(false);
     }
+  }, []);
+
+  // Monitora mudanças no modo de tela cheia
+  React.useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+      setTimeout(() => mapRef.current?.resize(), 100);
+    };
+    document.addEventListener("fullscreenchange", handleFullscreenChange);
+    return () => document.removeEventListener("fullscreenchange", handleFullscreenChange);
+  }, []);
+
+  // ResizeObserver para redimensionar o canvas automaticamente quando o container mudar de tamanho
+  React.useEffect(() => {
+    if (!mapContainerRef.current) return;
+    const ro = new ResizeObserver(() => {
+      mapRef.current?.resize();
+    });
+    ro.observe(mapContainerRef.current);
+    return () => ro.disconnect();
+  }, []);
+
+  // Listener para redimensionamento de janela
+  React.useEffect(() => {
+    const handleWindowResize = () => mapRef.current?.resize();
+    window.addEventListener("resize", handleWindowResize);
+    return () => window.removeEventListener("resize", handleWindowResize);
   }, []);
 
   // 2. Separação de geometrias em Linhas (cabos) e Pontos (estruturas/sites)
@@ -195,15 +261,21 @@ export function OperationalMap({
     if (!webglSupported || !mapContainerRef.current || mapRef.current) return;
 
     const styleUrl: string | maplibregl.StyleSpecification =
-      process.env.NEXT_PUBLIC_MAP_STYLE_URL || OSM_RASTER_STYLE;
+      process.env.NEXT_PUBLIC_MAP_STYLE_URL || (isDark ? CARTO_DARK_STYLE : CARTO_VOYAGER_STYLE);
 
-    const map = new maplibregl.Map({
-      container: mapContainerRef.current,
-      style: styleUrl,
-      center: [initialLng, initialLat],
-      zoom: initialZoom,
-      attributionControl: false,
-    });
+    let map: maplibregl.Map;
+    try {
+      map = new maplibregl.Map({
+        container: mapContainerRef.current,
+        style: styleUrl,
+        center: [initialLng, initialLat],
+        zoom: initialZoom,
+        attributionControl: false,
+      });
+    } catch (err) {
+      console.warn("Falha ao instanciar MapLibre GL:", err);
+      return;
+    }
 
     map.addControl(
       new maplibregl.AttributionControl({
@@ -220,152 +292,181 @@ export function OperationalMap({
       "bottom-left"
     );
 
-    map.on("load", () => {
-      // Fontes e layers da rede cadastrada
-      map.addSource("ftth-lines-source", {
-        type: "geojson",
-        data: lineGeoJson,
-      });
+    const setupSourcesAndLayers = () => {
+      if (!map || map.getSource("ftth-lines-source")) return;
 
-      map.addLayer({
-        id: "ftth-cables-layer",
-        type: "line",
-        source: "ftth-lines-source",
-        layout: {
-          "line-cap": "round",
-          "line-join": "round",
-        },
-        paint: {
-          "line-color": [
-            "case",
-            ["boolean", ["get", "isSelected"], false],
-            "#f43f5e",
-            "#4f46e5",
-          ],
-          "line-width": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            10,
-            2,
-            16,
-            4.5,
-          ],
-        },
-      });
+      try {
+        // Fontes e layers da rede cadastrada
+        map.addSource("ftth-lines-source", {
+          type: "geojson",
+          data: lineGeoJson,
+        });
 
-      map.addSource("ftth-points-source", {
-        type: "geojson",
-        data: pointGeoJson,
-      });
-
-      map.addLayer({
-        id: "ftth-points-layer",
-        type: "circle",
-        source: "ftth-points-source",
-        paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["zoom"],
-            10,
-            4,
-            16,
-            7.5,
-          ],
-          "circle-color": [
-            "case",
-            ["boolean", ["get", "isSelected"], false],
-            "#f43f5e",
-            [
-              "match",
-              ["get", "entity_type"],
-              "site",
-              "#0284c7",
-              "cto",
-              "#f59e0b",
-              "ceo",
-              "#8b5cf6",
-              "#64748b",
+        map.addLayer({
+          id: "ftth-cables-layer",
+          type: "line",
+          source: "ftth-lines-source",
+          layout: {
+            "line-cap": "round",
+            "line-join": "round",
+          },
+          paint: {
+            "line-color": [
+              "case",
+              ["boolean", ["get", "isSelected"], false],
+              "#f43f5e",
+              "#4f46e5",
             ],
-          ],
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
+            "line-width": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              10,
+              2,
+              16,
+              4.5,
+            ],
+          },
+        });
 
-      // Fontes e layers para rascunho de desenho (F07)
-      map.addSource("ftth-draft-line-source", {
-        type: "geojson",
-        data: draftLineGeoJson,
-      });
+        map.addSource("ftth-points-source", {
+          type: "geojson",
+          data: pointGeoJson,
+        });
 
-      map.addLayer({
-        id: "ftth-draft-line-layer",
-        type: "line",
-        source: "ftth-draft-line-source",
-        layout: {
-          "line-cap": "round",
-          "line-join": "round",
-        },
-        paint: {
-          "line-color": "#f43f5e",
-          "line-width": 3,
-          "line-dasharray": [2, 2],
-        },
-      });
+        map.addLayer({
+          id: "ftth-points-layer",
+          type: "circle",
+          source: "ftth-points-source",
+          paint: {
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              10,
+              4,
+              16,
+              7.5,
+            ],
+            "circle-color": [
+              "case",
+              ["boolean", ["get", "isSelected"], false],
+              "#f43f5e",
+              [
+                "match",
+                ["get", "entity_type"],
+                "site",
+                "#0284c7",
+                "cto",
+                "#f59e0b",
+                "ceo",
+                "#8b5cf6",
+                "#64748b",
+              ],
+            ],
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#ffffff",
+          },
+        });
 
-      map.addSource("ftth-draft-points-source", {
-        type: "geojson",
-        data: draftPointsGeoJson,
-      });
+        // Fontes e layers para rascunho de desenho (F07)
+        map.addSource("ftth-draft-line-source", {
+          type: "geojson",
+          data: draftLineGeoJson,
+        });
 
-      map.addLayer({
-        id: "ftth-draft-points-layer",
-        type: "circle",
-        source: "ftth-draft-points-source",
-        paint: {
-          "circle-radius": 6,
-          "circle-color": "#f43f5e",
-          "circle-stroke-width": 2,
-          "circle-stroke-color": "#ffffff",
-        },
-      });
+        map.addLayer({
+          id: "ftth-draft-line-layer",
+          type: "line",
+          source: "ftth-draft-line-source",
+          layout: {
+            "line-cap": "round",
+            "line-join": "round",
+          },
+          paint: {
+            "line-color": "#f43f5e",
+            "line-width": 3,
+            "line-dasharray": [2, 2],
+          },
+        });
 
-      // Fonte e layer para indicador de snap magnético
-      map.addSource("ftth-snap-source", {
-        type: "geojson",
-        data: snapGeoJson,
-      });
+        map.addSource("ftth-draft-points-source", {
+          type: "geojson",
+          data: draftPointsGeoJson,
+        });
 
-      map.addLayer({
-        id: "ftth-snap-layer",
-        type: "circle",
-        source: "ftth-snap-source",
-        paint: {
-          "circle-radius": 12,
-          "circle-color": "transparent",
-          "circle-stroke-width": 2.5,
-          "circle-stroke-color": "#0ea5e9",
-        },
-      });
+        map.addLayer({
+          id: "ftth-draft-points-layer",
+          type: "circle",
+          source: "ftth-draft-points-source",
+          paint: {
+            "circle-radius": 6,
+            "circle-color": "#f43f5e",
+            "circle-stroke-width": 2,
+            "circle-stroke-color": "#ffffff",
+          },
+        });
+
+        // Fonte e layer para indicador de snap magnético
+        map.addSource("ftth-snap-source", {
+          type: "geojson",
+          data: snapGeoJson,
+        });
+
+        map.addLayer({
+          id: "ftth-snap-layer",
+          type: "circle",
+          source: "ftth-snap-source",
+          paint: {
+            "circle-radius": 12,
+            "circle-color": "transparent",
+            "circle-stroke-width": 2.5,
+            "circle-stroke-color": "#0ea5e9",
+          },
+        });
+      } catch (err) {
+        console.warn("Aviso ao carregar camadas no mapa:", err);
+      }
 
       // Dispara primeira sincronização de viewport
-      const bounds = map.getBounds();
-      onViewportChange(
-        {
-          west: bounds.getWest(),
-          south: bounds.getSouth(),
-          east: bounds.getEast(),
-          north: bounds.getNorth(),
-        },
-        Math.round(map.getZoom())
-      );
+      try {
+        const bounds = map.getBounds();
+        onViewportChange(
+          {
+            west: bounds.getWest(),
+            south: bounds.getSouth(),
+            east: bounds.getEast(),
+            north: bounds.getNorth(),
+          },
+          Math.round(map.getZoom())
+        );
+      } catch {}
+
+      // Garante que o canvas ocupe as dimensões completas do elemento
+      map.resize();
+    };
+
+    // Dispara tanto em style.load quanto em load para garantir renderização imediata
+    map.once("style.load", setupSourcesAndLayers);
+    map.once("load", setupSourcesAndLayers);
+
+    map.on("error", (e) => {
+      const err = e as { error?: { message?: string }; status?: number };
+      if (err?.error?.message?.includes("tile") || err?.status === 404 || err?.status === 403) {
+        return;
+      }
+      console.warn("Aviso interno do mapa:", e);
     });
 
     mapRef.current = map;
 
+    // Timeout de segurança para forçar resize caso o layout flex termine de calcular
+    const timer = setTimeout(() => {
+      map.resize();
+    }, 200);
+
     return () => {
+      clearTimeout(timer);
       map.remove();
       mapRef.current = null;
     };
@@ -529,7 +630,7 @@ export function OperationalMap({
   }
 
   return (
-    <div className="relative w-full h-[650px] rounded-xl overflow-hidden border border-border bg-card shadow-inner">
+    <div className="relative w-full h-full min-h-[450px] overflow-hidden bg-card">
       <div ref={mapContainerRef} className="w-full h-full" />
 
       {/* Controles Flutuantes de Mapa */}
@@ -540,6 +641,7 @@ export function OperationalMap({
           onClick={handleZoomIn}
           className="h-8 w-8 p-0 rounded-md bg-card/90 backdrop-blur-sm border border-border hover:bg-card"
           aria-label="Aproximar zoom"
+          title="Aproximar zoom"
         >
           <Plus className="h-4 w-4" />
         </Button>
@@ -549,6 +651,7 @@ export function OperationalMap({
           onClick={handleZoomOut}
           className="h-8 w-8 p-0 rounded-md bg-card/90 backdrop-blur-sm border border-border hover:bg-card"
           aria-label="Afastar zoom"
+          title="Afastar zoom"
         >
           <Minus className="h-4 w-4" />
         </Button>
@@ -556,7 +659,7 @@ export function OperationalMap({
           variant="secondary"
           size="sm"
           onClick={handleFitBounds}
-          className="h-8 w-8 p-0 rounded-md bg-card/90 backdrop-blur-sm border border-border hover:bg-card mt-2"
+          className="h-8 w-8 p-0 rounded-md bg-card/90 backdrop-blur-sm border border-border hover:bg-card mt-1"
           aria-label="Enquadrar todos os elementos da rede"
           title="Enquadrar todos os elementos"
         >
@@ -572,6 +675,26 @@ export function OperationalMap({
           title="Minha Localização"
         >
           <Locate className={`h-3.5 w-3.5 ${locating ? "animate-pulse text-primary" : ""}`} />
+        </Button>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => {
+            if (!document.fullscreenElement) {
+              mapContainerRef.current?.parentElement?.requestFullscreen().catch(() => {});
+            } else {
+              document.exitFullscreen().catch(() => {});
+            }
+          }}
+          className="h-8 w-8 p-0 rounded-md bg-card/90 backdrop-blur-sm border border-border hover:bg-card mt-1"
+          aria-label={isFullscreen ? "Sair da tela cheia" : "Modo tela cheia"}
+          title={isFullscreen ? "Sair da tela cheia" : "Tela cheia"}
+        >
+          {isFullscreen ? (
+            <Minimize2 className="h-3.5 w-3.5" />
+          ) : (
+            <Fullscreen className="h-3.5 w-3.5" />
+          )}
         </Button>
       </div>
 

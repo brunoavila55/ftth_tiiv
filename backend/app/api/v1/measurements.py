@@ -1,4 +1,3 @@
-
 from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy.orm import Session
 
@@ -33,7 +32,9 @@ measurements_router = APIRouter(prefix="/measurements", tags=["Medições de Pot
 )
 def list_measurements_endpoint(
     pagination: PaginationParams = Depends(),
-    service_link_id: str | None = Query(default=None, description="Filtrar por atendimento de cliente"),
+    service_link_id: str | None = Query(
+        default=None, description="Filtrar por atendimento de cliente"
+    ),
     terminal_id: str | None = Query(default=None, description="Filtrar por terminal óptico"),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[MeasurementRead]:
@@ -129,7 +130,9 @@ def delete_measurement_endpoint(
 )
 def compare_measurement_endpoint(
     measurement_id: str,
-    tolerance_db: float = Query(default=2.0, ge=0.0, description="Tolerância de atenuação excessiva aceitável em dB"),
+    tolerance_db: float = Query(
+        default=2.0, ge=0.0, description="Tolerância de atenuação excessiva aceitável em dB"
+    ),
     db: Session = Depends(get_db),
 ) -> MeasurementComparisonResponse:
     return compare_measurement(session=db, measurement_id=measurement_id, tolerance_db=tolerance_db)

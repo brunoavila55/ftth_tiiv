@@ -3,10 +3,10 @@ import uuid
 from collections import deque
 
 from sqlalchemy import or_, select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.core.errors import NotFoundError
-from app.modules.cables.models import FiberSegment
+from app.core.errors import NotFoundError, TopologyRevisionConflictError
+from app.modules.cables.models import CableSegment, FiberSegment
 from app.modules.connectivity.models import (
     Connection,
     InternalEdge,
@@ -14,10 +14,13 @@ from app.modules.connectivity.models import (
     SplitterOutput,
     Terminal,
 )
-from app.modules.customers.models import ServiceLink
+from app.modules.customers.models import Customer, ServiceLink
 from app.modules.inventory.models import Device, Port, Structure
 from app.modules.topology.models import NetworkTopologyState
 from app.schemas.topology import (
+    ImpactAnalysisRequest,
+    ImpactAnalysisResponse,
+    ImpactedCustomerItem,
     TraceDirection,
     TracePath,
     TraceRequest,
@@ -119,7 +122,9 @@ def trace_optical_path(
     # Cada item na fila representa o estado de exploração de um ramo do caminho óptico:
     # (current_terminal_id, steps_so_far, visited_terminal_ids, last_element_tuple)
     # last_element_tuple: (element_type, element_id) para evitar voltar pela mesma fibra/conexão
-    queue: deque[tuple[uuid.UUID, list[TraceStep], list[uuid.UUID], tuple[str, uuid.UUID] | None]] = deque()
+    queue: deque[
+        tuple[uuid.UUID, list[TraceStep], list[uuid.UUID], tuple[str, uuid.UUID] | None]
+    ] = deque()
     queue.append((start_uuid, [], [start_uuid], None))
 
     while queue:
@@ -131,6 +136,28 @@ def trace_optical_path(
             break
 
         current_term_id, current_steps, visited_terms, last_elem = queue.popleft()
+
+        if len(current_steps) >= request.max_hops:
+            limit_exceeded = True
+            warnings.append(
+                f"Limite máximo de {request.max_hops} saltos ópticos atingido durante o rastreamento."
+            )
+            total_len = current_steps[-1].accumulated_length_m if current_steps else 0.0
+            total_loss = current_steps[-1].accumulated_loss_db if current_steps else 0.0
+            step_ids = [s.element_id for s in current_steps]
+            path_id = _generate_path_id(str(start_uuid), str(current_term_id), step_ids)
+            paths.append(
+                TracePath(
+                    path_id=path_id,
+                    origin_terminal_id=str(start_uuid),
+                    destination_terminal_id=str(current_term_id),
+                    total_length_m=total_len,
+                    total_loss_db=total_loss,
+                    steps=current_steps,
+                )
+            )
+            continue
+
         current_term = db.get(Terminal, current_term_id)
         if not current_term:
             unresolved_terminals.append(str(current_term_id))
@@ -152,7 +179,9 @@ def trace_optical_path(
         # ======================================================================
         fiber_transitions: list[tuple[uuid.UUID, TraceStep, tuple[str, uuid.UUID]]] = []
         fiber_segs = db.scalars(
-            select(FiberSegment).where(
+            select(FiberSegment)
+            .options(joinedload(FiberSegment.cable_segment).joinedload(CableSegment.cable))
+            .where(
                 or_(
                     FiberSegment.terminal_a_id == current_term_id,
                     FiberSegment.terminal_b_id == current_term_id,
@@ -164,7 +193,9 @@ def trace_optical_path(
             if last_elem and last_elem == ("fiber_segment", fseg.id):
                 continue  # Não volta pelo mesmo segmento de fibra
 
-            next_term_id = fseg.terminal_b_id if fseg.terminal_a_id == current_term_id else fseg.terminal_a_id
+            next_term_id = (
+                fseg.terminal_b_id if fseg.terminal_a_id == current_term_id else fseg.terminal_a_id
+            )
             cseg = fseg.cable_segment
             seg_len = cseg.effective_length_m if cseg else 0.0
             # Atenuação padrão monomodo ~0.25 dB/km em 1310/1490/1550 nm
@@ -204,7 +235,9 @@ def trace_optical_path(
             if last_elem and last_elem == ("connection", conn.id):
                 continue
 
-            next_term_id = conn.terminal_b_id if conn.terminal_a_id == current_term_id else conn.terminal_a_id
+            next_term_id = (
+                conn.terminal_b_id if conn.terminal_a_id == current_term_id else conn.terminal_a_id
+            )
             step_num = len(current_steps) + 1
             step = TraceStep(
                 step_number=step_num,
@@ -245,7 +278,9 @@ def trace_optical_path(
             if last_elem and last_elem == ("internal_edge", edge.id):
                 continue
 
-            next_term_id = edge.terminal_b_id if edge.terminal_a_id == current_term_id else edge.terminal_a_id
+            next_term_id = (
+                edge.terminal_b_id if edge.terminal_a_id == current_term_id else edge.terminal_a_id
+            )
             step_num = len(current_steps) + 1
             step = TraceStep(
                 step_number=step_num,
@@ -270,13 +305,19 @@ def trace_optical_path(
         if request.direction == TraceDirection.DOWNSTREAM:
             # DOWNSTREAM: Se o terminal atual é a ENTRADA do splitter, ramifica para TODAS as saídas
             splitters_input = db.scalars(
-                select(Splitter).where(Splitter.input_terminal_id == current_term_id)
+                select(Splitter)
+                .options(selectinload(Splitter.outputs))
+                .where(Splitter.input_terminal_id == current_term_id)
             ).all()
 
             for spl in splitters_input:
                 outputs = sorted(spl.outputs, key=lambda o: o.output_number)
                 for out in outputs:
-                    spl_loss = out.measured_loss_db if out.measured_loss_db is not None else out.nominal_loss_db
+                    spl_loss = (
+                        out.measured_loss_db
+                        if out.measured_loss_db is not None
+                        else out.nominal_loss_db
+                    )
                     step_num = len(current_steps) + 1
                     step = TraceStep(
                         step_number=step_num,
@@ -296,7 +337,9 @@ def trace_optical_path(
         else:
             # UPSTREAM: Se o terminal atual é uma SAÍDA do splitter, converge EXCLUSIVAMENTE para a entrada
             spl_output = db.scalar(
-                select(SplitterOutput).where(SplitterOutput.terminal_id == current_term_id)
+                select(SplitterOutput)
+                .options(joinedload(SplitterOutput.splitter))
+                .where(SplitterOutput.terminal_id == current_term_id)
             )
             if spl_output and spl_output.splitter:
                 spl = spl_output.splitter
@@ -408,3 +451,192 @@ def trace_optical_path(
         warnings=warnings,
         unresolved_terminals=unresolved_terminals,
     )
+
+
+def analyze_cable_impact(
+    db: Session,
+    payload: ImpactAnalysisRequest,
+) -> ImpactAnalysisResponse:
+    """Simula a remoção virtual de trechos de cabos em um snapshot consistente da rede.
+
+    Semântica:
+    - Valida a revisão monotônica esperada com detecção de concorrência otimista (409 Conflict).
+    - Valida a existência dos trechos de cabo especificados (404 Not Found caso algum inexista).
+    - Identifica todas as fibras ópticas pertencentes aos trechos rompidos.
+    - Executa travessia óptica reversa (upstream) a partir do terminal de cada cliente ativo
+      para determinar se o enlace óptico atravessava algum dos segmentos rompidos.
+    - Retorna a contagem e lista detalhada de clientes impactados, clientes não afetados em outros ramos,
+      clientes previamente desconectados e clientes com topologia indeterminada.
+    - Retorna os códigos das CTOs e das portas PON atingidas pelo evento.
+    """
+    current_revision = get_current_topology_revision(db)
+    if payload.expected_topology_revision != current_revision:
+        raise TopologyRevisionConflictError(
+            detail=(
+                f"A revisão topológica esperada ({payload.expected_topology_revision}) "
+                f"diverge da revisão atual ({current_revision}). Atualize os dados antes de prosseguir."
+            )
+        )
+
+    broken_uuids: set[uuid.UUID] = set()
+    for seg_id_str in payload.cable_segment_ids:
+        try:
+            broken_uuids.add(uuid.UUID(seg_id_str))
+        except ValueError:
+            raise NotFoundError(
+                detail=f"Segmento de cabo com UUID inválido: '{seg_id_str}'"
+            ) from None
+
+    existing_segments = db.scalars(
+        select(CableSegment)
+        .options(
+            joinedload(CableSegment.origin_structure),
+            joinedload(CableSegment.destination_structure),
+        )
+        .where(CableSegment.id.in_(broken_uuids))
+    ).all()
+
+    found_uuids = {s.id for s in existing_segments}
+    missing_uuids = broken_uuids - found_uuids
+    if missing_uuids:
+        missing_str = ", ".join(str(m) for m in missing_uuids)
+        raise NotFoundError(detail=f"Segmento(s) de cabo não encontrado(s): {missing_str}")
+
+    # Coleta todas as fibras pertencentes aos segmentos rompidos
+    broken_fiber_segments = db.scalars(
+        select(FiberSegment).where(FiberSegment.cable_segment_id.in_(broken_uuids))
+    ).all()
+    broken_fseg_ids = {str(f.id) for f in broken_fiber_segments}
+
+    # Estruturas CTO diretamente ligadas aos trechos rompidos
+    impacted_ctos_set: set[str] = set()
+    for seg in existing_segments:
+        if seg.origin_structure and seg.origin_structure.kind == "cto":
+            impacted_ctos_set.add(seg.origin_structure.code)
+        if seg.destination_structure and seg.destination_structure.kind == "cto":
+            impacted_ctos_set.add(seg.destination_structure.code)
+
+    impacted_pon_ports_set: set[str] = set()
+    impacted_customers: list[ImpactedCustomerItem] = []
+    unaffected_customers_count = 0
+    previously_disconnected_count = 0
+    unknown_status_count = 0
+
+    # Analisa todos os clientes e vínculos de atendimento
+    all_customers = db.scalars(
+        select(Customer)
+        .options(
+            selectinload(Customer.service_links).joinedload(ServiceLink.onu_device),
+            selectinload(Customer.service_links).joinedload(ServiceLink.port).joinedload(Port.structure),
+        )
+    ).all()
+
+    for cust in all_customers:
+        active_links = [link for link in cust.service_links if link.status == "active"]
+        if not active_links:
+            # Cliente sem vínculo ativo: já estava desconectado antes do evento
+            previously_disconnected_count += 1
+            continue
+
+        for link in active_links:
+            cto_code = "UNKNOWN"
+            if link.port:
+                if link.port.structure:
+                    cto_code = link.port.structure.code
+                elif link.port.device_id:
+                    dev = db.get(Device, link.port.device_id)
+                    if dev and dev.structure_id:
+                        st = db.get(Structure, dev.structure_id)
+                        if st:
+                            cto_code = st.code
+
+            onu_code = link.onu_device.code if link.onu_device else "UNKNOWN"
+
+            # Localiza o terminal óptico de início para travessia upstream (terminal na ONU ou na porta CTO)
+            term_rx: Terminal | None = None
+            if link.onu_device_id:
+                onu_ports = db.scalars(
+                    select(Port.id).where(Port.device_id == link.onu_device_id)
+                ).all()
+                if onu_ports:
+                    term_rx = db.scalar(
+                        select(Terminal).where(
+                            Terminal.entity_type == "port",
+                            Terminal.entity_id.in_(onu_ports),
+                        )
+                    )
+            if not term_rx and link.port_id:
+                term_rx = db.scalar(
+                    select(Terminal).where(
+                        Terminal.entity_type == "port",
+                        Terminal.entity_id == link.port_id,
+                    )
+                )
+
+            if not term_rx:
+                unknown_status_count += 1
+                continue
+
+            # Executa rastreamento upstream a partir do cliente em direção à OLT
+            trace_req = TraceRequest(
+                start_terminal_id=str(term_rx.id),
+                direction=TraceDirection.UPSTREAM,
+                max_results=50,
+                max_hops=200,
+            )
+            trace_res = trace_optical_path(db, trace_req)
+
+            if not trace_res.paths:
+                unknown_status_count += 1
+                continue
+
+            # Verifica se algum passo do caminho passa por um segmento rompido
+            is_impacted = False
+            for path in trace_res.paths:
+                for step in path.steps:
+                    if step.element_type == "fiber_segment" and step.element_id in broken_fseg_ids:
+                        is_impacted = True
+                        break
+                if path.destination_terminal_id:
+                    try:
+                        dest_term = db.get(Terminal, uuid.UUID(path.destination_terminal_id))
+                        if dest_term and dest_term.entity_type == "port" and dest_term.entity_id:
+                            dest_port = db.get(Port, dest_term.entity_id)
+                            if (
+                                dest_port
+                                and dest_port.role in ("pon", "olt_pon", "trunk")
+                                and is_impacted
+                            ):
+                                impacted_pon_ports_set.add(dest_port.name)
+                    except Exception:
+                        pass
+
+                if is_impacted:
+                    break
+
+            if is_impacted:
+                impacted_customers.append(
+                    ImpactedCustomerItem(
+                        customer_id=str(cust.id),
+                        customer_code=cust.code,
+                        service_link_id=str(link.id),
+                        onu_device_code=onu_code,
+                        cto_code=cto_code,
+                    )
+                )
+                if cto_code != "UNKNOWN":
+                    impacted_ctos_set.add(cto_code)
+            else:
+                unaffected_customers_count += 1
+
+    return ImpactAnalysisResponse(
+        topology_revision=current_revision,
+        broken_segments_count=len(existing_segments),
+        impacted_customers=impacted_customers,
+        unaffected_customers_count=unaffected_customers_count,
+        previously_disconnected_count=previously_disconnected_count,
+        unknown_status_count=unknown_status_count,
+        impacted_ctos=sorted(impacted_ctos_set),
+        impacted_pon_ports=sorted(impacted_pon_ports_set),
+    )
+

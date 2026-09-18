@@ -28,6 +28,7 @@ import {
   Box,
   ArrowLeft,
 } from "lucide-react";
+import { CopyableCoordinates } from "@/components/ui/copyable-coordinates";
 import Link from "next/link";
 
 export interface SiteDetailViewProps {
@@ -351,17 +352,11 @@ export function SiteDetailView({ siteId }: SiteDetailViewProps) {
             </p>
           </div>
           {lat !== null && lon !== null ? (
-            <div className="space-y-3">
-              <div className="rounded-md border border-border bg-muted/40 p-4 text-xs font-mono">
-                Latitude: {lat} | Longitude: {lon}
-              </div>
-              <Button asChild className="gap-1.5 text-xs">
-                <Link href={`/map?lat=${lat}&lng=${lon}&zoom=17&selected=${site.id}`}>
-                  <Map className="h-4 w-4" />
-                  <span>Abrir no Mapa Operacional com Camadas</span>
-                </Link>
-              </Button>
-            </div>
+            <CopyableCoordinates
+              latitude={lat}
+              longitude={lon}
+              entityId={site.id}
+            />
           ) : (
             <p className="text-xs text-muted-foreground">Coordenadas geográficas não configuradas.</p>
           )}

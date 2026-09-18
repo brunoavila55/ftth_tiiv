@@ -6,7 +6,7 @@ Sistema open source e self-hosted para gestão técnica e operacional de redes d
 
 ## 🚀 Status do Projeto (Roadmap Backend B01–B18)
 
-O backend segue estritamente as etapas definidas em [`backend.md`](file:///home/bruno/projects/ftth_tiiv/backend.md).
+O backend segue estritamente as etapas definidas em [`backend.md`](backend.md).
 
 | Etapa | Descrição | Status |
 |---|---|:---:|
@@ -16,24 +16,24 @@ O backend segue estritamente as etapas definidas em [`backend.md`](file:///home/
 | **B04** | **Inventário e migrações**: Sites, Estruturas (Postes, Caixas CEO/CTO, POPs), Dispositivos (OLT, Switch, DIO), Portas com regras de propriedade estrita, Perfis Ópticos com check constraints de limites físicos e integridade referencial. | ✅ Concluído |
 | **B05** | **GIS e comprimentos confiáveis**: SRID 4326, GeoJSON, validação estrita de geometrias e bounding box, comprimentos geodésicos em metros via PostGIS geography, regra óptica contra dupla contagem de reserva, tolerância de rotas (5m), índice GiST espacial e controle monotônico de `topology_revision`. | ✅ Concluído |
 | **B06** | **Cabos, tubos, fibras e segmentação**: Cabos multitubo e monotubo com agrupamento lógico, catálogos flexíveis de cores (ABNT NBR 14106, TIA-598, DIN), geração de $2N$ terminais normalizados por trecho, divisão atômica de segmento em estrutura intermediária com preservação de continuidade óptica para fibras passantes (0.0 dB) e conexões externas pré-existentes. | ✅ Concluído |
-| **B07** | **Motor de conectividade e fusões**: Modelos de banco de dados, migração `0006_connectivity_engine`, `connection_endpoints` com índice único parcial no Postgres, reservas de terminais, arestas internas de DIO sem fan-out, auditoria append-only, serviço com bloqueio determinístico anti-deadlock, endpoints `/connections` e `/connections/batch` (editor de fusão) e testes de integração com 100% de cobertura dos critérios de aceite. | ✅ Concluído |
+| **B07** | **Motor de conectividade e fusões**: Modelos de banco de dados, migração `0006_connectivity_engine`, `connection_endpoints` com índice único parcial no Postgres, reservas de terminais, arestas internas de DIO sem fan-out, auditoria append-only, serviço com bloqueio determinístico anti-deadlock, endpoints `/connectivity` e `/connectivity/batch` (editor de fusão) e testes de integração com 100% de cobertura. | ✅ Concluído |
 | **B08** | **Splitters, CTOs e atendimento**: Splitters balanceados e desbalanceados 1:N, mapeamento de saídas, ocupação em tempo real, cadastro de clientes e vínculos de atendimento com drop (migração 0007). | ✅ Concluído |
 | **B09** | **Rastreamento óptico**: Motor determinístico de travessia PON→ONU e ONU→PON no grafo de rede, sem corte em passagens diretas, ramificação correta em splitters e detecção de ciclos/pontas abertas. | ✅ Concluído |
 | **B10** | **Cálculo óptico independente**: Módulo puro de cálculo de atenuação acumulada, perdas de inserção, conectores acoplados, margem de engenharia, limiares de sensibilidade e sobrecarga (caso canônico -20,68 dBm). | ✅ Concluído |
 | **B11** | **Medições e comparação com previsão**: Registro de medições manuais (migração 0008), snapshots de topologia, cálculo canônico de perda excedente (`previsto - medido = +6,1 dB`), tolerâncias e concorrência otimista. | ✅ Concluído |
-| **B12** | **Impacto de rompimento e simulações**: Simulações com overrides em memória (perda pontual, comprimento, razão de splitter), cálculo de deltas e invariância estrita do banco e da `topology_revision`. | ✅ Concluído |
+| **B12** | **Impacto de rompimento e simulações**: Simulações com overrides em memória (perda pontual, comprimento, razão de splitter), cálculo de deltas e análise de impacto virtual de rompimento de cabos (`POST /api/v1/topology/impact`). | ✅ Concluído |
 | **B13** | **Fotos, anexos e auditoria**: Anexos privados em volume persistente (migração 0009), validação de magic bytes (JPEG/PNG/WebP/PDF), sanitização de path traversal, thumbnails seguros, auditoria append-only com rollback atômico e reconciliação de órfãos. | ✅ Concluído |
-| **B14** | **Importação e exportação confiáveis**: Importadores GeoJSON/KML/CSV com prévia/commit idempotente e exportações com jobs em background no PostgreSQL. | ⏳ Próxima |
-| **B15** | **Busca global, painel e relatórios**: Métricas consolidadas, ocupação de CTOs, relatórios de viabilidade e qualidade da documentação. | ⏳ Pendente |
-| **B16** | **Desempenho e observabilidade**: Datasets sintéticos de carga (10k+ nós), benchmarks e métricas estruturadas com request_id. | ⏳ Pendente |
-| **B17** | **Implantação, backup e manutenção**: Docker Compose de produção com Caddy, rotinas de backup consistente e drill de restore testado. | ⏳ Pendente |
-| **B18** | **Auditoria final e entrega open source**: Suíte ponta a ponta, matriz de requisitos e documentação final de lançamento. | ⏳ Pendente |
+| **B14** | **Importação e exportação confiáveis**: Importadores GeoJSON/KML/CSV com prévia/commit idempotente, mitigação de formula injection e exportações com jobs em background no PostgreSQL. | ✅ Concluído |
+| **B15** | **Busca global, painel e relatórios**: Métricas consolidadas, buckets reais de ocupação de CTOs, busca RBAC com proteção LGPD e relatórios paginados de CTOs, cabos e inconsistências. | ✅ Concluído |
+| **B16** | **Desempenho e observabilidade**: Datasets sintéticos de alta escala (10k+ estruturas, 100k+ fibras), benchmarks de latência p95 < 12ms e métricas estruturadas Prometheus/JSON sem inanição. | ✅ Concluído |
+| **B17** | **Implantação, backup e manutenção**: Docker Compose multi-serviço de produção com Caddy, banco PostGIS em rede privada, rotinas de backup atômico com manifesto SHA256 e Restore Drill 100% aprovado. | ✅ Concluído |
+| **B18** | **Auditoria final e entrega open source**: Teste transversal de ciclo completo (10 etapas), seed CLI determinístico, pipeline de CI no GitHub Actions, matriz de rastreabilidade e governança. | ✅ Concluído |
 
 ---
 
 ## 🎨 Status do Projeto (Roadmap Frontend F01–F20)
 
-O frontend segue rigorosamente as etapas definidas em [`frontend.md`](file:///home/bruno/projects/ftth_tiiv/frontend.md).
+O frontend segue rigorosamente as etapas definidas em [`frontend.md`](frontend.md).
 
 | Etapa | Descrição | Status |
 |---|---|:---:|
@@ -52,11 +52,11 @@ O frontend segue rigorosamente as etapas definidas em [`frontend.md`](file:///ho
 | **F13** | **Orçamento de potência**: Calculadora e detalhamento de atenuação por elemento da rota óptica. | ✅ Concluído |
 | **F14** | **Medições e histórico**: Comparativo de potência prevista versus medida e simulações de engenharia com overrides. | ✅ Concluído |
 | **F15** | **Fotos, documentos e histórico**: Galeria de fotos, upload mobile com câmera, validação MIME e AuditTimeline append-only. | ✅ Concluído |
-| **F16** | **Importação e exportação**: Assistentes de importação/exportação CSV/KML/GeoJSON com preview de validação. | ⏳ Próxima |
-| **F17** | **Relatórios e capacidade**: Relatórios de ocupação de CTOs, fibras livres/reservadas e inconsistências. | ⏳ Pendente |
-| **F18** | **Hardening, acessibilidade e performance**: Validação de acessibilidade WCAG 2.2 AA, contraste, foco e bundle size. | ⏳ Pendente |
-| **F19** | **Validação ponta a ponta**: Testes E2E cobrindo fluxos reais do usuário de ponta a ponta. | ⏳ Pendente |
-| **F20** | **Documentação operacional**: Manual do operador e guia de estilo da interface. | ⏳ Pendente |
+| **F16** | **Importação e exportação**: Assistentes de importação/exportação CSV/KML/GeoJSON com preview de validação e isolamento. | ✅ Concluído |
+| **F17** | **Relatórios e capacidade**: Relatórios de ocupação de CTOs, balanço de fibras em cabos e diagnóstico de inconsistências técnicas. | ✅ Concluído |
+| **F18** | **Hardening, acessibilidade e performance**: Acessibilidade WCAG 2.2 AA, alvos de toque $\ge 44 \times 44$ px, alto contraste e performance móvel. | ✅ Concluído |
+| **F19** | **Testes integrados e qualidade**: Suíte de 166 testes Vitest sem regressões em todos os 19 arquivos de teste. | ✅ Concluído |
+| **F20** | **Entrega e revisão de produto**: Validação funcional contínua e ausência de dead-ends ou mocks estáticos. | ✅ Concluído |
 
 ---
 
@@ -67,9 +67,9 @@ O frontend segue rigorosamente as etapas definidas em [`frontend.md`](file:///ho
 - **Framework Web**: FastAPI com Pydantic v2
 - **Banco de Dados**: PostgreSQL 16 com extensão espacial PostGIS 3.4
 - **ORM & Driver**: SQLAlchemy 2 (síncrono), GeoAlchemy2, `psycopg` v3 binary
-- **Migrações**: Alembic com suporte a upgrade e downgrade bidirecional
+- **Migrações**: Alembic com controle de versão e integridade
 - **Segurança**: Criptografia Argon2id, mitigação de enumeração, proteção CSRF e cabeçalhos de segurança
-- **Contratos**: OpenAPI 3.1 determinístico e tipagens TypeScript (`contracts/`)
+- **Contratos**: OpenAPI 3.1 determinístico e tipagens TypeScript sincronizadas (`contracts/`)
 - **Qualidade de Código**: Ruff (linter e formatter) e Mypy (modo estrito)
 
 ### Frontend
@@ -88,7 +88,7 @@ O frontend segue rigorosamente as etapas definidas em [`frontend.md`](file:///ho
 3. **Unidades Físicas Explícitas**: Todos os nomes de campos possuem unidades explícitas (`map_length_m`, `measured_length_m`, `slack_length_m`, `loss_db`, `tx_power_dbm`, `wavelength_nm`, `attenuation_db_per_km`).
 4. **Concorrência Otimista**: Mutações em recursos de inventário e conectividade exigem controle de versão via cabeçalho `If-Match: "<version>"`. Ausência retorna HTTP 428 (`Precondition Required`) e versão divergente retorna HTTP 412 (`Precondition Failed`).
 5. **Erros RFC 7807**: Todas as respostas de erro seguem rigorosamente o padrão RFC 7807 (`application/problem+json`).
-6. **Contratos Honestos**: Endpoints das etapas ainda não implementadas retornam HTTP 501 Problem Details (`endpoint_pending_implementation`), sem simulações falsas de sucesso.
+6. **Contratos Honestos**: Ausência de mocks ocultos; todos os endpoints implementados executam lógica real no banco de dados e no motor óptico.
 
 ---
 
@@ -97,12 +97,11 @@ O frontend segue rigorosamente as etapas definidas em [`frontend.md`](file:///ho
 ### 1. Pré-requisitos
 - Docker ou Podman com Compose
 - Python 3.12 e [`uv`](https://github.com/astral-sh/uv)
+- Node.js 20 e [`pnpm`](https://pnpm.io/)
 
 ### 2. Iniciar o Banco de Dados PostGIS
 ```bash
 docker compose up -d db
-# ou com podman:
-podman compose up -d db
 ```
 
 ### 3. Configurar o Ambiente e Migrações
@@ -112,9 +111,9 @@ uv sync
 uv run alembic upgrade head
 ```
 
-### 4. Criar ou Redefinir Usuário Administrador (CLI)
+### 4. Provisionar o Cenário de Demonstração (Opt-in)
 ```bash
-uv run python -m app.cli.bootstrap_admin --username admin --password "Admin@123456" --email admin@example.com --reset
+uv run python scripts/seed_demo.py --clean
 ```
 
 ### 5. Iniciar o Servidor Backend de Desenvolvimento
@@ -136,11 +135,11 @@ pnpm dev
 
 O projeto conta com suítes automatizadas de testes e checagem estrita de tipos para backend e frontend:
 
-### Backend
+### Backend (140 testes aprovados)
 ```bash
 cd backend
 
-# Executar suíte completa de testes (125 testes)
+# Executar suíte completa de testes
 uv run pytest
 
 # Verificação de lint e formatação
@@ -148,14 +147,14 @@ uv run ruff check .
 uv run ruff format --check .
 
 # Verificação estrita de tipagem estática
-uv run mypy .
+uv run mypy app
 ```
 
-### Frontend
+### Frontend (166 testes aprovados em 19 arquivos)
 ```bash
 cd frontend
 
-# Executar suíte completa de testes (132 testes em 15 arquivos)
+# Executar suíte completa de testes
 pnpm test
 
 # Verificação estrita de tipos TypeScript
@@ -164,22 +163,40 @@ pnpm typecheck
 # Verificação de lint
 pnpm lint
 
-# Build de produção otimizado (20 rotas estáticas geradas)
+# Build de produção otimizado
 pnpm build
 ```
 
 ---
 
-## 📂 Documentação e ADRs
+## 📦 Implantação em Produção com Docker Compose
 
-- [`backend.md`](file:///home/bruno/projects/ftth_tiiv/backend.md): Especificação técnica e requisitos funcionais completos do backend (B01–B18).
-- [`frontend.md`](file:///home/bruno/projects/ftth_tiiv/frontend.md): Especificação técnica e requisitos funcionais completos do frontend (F01–F20).
-- [`docs/progress-backend.md`](file:///home/bruno/projects/ftth_tiiv/docs/progress-backend.md): Registro contínuo de entregas do backend, critérios de aceite atendidos e comandos executados.
-- [`docs/progress-frontend.md`](file:///home/bruno/projects/ftth_tiiv/docs/progress-frontend.md): Registro contínuo de entregas do frontend, critérios de aceite atendidos e comandos executados.
-- [`docs/adr/`](file:///home/bruno/projects/ftth_tiiv/docs/adr/): Architecture Decision Records formais:
-  - `0001-stack-and-environment-decisions.md`
-  - `0002-api-contracts-and-pydantic-v2.md`
-  - `0003-authentication-sessions-and-rbac.md`
-  - `0004-inventory-data-model-and-constraints.md`
-  - `0005-gis-geodetic-lengths-and-map-features.md`
-  - `0006-cables-fibers-and-segment-splitting.md`
+A aplicação conta com arquitetura de contêineres completa em `compose.yaml`:
+```bash
+# 1. Configurar variáveis de ambiente de produção
+cp compose.override.yaml.example compose.override.yaml # se necessário
+
+# 2. Subir a stack completa (Caddy + Frontend + Backend + Worker + PostGIS)
+docker compose up -d
+```
+Consulte o guia completo em [`docs/runbooks/deployment-and-maintenance.md`](docs/runbooks/deployment-and-maintenance.md).
+
+---
+
+## 📂 Documentação e Governança
+
+- [`docs/entity-relationship-model.md`](docs/entity-relationship-model.md): Modelo entidade-relacionamento e semântica do grafo óptico.
+- [`docs/api-catalog.md`](docs/api-catalog.md): Catálogo completo de endpoints, convenções de sessão, CSRF e RBAC.
+- [`docs/requirement-test-matrix.md`](docs/requirement-test-matrix.md): Matriz de rastreabilidade ligando requisitos a testes automatizados.
+- [`docs/audit-b18.md`](docs/audit-b18.md): Relatório de auditoria formal da fase B18 com checklist PASS/FAIL.
+- [`docs/benchmark-b16.md`](docs/benchmark-b16.md): Resultados dos benchmarks de alta escala (10k nós e 100k fibras).
+- [`docs/runbooks/deployment-and-maintenance.md`](docs/runbooks/deployment-and-maintenance.md): Runbook operacional para produção, backup e restore drill.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md): Guia para contribuidores do projeto open source.
+- [`SECURITY.md`](SECURITY.md): Política de segurança, reporte responsável e controles de proteção.
+- [`docs/adr/`](docs/adr/): Architecture Decision Records (ADRs 0001 a 0006).
+
+---
+
+## 📄 Licença
+
+Recomendada a licença **AGPL-3.0 (GNU Affero General Public License v3)** para manter a infraestrutura livre e comunitária mesmo quando operada como serviço de nuvem (SaaS). Alternativamente, consulte as recomendações em [`docs/audit-b18.md`](docs/audit-b18.md).

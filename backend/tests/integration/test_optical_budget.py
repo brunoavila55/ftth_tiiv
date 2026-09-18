@@ -5,7 +5,6 @@ avaliação de conformidade (pass, overload, below_sensitivity, low_margin)
 e tratamento de rotas incompletas.
 """
 
-
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
@@ -464,7 +463,9 @@ def test_optical_budget_downstream_calculation(client: TestClient, db_session: S
 
     # Comprimento total de fibra deve ser 7000 m (3500 + 3500)
     fiber_lengths = sum(
-        s["individual_value"] for s in data["steps"] if s["element_type"] in ("fiber", "fiber_segment")
+        s["individual_value"]
+        for s in data["steps"]
+        if s["element_type"] in ("fiber", "fiber_segment")
     )
     assert fiber_lengths == pytest.approx(7000.0, rel=1e-3)
 

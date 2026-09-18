@@ -40,7 +40,7 @@ const OperationalMap = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-[650px] w-full items-center justify-center rounded-xl border border-border bg-card">
+      <div className="flex h-full w-full min-h-[400px] flex-1 items-center justify-center bg-card">
         <LoadingState
           message="Inicializando motor gráfico de mapa..."
           description="Carregando biblioteca MapLibre GL e aceleração por WebGL."
@@ -137,6 +137,14 @@ export function MapView() {
     },
     []
   );
+
+  // Dispara consulta inicial imediata para não depender exclusivamente de eventos do MapLibre
+  React.useEffect(() => {
+    const latSpan = 0.05;
+    const lngSpan = 0.07;
+    const defaultBBox = `${(initialLng - lngSpan).toFixed(6)},${(initialLat - latSpan).toFixed(6)},${(initialLng + lngSpan).toFixed(6)},${(initialLat + latSpan).toFixed(6)}`;
+    loadFeatures(defaultBBox, initialZoom);
+  }, [initialLat, initialLng, initialZoom, loadFeatures]);
 
   // Callback acionado pelo moveend do mapa
   const handleViewportChange = React.useCallback(
@@ -332,31 +340,32 @@ export function MapView() {
   const currentLengthMeters = calculateLineLength(draftCoordinates);
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto">
+    <div className="flex flex-col h-full w-full min-h-0 relative overflow-hidden bg-background">
       {/* Barra Superior do Mapa */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-border pb-4">
-        <div>
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold tracking-tight text-foreground">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 border-b border-border bg-card/95 backdrop-blur-sm shrink-0 z-10">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <MapIcon className="h-4 w-4 text-primary" />
+            <h1 className="text-sm font-semibold tracking-tight text-foreground">
               Mapa Operacional & Desenho Geográfico
             </h1>
-            {data && (
-              <Badge variant="outline" className="font-mono text-xs gap-1 py-0.5">
-                <GitBranch className="h-3 w-3" />
-                Topologia: #{data.topology_revision}
-              </Badge>
-            )}
           </div>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Visualizador e editor vetorial com snap magnético a estruturas, cálculo óptico e persistência transacional.
-          </p>
+          {data && (
+            <Badge variant="outline" className="font-mono text-[11px] gap-1 py-0 px-2 h-5">
+              <GitBranch className="h-2.5 w-2.5" />
+              Topologia: #{data.topology_revision}
+            </Badge>
+          )}
+          <Badge variant="secondary" className="text-[11px] py-0 px-2 h-5">
+            {features.length} elementos
+          </Badge>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-2">
           {isLoading && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground mr-2">
               <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-              <span>Sincronizando BBox...</span>
+              <span className="hidden sm:inline">Sincronizando BBox...</span>
             </div>
           )}
 
@@ -391,7 +400,7 @@ export function MapView() {
               }
             }}
             disabled={isLoading}
-            className="h-8 px-2.5 text-xs gap-1.5"
+            className="h-7 px-2.5 text-xs gap-1.5"
             title="Recarregar dados geográficos da área atual"
           >
             <RefreshCw className={`h-3.5 w-3.5 ${isLoading ? "animate-spin text-primary" : ""}`} />
@@ -402,20 +411,22 @@ export function MapView() {
 
       {/* Alerta de Erro de Carregamento */}
       {error && (
-        <ErrorState
-          title="Não foi possível consultar os dados geográficos da rede"
-          error={error}
-          onRetry={() => {
-            if (currentBBoxRef.current) {
-              loadFeatures(currentBBoxRef.current, currentZoomRef.current);
-            }
-          }}
-        />
+        <div className="p-3 border-b border-destructive/20 bg-destructive/5 shrink-0">
+          <ErrorState
+            title="Não foi possível consultar os dados geográficos da rede"
+            error={error}
+            onRetry={() => {
+              if (currentBBoxRef.current) {
+                loadFeatures(currentBBoxRef.current, currentZoomRef.current);
+              }
+            }}
+          />
+        </div>
       )}
 
       {/* Alerta de Truncamento de Features */}
       {data?.truncated && (
-        <div className="flex items-center justify-between gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-xs text-foreground animate-in fade-in">
+        <div className="flex items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-foreground shrink-0 animate-in fade-in">
           <div className="flex items-center gap-2 font-medium">
             <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
             <span>
@@ -429,76 +440,80 @@ export function MapView() {
       )}
 
       {/* Área Principal de Renderização */}
-      {viewMode === "map" ? (
-        <div className="relative">
-          {/* Barra de Ferramentas de Desenho Flutuante */}
-          <DrawingToolbar
-            mode={interactionMode}
-            pointKind={pointKind}
-            draft={activeDraft}
-            canUndo={historyIndex >= 0}
-            canRedo={historyIndex < history.length - 1}
-            currentLengthMeters={currentLengthMeters}
-            snapCandidate={snapCandidate}
-            onSetMode={handleSetMode}
-            onUndo={handleUndo}
-            onRedo={handleRedo}
-            onCancel={handleCancelDrawing}
-            onFinish={handleFinishDrawing}
-          />
+      <div className="flex-1 w-full h-full min-h-0 relative overflow-hidden">
+        {viewMode === "map" ? (
+          <div className="relative w-full h-full">
+            {/* Barra de Ferramentas de Desenho Flutuante */}
+            <DrawingToolbar
+              mode={interactionMode}
+              pointKind={pointKind}
+              draft={activeDraft}
+              canUndo={historyIndex >= 0}
+              canRedo={historyIndex < history.length - 1}
+              currentLengthMeters={currentLengthMeters}
+              snapCandidate={snapCandidate}
+              onSetMode={handleSetMode}
+              onUndo={handleUndo}
+              onRedo={handleRedo}
+              onCancel={handleCancelDrawing}
+              onFinish={handleFinishDrawing}
+            />
 
-          <OperationalMap
-            features={features}
-            layers={layers}
-            selectedFeatureId={selectedFeature?.id ?? null}
-            onSelectFeature={handleSelectFeature}
-            onViewportChange={handleViewportChange}
-            initialLat={initialLat}
-            initialLng={initialLng}
-            initialZoom={initialZoom}
-            mode={interactionMode}
-            draftCoordinates={draftCoordinates}
-            snapCandidate={snapCandidate}
-            onMapClick={handleMapClick}
-            onMouseMove={handleMouseMove}
-            onDoubleClick={handleFinishDrawing}
-          />
+            <OperationalMap
+              features={features}
+              layers={layers}
+              selectedFeatureId={selectedFeature?.id ?? null}
+              onSelectFeature={handleSelectFeature}
+              onViewportChange={handleViewportChange}
+              initialLat={initialLat}
+              initialLng={initialLng}
+              initialZoom={initialZoom}
+              mode={interactionMode}
+              draftCoordinates={draftCoordinates}
+              snapCandidate={snapCandidate}
+              onMapClick={handleMapClick}
+              onMouseMove={handleMouseMove}
+              onDoubleClick={handleFinishDrawing}
+            />
 
-          {/* Legenda e Filtro de Camadas */}
-          <MapLegend layers={layers} onToggleLayer={toggleLayer} />
+            {/* Legenda e Filtro de Camadas */}
+            <MapLegend layers={layers} onToggleLayer={toggleLayer} />
 
-          {/* Painel Contextual Lateral do Elemento Clicado */}
-          <MapFeatureSheet
-            feature={selectedFeature}
-            onClose={() => handleSelectFeature(null)}
-          />
+            {/* Painel Contextual Lateral do Elemento Clicado */}
+            <MapFeatureSheet
+              feature={selectedFeature}
+              onClose={() => handleSelectFeature(null)}
+            />
 
-          {/* Modal de Revisão Técnica e Cadastro */}
-          <DrawingModal
-            open={modalOpen}
-            draft={activeDraft}
-            onClose={() => setModalOpen(false)}
-            onSuccess={() => {
-              setModalOpen(false);
-              handleCancelDrawing();
-              if (currentBBoxRef.current) {
-                loadFeatures(currentBBoxRef.current, currentZoomRef.current);
-              }
-            }}
-          />
-        </div>
-      ) : (
-        /* Modo Alternativo em Lista para Acessibilidade e Ambientes Sem WebGL */
-        <div className="rounded-xl border border-border bg-card shadow-sm">
-          <MapFallbackTable
-            features={features}
-            onSelectFeature={(feat) => {
-              handleSelectFeature(feat);
-              setViewMode("map");
-            }}
-          />
-        </div>
-      )}
+            {/* Modal de Revisão Técnica e Cadastro */}
+            <DrawingModal
+              open={modalOpen}
+              draft={activeDraft}
+              onClose={() => setModalOpen(false)}
+              onSuccess={() => {
+                setModalOpen(false);
+                handleCancelDrawing();
+                if (currentBBoxRef.current) {
+                  loadFeatures(currentBBoxRef.current, currentZoomRef.current);
+                }
+              }}
+            />
+          </div>
+        ) : (
+          /* Modo Alternativo em Lista para Acessibilidade e Ambientes Sem WebGL */
+          <div className="h-full overflow-y-auto p-4 sm:p-6">
+            <div className="rounded-xl border border-border bg-card shadow-sm">
+              <MapFallbackTable
+                features={features}
+                onSelectFeature={(feat) => {
+                  handleSelectFeature(feat);
+                  setViewMode("map");
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

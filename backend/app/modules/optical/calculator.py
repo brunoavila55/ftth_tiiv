@@ -224,12 +224,8 @@ def calculate_optical_budget(
                 step_warning = "Perda de inserção ausente"
             else:
                 step_loss = step.loss_db
-                step_loss_min = (
-                    step.loss_min_db if step.loss_min_db is not None else step_loss
-                )
-                step_loss_max = (
-                    step.loss_max_db if step.loss_max_db is not None else step_loss
-                )
+                step_loss_min = step.loss_min_db if step.loss_min_db is not None else step_loss
+                step_loss_max = step.loss_max_db if step.loss_max_db is not None else step_loss
 
         if step_loss is not None:
             accumulated_loss += step_loss

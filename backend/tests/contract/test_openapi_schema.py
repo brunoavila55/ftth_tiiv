@@ -94,16 +94,6 @@ def test_pending_endpoints_return_501_problem_details(client: TestClient) -> Non
     """Garante que endpoints ainda não implementados retornam 501 e nunca sucesso falso."""
     # Testar um endpoint de cada família principal
     pending_urls = [
-        ("GET", "/api/v1/splitters"),
-        (
-            "POST",
-            "/api/v1/topology/impact",
-            {
-                "cable_segment_ids": ["00000000-0000-0000-0000-000000000000"],
-                "expected_topology_revision": 1,
-            },
-        ),
-        ("GET", "/api/v1/imports/jobs"),
         ("GET", "/api/v1/settings"),
     ]
 

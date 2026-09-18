@@ -56,7 +56,12 @@ export function Sidebar({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [mobileOpen, onMobileClose]);
 
-  const renderNavGroup = (groupTitle: string, items: NavItem[], isCollapsed: boolean) => {
+  const renderNavGroup = (
+    groupTitle: string,
+    items: NavItem[],
+    isCollapsed: boolean,
+    isMobileView: boolean = false
+  ) => {
     return (
       <div key={groupTitle} className="py-2">
         {!isCollapsed && (
@@ -75,13 +80,15 @@ export function Sidebar({
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={isMobileView ? onMobileClose : undefined}
                 title={isCollapsed ? `${item.title}${item.badge ? ` (${item.badge})` : ""}` : undefined}
                 className={cn(
                   "group flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors relative",
                   isActive
                     ? "bg-primary/10 text-primary font-semibold"
                     : "text-muted-foreground hover:bg-accent hover:text-foreground",
-                  isCollapsed && "justify-center px-2 py-2.5"
+                  isCollapsed && "justify-center px-2 py-2.5",
+                  isMobileView && "min-h-[44px] py-2.5"
                 )}
                 aria-current={isActive ? "page" : undefined}
               >
@@ -179,7 +186,9 @@ export function Sidebar({
             isCollapsed ? "max-h-[calc(100vh-8rem)]" : "max-h-[calc(100vh-8.5rem)]"
           )}
         >
-          {NAVIGATION_GROUPS.map((group) => renderNavGroup(group.title, group.items, isCollapsed))}
+          {NAVIGATION_GROUPS.map((group) =>
+            renderNavGroup(group.title, group.items, isCollapsed, isMobileView)
+          )}
         </div>
       </div>
 

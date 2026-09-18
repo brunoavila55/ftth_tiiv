@@ -403,8 +403,9 @@ def test_cto_occupancy_acceptance_criteria_8_ports_3_connected_1_reserved_4_free
     assert ports_map["Porta 2"]["status"] == "customer_connected"
     assert ports_map["Porta 3"]["status"] == "connected_no_customer"
     assert ports_map["Porta 4"]["status"] == "reserved"
-    assert ports_map["Porta 4"]["reservation"]["reason"] == "Reserva técnica para expansão corporativa"
+    assert (
+        ports_map["Porta 4"]["reservation"]["reason"] == "Reserva técnica para expansão corporativa"
+    )
     assert ports_map["Porta 5"]["status"] == "free"
     assert ports_map["Porta 8"]["status"] == "free"
     assert ports_map["Porta 8"]["is_damaged"] is True
-

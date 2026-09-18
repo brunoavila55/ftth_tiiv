@@ -208,12 +208,17 @@ def delete_customer(
     _validate_if_match(if_match, customer.version)
 
     # Verifica se há service_links vinculados ao cliente
-    active_links = db.scalar(
-        select(func.count()).select_from(ServiceLink).where(
-            ServiceLink.customer_id == customer_id,
-            ServiceLink.status == "active",
+    active_links = (
+        db.scalar(
+            select(func.count())
+            .select_from(ServiceLink)
+            .where(
+                ServiceLink.customer_id == customer_id,
+                ServiceLink.status == "active",
+            )
         )
-    ) or 0
+        or 0
+    )
     if active_links > 0:
         raise ConflictError(
             f"Não é possível excluir o cliente '{customer.name}' pois ele possui {active_links} atendimento(s) óptico(s) ativo(s). Desative os atendimentos primeiro."
@@ -253,7 +258,11 @@ def list_service_links(
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0
 
-    stmt = stmt.order_by(ServiceLink.activated_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    stmt = (
+        stmt.order_by(ServiceLink.activated_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
     results = db.scalars(stmt).all()
     return [service_link_to_service_link_read(link) for link in results], total
 
@@ -536,7 +545,9 @@ def get_cto_port_occupancy(
         )
 
         notes_str = (port.notes or "").lower()
-        is_damaged = any(k in notes_str for k in ["danificad", "defeito", "damaged", "quebrad", "broken"])
+        is_damaged = any(
+            k in notes_str for k in ["danificad", "defeito", "damaged", "quebrad", "broken"]
+        )
 
         if has_active_link:
             port_status = "customer_connected"
@@ -552,7 +563,9 @@ def get_cto_port_occupancy(
             port_status = "free"
 
         srv_link: ServiceLink | None = active_service_links.get(port.id)
-        cust = customers_map.get(srv_link.customer_id) if srv_link and srv_link.customer_id else None
+        cust = (
+            customers_map.get(srv_link.customer_id) if srv_link and srv_link.customer_id else None
+        )
         onu = onus_map.get(srv_link.onu_device_id) if srv_link and srv_link.onu_device_id else None
         res = active_reservations.get(term.id) if term and term.id in active_reservations else None
 

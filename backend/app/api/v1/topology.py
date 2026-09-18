@@ -3,7 +3,6 @@ from typing import Any
 from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
-from app.core.contracts import pending_endpoint
 from app.core.dependencies import require_permission
 from app.db.session import get_db
 from app.modules.topology import service
@@ -44,6 +43,10 @@ def trace_path(
         "Simula a remoção virtual de trechos de cabos em um snapshot consistente da rede "
         "sem alterar dados operacionais, retornando os clientes e CTOs afetados."
     ),
+    dependencies=[Depends(require_permission("network:read"))],
 )
-def analyze_impact(payload: ImpactAnalysisRequest) -> Any:
-    pending_endpoint("B12")
+def analyze_impact(
+    payload: ImpactAnalysisRequest,
+    db: Session = Depends(get_db),
+) -> Any:
+    return service.analyze_cable_impact(db, payload)

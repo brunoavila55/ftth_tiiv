@@ -1,41 +1,17 @@
 import { api } from "@/lib/api/client";
+import type { PaginatedResponse } from "@/lib/api/types";
+import type {
+  CableCapacityReportItem,
+  CableReportFilters,
+  CTOOccupancyReportItem,
+  CTOReportFilters,
+  DashboardSummaryResponse,
+  GlobalSearchResponse,
+  InconsistencyReportFilters,
+  InconsistencyReportItem,
+} from "./types";
 
-export interface CTOOccupancyBuckets {
-  empty_0_pct: number;
-  low_1_to_50_pct: number;
-  high_51_to_99_pct: number;
-  full_100_pct: number;
-}
-
-export interface DashboardSummaryResponse {
-  total_sites: number;
-  total_structures: number;
-  total_cables: number;
-  total_customers: number;
-  total_active_service_links: number;
-  ctos_occupancy: CTOOccupancyBuckets;
-  incomplete_documentation_alerts: string[];
-  topology_revision: number;
-}
-
-export interface SearchResultItem {
-  id: string;
-  entity_type: string;
-  code: string;
-  name: string | null;
-  status: string | null;
-}
-
-export interface SearchGroup {
-  entity_type: string;
-  items: SearchResultItem[];
-}
-
-export interface GlobalSearchResponse {
-  query: string;
-  total_results: number;
-  groups: SearchGroup[];
-}
+export * from "./types";
 
 /**
  * Consulta indicadores consolidados do painel operacional
@@ -57,6 +33,66 @@ export async function searchGlobal(
       q: query,
       limit,
     },
+    signal,
+  });
+}
+
+/**
+ * Consulta relatório paginado de capacidade e ocupação de caixas CTO
+ */
+export async function getCTOOccupancyReport(
+  filters?: CTOReportFilters,
+  signal?: AbortSignal
+): Promise<PaginatedResponse<CTOOccupancyReportItem>> {
+  const params: Record<string, string | number> = {};
+
+  if (filters?.page) params.page = filters.page;
+  if (filters?.page_size) params.page_size = filters.page_size;
+  if (filters?.site_id) params.site_id = filters.site_id;
+  if (filters?.status) params.status = filters.status;
+  if (filters?.min_occupancy_pct !== undefined) params.min_occupancy_pct = filters.min_occupancy_pct;
+  if (filters?.max_occupancy_pct !== undefined) params.max_occupancy_pct = filters.max_occupancy_pct;
+
+  return api.get<PaginatedResponse<CTOOccupancyReportItem>>("/reports/ctos", {
+    params,
+    signal,
+  });
+}
+
+/**
+ * Consulta relatório paginado de capacidade óptica de cabos
+ */
+export async function getCableCapacityReport(
+  filters?: CableReportFilters,
+  signal?: AbortSignal
+): Promise<PaginatedResponse<CableCapacityReportItem>> {
+  const params: Record<string, string | number> = {};
+
+  if (filters?.page) params.page = filters.page;
+  if (filters?.page_size) params.page_size = filters.page_size;
+  if (filters?.status) params.status = filters.status;
+  if (filters?.min_usage_pct !== undefined) params.min_usage_pct = filters.min_usage_pct;
+
+  return api.get<PaginatedResponse<CableCapacityReportItem>>("/reports/cables", {
+    params,
+    signal,
+  });
+}
+
+/**
+ * Consulta relatório paginado de inconsistências e anomalias técnicas da rede
+ */
+export async function getInconsistenciesReport(
+  filters?: InconsistencyReportFilters,
+  signal?: AbortSignal
+): Promise<PaginatedResponse<InconsistencyReportItem>> {
+  const params: Record<string, string | number> = {};
+
+  if (filters?.page) params.page = filters.page;
+  if (filters?.page_size) params.page_size = filters.page_size;
+
+  return api.get<PaginatedResponse<InconsistencyReportItem>>("/reports/inconsistencies", {
+    params,
     signal,
   });
 }
