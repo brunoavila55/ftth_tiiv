@@ -60,6 +60,10 @@ class Settings(BaseSettings):
     METRICS_SECRET_TOKEN: str = "dev-metrics-token-change-in-production"
     MAX_TRACE_HOPS: int = 300
 
+    # Worker de jobs assíncronos: heartbeat consultado pelo HEALTHCHECK do compose
+    WORKER_HEARTBEAT_FILE: str = "/tmp/ftth-worker.heartbeat"
+    WORKER_HEARTBEAT_MAX_AGE_SECONDS: int = 300
+
     @field_validator("ENVIRONMENT", mode="before")
     @classmethod
     def parse_environment(cls, v: str | Environment) -> Environment:

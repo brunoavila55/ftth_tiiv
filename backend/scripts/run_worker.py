@@ -2,6 +2,9 @@
 
 Consome filas do PostgreSQL usando 'SELECT FOR UPDATE SKIP LOCKED', renova leases/heartbeats,
 processa importações, exportações, e executa rotinas de limpeza de arquivos expirados.
+
+A cada iteração saudável do loop o worker grava um heartbeat em `WORKER_HEARTBEAT_FILE`, que o
+HEALTHCHECK do compose consulta (`scripts/check_worker_heartbeat.py`).
 """
 
 from __future__ import annotations
@@ -11,8 +14,12 @@ import signal
 import sys
 import time
 import uuid
+from pathlib import Path
+
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
+from app.core.logging import job_id_ctx, setup_logging
 from app.db.session import get_session_factory
 from app.modules.jobs.service import (
     claim_next_job,
@@ -20,60 +27,96 @@ from app.modules.jobs.service import (
     process_claimed_job,
 )
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='{"timestamp": "%(asctime)s", "level": "%(levelname)s", "logger": "%(name)s", "message": "%(message)s"}',
-)
 logger = logging.getLogger("ftth.worker")
 
 running = True
+CLEANUP_INTERVAL_SECONDS = 60
+LEASE_SECONDS = 60
 
 
 def handle_shutdown(signum: int, frame: object) -> None:
     global running
     sig_name = signal.Signals(signum).name
-    logger.info(f"Sinal de encerramento recebido ({sig_name}). Finalizando worker graciosamente...")
+    logger.info(
+        "Sinal de encerramento recebido (%s). Finalizando worker graciosamente...", sig_name
+    )
     running = False
 
 
+def touch_heartbeat(path: Path) -> None:
+    """Atualiza o arquivo de heartbeat (mtime) consultado pelo HEALTHCHECK."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.touch()
+    except OSError:
+        logger.warning("Não foi possível gravar o heartbeat em '%s'.", path, exc_info=True)
+
+
+def run_iteration(
+    factory: sessionmaker[Session],
+    worker_id: str,
+    heartbeat_file: Path,
+    cleanup_state: dict[str, float] | None = None,
+) -> str:
+    """Executa uma iteração do loop. Retorna 'job' se processou um job, senão 'idle'."""
+    cleanup_state = cleanup_state if cleanup_state is not None else {"last": 0.0}
+
+    with factory() as db:
+        job = claim_next_job(db, worker_id=worker_id, lease_seconds=LEASE_SECONDS)
+        touch_heartbeat(heartbeat_file)
+        if job:
+            token = job_id_ctx.set(str(job.id))
+            try:
+                logger.info("Processando job '%s' [Tipo: %s]...", job.id, job.type)
+                start_t = time.time()
+                success = process_claimed_job(db, job, worker_id=worker_id)
+                duration = time.time() - start_t
+                logger.info(
+                    "Job '%s' finalizado com %s em %.2fs.",
+                    job.id,
+                    "sucesso" if success else "falha",
+                    duration,
+                )
+            finally:
+                job_id_ctx.reset(token)
+            touch_heartbeat(heartbeat_file)
+            return "job"
+
+        # Rotina periódica de limpeza de arquivos temporários e prévias expiradas
+        now = time.time()
+        if now - cleanup_state["last"] > CLEANUP_INTERVAL_SECONDS:
+            clean_res = clean_expired_previews_and_exports(db)
+            if clean_res.get("cleaned_previews", 0) > 0:
+                logger.info("Limpeza de retenção: %s", clean_res)
+            cleanup_state["last"] = now
+
+    return "idle"
+
+
 def main() -> int:
-    global running
     signal.signal(signal.SIGINT, handle_shutdown)
     signal.signal(signal.SIGTERM, handle_shutdown)
 
     settings = get_settings()
+    setup_logging(settings.LOG_LEVEL)
     worker_id = f"worker-{uuid.uuid4().hex[:8]}"
-    logger.info(f"FTTH Manager Worker iniciado [ID: {worker_id}] (Ambiente: {settings.ENVIRONMENT})")
+    logger.info(
+        "FTTH Manager Worker iniciado [ID: %s] (Ambiente: %s)", worker_id, settings.ENVIRONMENT
+    )
 
     factory = get_session_factory()
-    last_cleanup_time = 0.0
+    heartbeat_file = Path(settings.WORKER_HEARTBEAT_FILE)
+    cleanup_state: dict[str, float] = {"last": 0.0}
 
     while running:
+        outcome = "idle"
         try:
-            with factory() as db:
-                # 1. Tenta reivindicar próximo job pendente
-                job = claim_next_job(db, worker_id=worker_id, lease_seconds=60)
-                if job:
-                    logger.info(f"Processando job '{job.id}' [Tipo: {job.type}]...")
-                    start_t = time.time()
-                    success = process_claimed_job(db, job, worker_id=worker_id)
-                    duration = time.time() - start_t
-                    status_str = "sucesso" if success else "falha"
-                    logger.info(
-                        f"Job '{job.id}' finalizado com {status_str} em {duration:.2f}s."
-                    )
-                    continue
+            outcome = run_iteration(factory, worker_id, heartbeat_file, cleanup_state)
+        except Exception:
+            logger.exception("Erro no loop do worker")
 
-                # 2. Rotina periódica de limpeza de arquivos temporários e prévias expiradas
-                now = time.time()
-                if now - last_cleanup_time > 60:
-                    clean_res = clean_expired_previews_and_exports(db)
-                    if clean_res.get("cleaned_previews", 0) > 0:
-                        logger.info(f"Limpeza de retenção: {clean_res}")
-                    last_cleanup_time = now
-
-        except Exception as e:
-            logger.error(f"Erro no loop do worker: {e}", exc_info=True)
+        if outcome == "job":
+            continue  # há possivelmente mais jobs na fila: não espera
 
         # Intervalo de espera entre polling (2 segundos)
         for _ in range(20):
@@ -81,7 +124,7 @@ def main() -> int:
                 break
             time.sleep(0.1)
 
-    logger.info(f"FTTH Manager Worker [ID: {worker_id}] encerrado com sucesso.")
+    logger.info("FTTH Manager Worker [ID: %s] encerrado com sucesso.", worker_id)
     return 0
 
 

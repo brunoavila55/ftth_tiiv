@@ -1,3 +1,4 @@
+import logging
 import os
 import uuid
 from datetime import UTC, datetime, timedelta
@@ -9,6 +10,8 @@ from shapely.geometry import Point
 from sqlalchemy import and_, or_, select
 from sqlalchemy.orm import Session
 
+from app.core.logging import job_id_ctx
+from app.core.metrics import metrics_collector
 from app.modules.audit.service import record_audit_event
 from app.modules.cables.models import Cable
 from app.modules.exports.service import execute_export_job
@@ -18,6 +21,8 @@ from app.modules.imports.models import AsyncJob, ImportPreview
 from app.modules.imports.service import parse_csv, parse_geojson, parse_kml
 from app.modules.inventory.models import Site, Structure
 from app.schemas.imports_exports import JobRead, JobStatus, JobType
+
+logger = logging.getLogger("ftth.jobs")
 
 
 def get_job_by_id(db: Session, job_id: str) -> JobRead:
@@ -278,54 +283,74 @@ def execute_import_commit(db: Session, job: AsyncJob) -> dict[str, Any]:
     }
 
 
+def process_claimed_job(db: Session, job: AsyncJob, worker_id: str = "worker-default") -> bool:
+    """Executa um job já reivindicado (`claim_next_job`). Retorna True se concluiu com sucesso."""
+    job_id = job.id
+    job_type = job.type
+    final_status = "failed"
+    token = job_id_ctx.set(str(job_id))
+    try:
+        try:
+            if job_type == "import_commit":
+                result = execute_import_commit(db, job)
+                job.result = result
+                job.progress_percentage = 100
+                job.status = "succeeded"
+                job.finished_at = datetime.now(UTC)
+                db.commit()
+            elif job_type.startswith("export_"):
+                file_path = execute_export_job(db, job)
+                job.result_path = file_path
+                job.result = {
+                    "download_url": f"/api/v1/exports/{job.id}/download",
+                    "file_size_bytes": os.path.getsize(file_path),
+                    "generated_at": datetime.now(UTC).isoformat(),
+                }
+                job.progress_percentage = 100
+                job.status = "succeeded"
+                job.finished_at = datetime.now(UTC)
+                db.commit()
+            else:
+                job.status = "failed"
+                job.error_message = f"Tipo de job '{job_type}' não suportado pelo worker."
+                job.finished_at = datetime.now(UTC)
+                db.commit()
+        except InterruptedError:
+            # Cancelado durante a execução: rollback transacional imediato
+            db.rollback()
+            reloaded = db.get(AsyncJob, job_id)
+            if reloaded:
+                reloaded.status = "cancelled"
+                reloaded.finished_at = datetime.now(UTC)
+                db.commit()
+        except Exception as e:
+            logger.exception("Job '%s' [%s] falhou no worker '%s'.", job_id, job_type, worker_id)
+            db.rollback()
+            # Atualizar job com falha
+            reloaded = db.get(AsyncJob, job_id)
+            if reloaded:
+                reloaded.status = "failed"
+                reloaded.error_message = str(e)
+                reloaded.finished_at = datetime.now(UTC)
+                db.commit()
+
+        persisted = db.get(AsyncJob, job_id)
+        if persisted is not None:
+            db.refresh(persisted)
+            final_status = persisted.status
+    finally:
+        job_id_ctx.reset(token)
+
+    metrics_collector.record_job(job_type, final_status)
+    return final_status == "succeeded"
+
+
 def process_next_job(db: Session, worker_id: str = "worker-default") -> bool:
     job = claim_next_job(db, worker_id)
     if not job:
         return False
 
-    try:
-        if job.type == "import_commit":
-            result = execute_import_commit(db, job)
-            job.result = result
-            job.progress_percentage = 100
-            job.status = "succeeded"
-            job.finished_at = datetime.now(UTC)
-            db.commit()
-        elif job.type.startswith("export_"):
-            file_path = execute_export_job(db, job)
-            job.result_path = file_path
-            job.result = {
-                "download_url": f"/api/v1/exports/{job.id}/download",
-                "file_size_bytes": os.path.getsize(file_path),
-                "generated_at": datetime.now(UTC).isoformat(),
-            }
-            job.progress_percentage = 100
-            job.status = "succeeded"
-            job.finished_at = datetime.now(UTC)
-            db.commit()
-        else:
-            job.status = "failed"
-            job.error_message = f"Tipo de job '{job.type}' não suportado pelo worker."
-            job.finished_at = datetime.now(UTC)
-            db.commit()
-    except InterruptedError:
-        # Cancelado durante a execução: rollback transacional imediato
-        db.rollback()
-        job = db.get(AsyncJob, job.id)
-        if job:
-            job.status = "cancelled"
-            job.finished_at = datetime.now(UTC)
-            db.commit()
-    except Exception as e:
-        db.rollback()
-        # Atualizar job com falha
-        job = db.get(AsyncJob, job.id)
-        if job:
-            job.status = "failed"
-            job.error_message = str(e)
-            job.finished_at = datetime.now(UTC)
-            db.commit()
-
+    process_claimed_job(db, job, worker_id=worker_id)
     return True
 
 
