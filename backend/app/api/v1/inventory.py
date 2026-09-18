@@ -265,6 +265,7 @@ def delete_structure_endpoint(
     "/structures/{structure_id}/occupancy",
     response_model=StructureOccupancyResponse,
     summary="Ocupação de portas da estrutura / CTO",
+    dependencies=[Depends(require_permission("network:read"))],
 )
 def get_structure_occupancy(structure_id: str) -> StructureOccupancyResponse:
     pending_endpoint("B08")

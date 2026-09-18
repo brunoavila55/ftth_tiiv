@@ -3,7 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_optional_current_user, require_permission
+from app.core.dependencies import get_current_user, require_permission
 from app.db.session import get_db
 from app.modules.identity.models import User
 from app.modules.reports.service import (
@@ -31,6 +31,7 @@ reports_router = APIRouter(tags=["Relatórios, Busca e Auditoria"])
     response_model=DashboardSummaryResponse,
     summary="Resumo de indicadores do painel",
     description="Retorna contadores de ativos, faixas de ocupação de CTOs e alertas de incompletude técnica.",
+    dependencies=[Depends(require_permission("reports:read"))],
 )
 def get_dashboard_summary(db: Session = Depends(get_db)) -> DashboardSummaryResponse:
     return calculate_dashboard_summary(db)
@@ -48,7 +49,7 @@ def global_search(
         default=20, ge=1, le=100, description="Limite máximo de resultados por grupo"
     ),
     db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> GlobalSearchResponse:
     return execute_global_search(db=db, q=q, limit=limit, current_user=current_user)
 

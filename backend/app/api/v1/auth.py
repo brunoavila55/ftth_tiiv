@@ -121,7 +121,8 @@ def get_me(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Alterar senha do usuário atual",
     description="Atualiza a senha do usuário autenticado mediante confirmação da senha atual.",
-    dependencies=[Depends(validate_csrf)],
+    # get_current_user primeiro: anônimo recebe 401 (não 403 de CSRF)
+    dependencies=[Depends(get_current_user), Depends(validate_csrf)],
 )
 def change_password(
     payload: ChangePasswordRequest,

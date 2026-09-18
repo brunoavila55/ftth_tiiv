@@ -3,8 +3,10 @@ from pathlib import Path
 
 from fastapi import status
 from fastapi.testclient import TestClient
+from sqlalchemy.orm import Session
 
 from app.main import create_app
+from tests.conftest import create_test_user, login_test_client
 
 
 def test_openapi_json_matches_app_schema() -> None:
@@ -90,8 +92,13 @@ def test_units_are_explicit_in_schema_fields() -> None:
                 )
 
 
-def test_pending_endpoints_return_501_problem_details(client: TestClient) -> None:
+def test_pending_endpoints_return_501_problem_details(
+    client: TestClient, db_session: Session
+) -> None:
     """Garante que endpoints ainda não implementados retornam 501 e nunca sucesso falso."""
+    # Stubs também exigem autenticação/permissão (R03): usa um admin (settings:read)
+    create_test_user(db_session, "admin_contract@provedor.com.br", "admin")
+    login_test_client(client, "admin_contract@provedor.com.br")
     # Testar um endpoint de cada família principal
     pending_urls = [
         ("GET", "/api/v1/settings"),

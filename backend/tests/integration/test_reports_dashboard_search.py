@@ -243,6 +243,11 @@ def test_dashboard_summary_with_real_buckets_and_alerts(
     db_session.add(damaged_port)
     db_session.commit()
 
+    # O painel exige sessão com reports:read (R03 / SEC-01)
+    assert client.get("/api/v1/dashboard/summary").status_code == status.HTTP_401_UNAUTHORIZED
+    create_user(db_session, "viewer_dashboard@provedor.com.br", UserRole.VIEWER)
+    auth_client_login(client, "viewer_dashboard@provedor.com.br")
+
     response = client.get("/api/v1/dashboard/summary")
     assert response.status_code == status.HTTP_200_OK
     data = response.json()
@@ -303,18 +308,9 @@ def test_global_search_across_entities_and_rbac(client: TestClient, db_session: 
     db_session.add(cust)
     db_session.commit()
 
-    # 1. Usuário anônimo / unauthenticated:
-    # Acessa busca global, encontra site, estrutura, cabo e dispositivo; MAS NÃO cliente!
+    # 1. Usuário anônimo: busca global exige autenticação (R03 / SEC-01)
     resp_anon = client.get("/api/v1/search?q=ALPHA")
-    assert resp_anon.status_code == status.HTTP_200_OK
-    data_anon = resp_anon.json()
-
-    entity_types_anon = [g["entity_type"] for g in data_anon["groups"]]
-    assert "site" in entity_types_anon
-    assert "structure" in entity_types_anon
-    assert "cable" in entity_types_anon
-    assert "device" in entity_types_anon
-    assert "customer" not in entity_types_anon  # Protegido por RBAC
+    assert resp_anon.status_code == status.HTTP_401_UNAUTHORIZED
 
     # 2. Usuário VIEWER:
     # Não possui customers:read, portanto também não deve ver clientes
