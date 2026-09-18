@@ -15,8 +15,26 @@
         Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com; connect-src 'self' blob: https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com; font-src 'self' data:; frame-ancestors 'self';"
     }
 
-    # API Backend (FastAPI)
+    # Uploads (anexos: MAX_UPLOAD_SIZE_BYTES=10 MB; importações: MAX_IMPORT_SIZE_BYTES=20 MB).
+    # O teto do proxy (25 MB) cobre o maior arquivo permitido + overhead do multipart; o backend
+    # aplica o limite exato de cada rota (413).
+    @uploads {
+        method POST
+        path /api/v1/imports/preview /api/v1/attachments
+    }
+    handle @uploads {
+        request_body {
+            max_size 25MB
+        }
+        reverse_proxy backend:8000
+    }
+
+    # API Backend (FastAPI): corpos JSON legítimos são pequenos (maior caso: 10 000 pontos de
+    # geometria ≈ 0,4 MB); 2 MB dá folga sem aceitar corpos arbitrários.
     handle /api/* {
+        request_body {
+            max_size 2MB
+        }
         reverse_proxy backend:8000
     }
 

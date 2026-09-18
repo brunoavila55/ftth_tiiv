@@ -19,8 +19,8 @@ class AppSettingsRead(BaseModel):
 
 
 class AppSettingsUpdate(BaseModel):
-    organization_name: str | None = None
-    timezone: str | None = None
+    organization_name: str | None = Field(default=None, max_length=150)
+    timezone: str | None = Field(default=None, max_length=64)
     default_map_center: tuple[float, float] | None = None
     default_map_zoom: int | None = Field(default=None, ge=1, le=22)
     excess_loss_tolerance_db: float | None = Field(default=None, ge=0.1, le=10.0)

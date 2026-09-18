@@ -130,6 +130,7 @@
           "organization_name": {
             "anyOf": [
               {
+                "maxLength": 150,
                 "type": "string"
               },
               {
@@ -141,6 +142,7 @@
           "timezone": {
             "anyOf": [
               {
+                "maxLength": 64,
                 "type": "string"
               },
               {
@@ -412,6 +414,7 @@
           "reservation_reason": {
             "anyOf": [
               {
+                "maxLength": 500,
                 "type": "string"
               },
               {
@@ -461,6 +464,7 @@
           "caption": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -477,6 +481,7 @@
           },
           "entity_type": {
             "description": "Tipo da entidade (structure, site, customer, device, etc.)",
+            "maxLength": 50,
             "title": "Entity Type",
             "type": "string"
           },
@@ -973,11 +978,13 @@
           "color_standard": {
             "default": "NBR",
             "description": "Padrão de código de cores (NBR, TIA-598, etc.)",
+            "maxLength": 50,
             "title": "Color Standard",
             "type": "string"
           },
           "fiber_count": {
             "description": "Quantidade total de fibras ópticas no cabo",
+            "maximum": 1728.0,
             "minimum": 1.0,
             "title": "Fiber Count",
             "type": "integer"
@@ -992,6 +999,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1007,6 +1015,7 @@
           "tube_count": {
             "default": 1,
             "description": "Quantidade de tubos loose",
+            "maximum": 144.0,
             "minimum": 1.0,
             "title": "Tube Count",
             "type": "integer"
@@ -1270,6 +1279,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1296,11 +1306,13 @@
         "properties": {
           "current_password": {
             "description": "Senha atual do usuário",
+            "maxLength": 128,
             "title": "Current Password",
             "type": "string"
           },
           "new_password": {
             "description": "Nova senha com no mínimo 8 caracteres",
+            "maxLength": 128,
             "minLength": 8,
             "title": "New Password",
             "type": "string"
@@ -1317,6 +1329,7 @@
         "properties": {
           "expected_topology_revision": {
             "description": "Revisão topológica esperada no cliente; falha com 409 se a revisão atual divergir",
+            "maximum": 2147483647.0,
             "title": "Expected Topology Revision",
             "type": "integer"
           },
@@ -1325,6 +1338,7 @@
             "items": {
               "$ref": "#/components/schemas/BatchOperationItem"
             },
+            "maxItems": 500,
             "minItems": 1,
             "title": "Operations",
             "type": "array"
@@ -1383,6 +1397,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1539,6 +1554,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1656,6 +1672,7 @@
           "address": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -1667,6 +1684,7 @@
           "email": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -1691,6 +1709,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1702,6 +1721,7 @@
           "phone": {
             "anyOf": [
               {
+                "maxLength": 30,
                 "type": "string"
               },
               {
@@ -1796,6 +1816,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1980,6 +2001,7 @@
           "manufacturer": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -1991,6 +2013,7 @@
           "model": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -2002,6 +2025,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -2013,6 +2037,7 @@
           "serial_number": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -2071,8 +2096,10 @@
             ],
             "description": "Camadas a exportar (ex: sites, structures, cables, ctos, ceos)",
             "items": {
+              "maxLength": 50,
               "type": "string"
             },
+            "maxItems": 20,
             "title": "Layers",
             "type": "array"
           }
@@ -2255,12 +2282,14 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 500,
             "minItems": 1,
             "title": "Cable Segment Ids",
             "type": "array"
           },
           "expected_topology_revision": {
             "description": "Revisão topológica esperada do cenário de rede",
+            "maximum": 2147483647.0,
             "title": "Expected Topology Revision",
             "type": "integer"
           }
@@ -2372,6 +2401,7 @@
         "properties": {
           "file_hash": {
             "description": "Hash que deve corresponder exatamente ao arquivo pré-visualizado",
+            "maxLength": 64,
             "title": "File Hash",
             "type": "string"
           },
@@ -2738,6 +2768,7 @@
               ],
               "type": "array"
             },
+            "maxItems": 10000,
             "minItems": 2,
             "title": "Coordinates",
             "type": "array"
@@ -2776,6 +2807,7 @@
           },
           "password": {
             "description": "Senha do usuário",
+            "maxLength": 128,
             "minLength": 1,
             "title": "Password",
             "type": "string"
@@ -3035,6 +3067,7 @@
           "instrument_model": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -3060,6 +3093,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -3261,6 +3295,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -3301,6 +3336,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -3322,6 +3358,7 @@
           "technology": {
             "default": "GPON",
             "description": "Tecnologia PON (GPON, XGS-PON, etc.)",
+            "maxLength": 50,
             "title": "Technology",
             "type": "string"
           },
@@ -3451,6 +3488,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -3462,6 +3500,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -3534,6 +3573,7 @@
             "items": {
               "$ref": "#/components/schemas/SimulationOverrideItem"
             },
+            "maxItems": 200,
             "minItems": 1,
             "title": "Overrides",
             "type": "array"
@@ -4369,6 +4409,7 @@
           "connector_type": {
             "default": "SC/APC",
             "description": "Padrão de conector óptico",
+            "maxLength": 50,
             "title": "Connector Type",
             "type": "string"
           },
@@ -4400,6 +4441,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -4530,6 +4572,7 @@
           "connector_type": {
             "anyOf": [
               {
+                "maxLength": 50,
                 "type": "string"
               },
               {
@@ -4541,6 +4584,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 50,
                 "type": "string"
               },
               {
@@ -4552,6 +4596,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -4728,6 +4773,7 @@
             "items": {
               "type": "string"
             },
+            "maxItems": 1728,
             "title": "Cut Fiber Ids",
             "type": "array"
           },
@@ -4825,6 +4871,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -4944,6 +4991,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -4980,6 +5028,7 @@
           },
           "override_type": {
             "description": "Tipo de substituição: loss_db, length_m, splitter_ratio",
+            "maxLength": 50,
             "title": "Override Type",
             "type": "string"
           }
@@ -4997,6 +5046,7 @@
           "address": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -5030,6 +5080,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5139,6 +5190,7 @@
           "address": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -5170,6 +5222,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -5181,6 +5234,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5227,6 +5281,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5247,12 +5302,14 @@
             "items": {
               "$ref": "#/components/schemas/SplitterPortLoss"
             },
+            "maxItems": 128,
             "title": "Ports",
             "type": "array"
           },
           "ratio": {
             "default": "1:8",
             "description": "Razão nominal de divisão (ex: 1:8, 1:16, 1:2 desbalanceado)",
+            "maxLength": 20,
             "title": "Ratio",
             "type": "string"
           },
@@ -5305,6 +5362,7 @@
           },
           "port_number": {
             "description": "Número da porta de saída (1 a N)",
+            "maximum": 128.0,
             "minimum": 1.0,
             "title": "Port Number",
             "type": "integer"
@@ -5471,6 +5529,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5485,6 +5544,7 @@
                 "items": {
                   "$ref": "#/components/schemas/SplitterPortLoss"
                 },
+                "maxItems": 128,
                 "type": "array"
               },
               {
@@ -5552,6 +5612,7 @@
           "capacity": {
             "default": 0,
             "description": "Capacidade física cadastrada",
+            "maximum": 100000.0,
             "minimum": 0.0,
             "title": "Capacity",
             "type": "integer"
@@ -5578,6 +5639,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5762,6 +5824,7 @@
           "capacity": {
             "anyOf": [
               {
+                "maximum": 100000.0,
                 "minimum": 0.0,
                 "type": "integer"
               },
@@ -5794,6 +5857,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -6207,12 +6271,14 @@
           },
           "name": {
             "description": "Nome completo do usuário",
+            "maxLength": 150,
             "minLength": 2,
             "title": "Name",
             "type": "string"
           },
           "password": {
             "description": "Senha inicial gerada pelo administrador",
+            "maxLength": 128,
             "minLength": 8,
             "title": "Password",
             "type": "string"
@@ -6318,6 +6384,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 150,
                 "minLength": 2,
                 "type": "string"
               },
@@ -10387,6 +10454,7 @@
             "required": true,
             "schema": {
               "description": "Termo de pesquisa",
+              "maxLength": 100,
               "minLength": 2,
               "title": "Q",
               "type": "string"

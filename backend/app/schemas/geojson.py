@@ -19,6 +19,7 @@ class LineStringGeometry(BaseModel):
         min_length=2,
         description="Lista de coordenadas [longitude, latitude] que formam a linha",
         examples=[[[-46.633308, -23.550520], [-46.634120, -23.551200]]],
+        max_length=10000,
     )
 
 

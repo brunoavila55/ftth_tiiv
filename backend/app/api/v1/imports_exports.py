@@ -5,7 +5,10 @@ from fastapi import APIRouter, Depends, File, Header, HTTPException, Response, U
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.dependencies import get_current_user, require_permission, validate_csrf
+from app.core.rate_limit import rate_limit
+from app.core.uploads import read_upload_limited
 from app.db.session import get_db
 from app.modules.exports.service import create_export_request
 from app.modules.identity.models import User
@@ -37,14 +40,18 @@ imports_exports_router = APIRouter(tags=["Importação, Exportação e Jobs"])
     status_code=status.HTTP_200_OK,
     summary="Pré-visualizar arquivo de importação",
     description="Analisa sintaxe, valida entidades, detecta colisões e gera resumo sem alterar a rede.",
-    dependencies=[Depends(require_permission("imports:write")), Depends(validate_csrf)],
+    dependencies=[
+        Depends(require_permission("imports:write")),
+        Depends(validate_csrf),
+        Depends(rate_limit("upload", "RATE_LIMIT_UPLOAD_PER_MINUTE")),
+    ],
 )
 async def preview_import(
     file: UploadFile = File(..., description="Arquivo GeoJSON, KML ou CSV"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ImportPreviewResponse:
-    content = await file.read()
+    content = await read_upload_limited(file, get_settings().MAX_IMPORT_SIZE_BYTES)
     filename = file.filename or "import.geojson"
     return create_import_preview(
         db=db,
@@ -99,7 +106,11 @@ def commit_import(
     response_model=ExportResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Solicitar exportação de dados",
-    dependencies=[Depends(require_permission("exports:write")), Depends(validate_csrf)],
+    dependencies=[
+        Depends(require_permission("exports:write")),
+        Depends(validate_csrf),
+        Depends(rate_limit("export", "RATE_LIMIT_EXPORT_PER_MINUTE")),
+    ],
 )
 def request_export(
     payload: ExportRequest,

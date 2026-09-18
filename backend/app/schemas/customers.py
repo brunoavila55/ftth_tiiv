@@ -20,15 +20,15 @@ class CustomerCreate(BaseModel):
     phone: str | None = Field(default=None, max_length=30)
     email: str | None = Field(default=None, max_length=100)
     address: str | None = Field(default=None, max_length=255)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class CustomerUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=2, max_length=150)
-    phone: str | None = None
-    email: str | None = None
-    address: str | None = None
-    notes: str | None = None
+    phone: str | None = Field(default=None, max_length=30)
+    email: str | None = Field(default=None, max_length=100)
+    address: str | None = Field(default=None, max_length=255)
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class CustomerRead(BaseModel):
@@ -48,12 +48,12 @@ class ServiceLinkCreate(BaseModel):
     customer_id: str = Field(..., description="UUID do cliente atendido")
     onu_device_id: str = Field(..., description="UUID do equipamento ONU instalado no cliente")
     port_id: str = Field(..., description="UUID da porta da CTO que atende esta ativação")
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ServiceLinkUpdate(BaseModel):
     status: ServiceLinkStatus | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ServiceLinkRead(BaseModel):

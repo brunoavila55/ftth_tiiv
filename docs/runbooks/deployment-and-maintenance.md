@@ -188,3 +188,13 @@ O mapa operacional do FTTH Manager utiliza MapLibre GL JS e requer acesso a um s
 - **Egress**:
   - Acesso HTTPS (`443/TCP`) aos domínios de tiles configurados (`*.tile.openstreetmap.org`, `*.basemaps.cartocdn.com`).
   - Nenhuma outra porta de saída é requerida para a operação segura do sistema.
+
+---
+
+## 9. Limites de entrada e rate limit
+
+- **Tamanho de corpo (Caddy)**: `/api/v1/imports/preview` e `/api/v1/attachments` aceitam até 25 MB (maior arquivo permitido + overhead do multipart); demais rotas `/api/*` até 2 MB. O backend aplica o limite exato por rota: anexos `MAX_UPLOAD_SIZE_BYTES` (10 MB) e importações `MAX_IMPORT_SIZE_BYTES` (20 MB), respondendo `413`.
+- **Tetos de schema**: campos numéricos, textos e listas dos corpos JSON têm limites (ex.: `fiber_count ≤ 1728`, `tube_count ≤ 144`, listas ≤ 500, `notes ≤ 5000`); valores acima retornam `422`. Um teste (`tests/unit/test_request_caps.py`) impede rotas novas sem teto.
+- **Rate limit** (`429` + `Retry-After`, janela de 1 minuto, por usuário autenticado): `RATE_LIMIT_COMPUTE_PER_MINUTE` (trace/impact/budgets/simulations, 30), `RATE_LIMIT_SEARCH_PER_MINUTE` (60), `RATE_LIMIT_UPLOAD_PER_MINUTE` (anexos e prévia de importação, 20), `RATE_LIMIT_EXPORT_PER_MINUTE` (10); `RATE_LIMIT_ENABLED=false` desliga.
+  > [!WARNING]
+  > O limitador é **em memória, por processo**. Com mais de um worker do uvicorn ou mais de uma réplica do backend, o teto efetivo é multiplicado pelo número de processos, e reiniciar o processo zera os contadores. A interface `RateLimiter` (`app/core/rate_limit.py`) permite trocar por um backend compartilhado (Postgres/Redis) quando houver escala horizontal (ver R21).

@@ -96,10 +96,13 @@ class TraceResponse(BaseModel):
 
 class ImpactAnalysisRequest(BaseModel):
     cable_segment_ids: list[str] = Field(
-        ..., min_length=1, description="Lista de UUIDs dos trechos de cabo rompidos ou sob teste"
+        ...,
+        min_length=1,
+        description="Lista de UUIDs dos trechos de cabo rompidos ou sob teste",
+        max_length=500,
     )
     expected_topology_revision: int = Field(
-        ..., description="Revisão topológica esperada do cenário de rede"
+        ..., description="Revisão topológica esperada do cenário de rede", le=2147483647
     )
 
 

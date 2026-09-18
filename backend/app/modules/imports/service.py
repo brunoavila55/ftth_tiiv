@@ -454,10 +454,11 @@ def create_import_preview(
     filename: str,
     user: User | None = None,
 ) -> ImportPreviewResponse:
-    if len(content) > 20 * 1024 * 1024:
+    max_bytes = get_settings().MAX_IMPORT_SIZE_BYTES
+    if len(content) > max_bytes:
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-            detail="Arquivo de importação excede o tamanho máximo permitido de 20 MB.",
+            detail=f"Arquivo de importação excede o tamanho máximo permitido de {max_bytes} bytes.",
         )
 
     import hashlib

@@ -19,18 +19,20 @@ class CableCreate(BaseModel):
     model: str = Field(
         ..., min_length=1, max_length=100, description="Modelo do cabo (ex: CFOA-SM-AS80-S-12F)"
     )
-    fiber_count: int = Field(..., ge=1, description="Quantidade total de fibras ópticas no cabo")
-    tube_count: int = Field(default=1, ge=1, description="Quantidade de tubos loose")
+    fiber_count: int = Field(
+        ..., ge=1, description="Quantidade total de fibras ópticas no cabo", le=1728
+    )
+    tube_count: int = Field(default=1, ge=1, description="Quantidade de tubos loose", le=144)
     color_standard: str = Field(
-        default="NBR", description="Padrão de código de cores (NBR, TIA-598, etc.)"
+        default="NBR", description="Padrão de código de cores (NBR, TIA-598, etc.)", max_length=50
     )
     status: AdministrativeStatus = Field(default=AdministrativeStatus.INSTALLED)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class CableUpdate(BaseModel):
     status: AdministrativeStatus | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class CableRead(BaseModel):
@@ -139,6 +141,7 @@ class SegmentSplitRequest(BaseModel):
     cut_fiber_ids: list[str] = Field(
         default_factory=list,
         description="Lista de UUIDs das fibras cortadas nesta caixa. Fibras não listadas permanecem passantes (continuidade interna)",
+        max_length=1728,
     )
     segment_1_slack_m: float = Field(
         default=0.0, ge=0.0, description="Reserva técnica alocada para o primeiro trecho em metros"

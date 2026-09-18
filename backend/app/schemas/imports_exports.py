@@ -1,5 +1,6 @@
 from datetime import datetime
 from enum import StrEnum
+from typing import Annotated
 
 from pydantic import BaseModel, Field
 
@@ -61,7 +62,9 @@ class ImportPreviewResponse(BaseModel):
 class ImportCommitRequest(BaseModel):
     import_id: str = Field(..., description="UUID do preview aprovado pelo operador")
     file_hash: str = Field(
-        ..., description="Hash que deve corresponder exatamente ao arquivo pré-visualizado"
+        ...,
+        description="Hash que deve corresponder exatamente ao arquivo pré-visualizado",
+        max_length=64,
     )
 
 
@@ -74,9 +77,10 @@ class ImportCommitResponse(BaseModel):
 
 class ExportRequest(BaseModel):
     format: ImportFormat = Field(default=ImportFormat.GEOJSON)
-    layers: list[str] = Field(
+    layers: list[Annotated[str, Field(max_length=50)]] = Field(
         default=["sites", "structures", "cables"],
         description="Camadas a exportar (ex: sites, structures, cables, ctos, ceos)",
+        max_length=20,
     )
 
 

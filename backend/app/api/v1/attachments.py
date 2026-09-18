@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import require_permission, validate_csrf
 from app.core.privacy import require_customer_access, user_can
+from app.core.rate_limit import rate_limit
 from app.db.session import get_db
 from app.modules.attachments.service import (
     build_attachment_read,
@@ -42,16 +43,23 @@ attachments_router = APIRouter(prefix="/attachments", tags=["Anexos e Fotos"])
     status_code=status.HTTP_201_CREATED,
     summary="Upload de anexo ou foto de campo",
     description="Armazena arquivo de imagem ou PDF com verificação de tipo de conteúdo e isolamento de path traversal.",
-    dependencies=[Depends(validate_csrf)],
+    dependencies=[
+        Depends(validate_csrf),
+        Depends(rate_limit("upload", "RATE_LIMIT_UPLOAD_PER_MINUTE")),
+    ],
 )
 async def upload_attachment(
     entity_id: str = Form(
         ..., description="UUID da entidade associada (ex: estrutura, site, cliente)"
     ),
     entity_type: str = Form(
-        ..., description="Tipo da entidade (structure, site, customer, device, etc.)"
+        ...,
+        max_length=50,
+        description="Tipo da entidade (structure, site, customer, device, etc.)",
     ),
-    caption: str | None = Form(default=None, description="Legenda opcional ou anotação do anexo"),
+    caption: str | None = Form(
+        default=None, max_length=255, description="Legenda opcional ou anotação do anexo"
+    ),
     file: UploadFile = File(..., description="Arquivo binário (JPEG, PNG, WebP ou PDF)"),
     current_user: User = Depends(require_permission("attachments:write")),
     db: Session = Depends(get_db),

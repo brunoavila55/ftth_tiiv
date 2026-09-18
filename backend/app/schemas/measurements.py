@@ -33,16 +33,18 @@ class MeasurementCreate(BaseModel):
         description="Origem da medição: manual_entry, field_power_meter ou otdr",
     )
     instrument_model: str | None = Field(
-        default=None, description="Fabricante e modelo do medidor óptico (Power Meter / OTDR)"
+        default=None,
+        description="Fabricante e modelo do medidor óptico (Power Meter / OTDR)",
+        max_length=100,
     )
     measured_at: datetime | None = Field(
         default=None, description="Data e hora da coleta em campo (UTC)"
     )
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class MeasurementUpdate(BaseModel):
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class MeasurementRead(BaseModel):

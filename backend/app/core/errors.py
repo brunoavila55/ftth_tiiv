@@ -45,14 +45,28 @@ class AppException(Exception):
         detail: str,
         errors: list[ValidationErrorItem] | None = None,
         type_uri: str = "about:blank",
+        headers: dict[str, str] | None = None,
     ) -> None:
         super().__init__(detail)
+        self.headers = headers
         self.status_code = status_code
         self.code = code
         self.title = title
         self.detail = detail
         self.errors = errors
         self.type_uri = type_uri
+
+
+class TooManyRequestsError(AppException):
+    def __init__(self, retry_after: int, detail: str | None = None) -> None:
+        super().__init__(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            code="rate_limit_exceeded",
+            title="Muitas requisições",
+            detail=detail
+            or f"Limite de requisições excedido. Tente novamente em {retry_after} segundo(s).",
+            headers={"Retry-After": str(retry_after)},
+        )
 
 
 class NotFoundError(AppException):
@@ -194,6 +208,7 @@ def _build_problem_response(
     detail: str,
     errors: list[ValidationErrorItem] | None = None,
     type_uri: str = "about:blank",
+    headers: dict[str, str] | None = None,
 ) -> JSONResponse:
     req_id = request_id_ctx.get()
     problem = ProblemDetails(
@@ -209,6 +224,7 @@ def _build_problem_response(
         status_code=status_code,
         content=problem.model_dump(exclude_none=True),
         media_type=PROBLEM_CONTENT_TYPE,
+        headers=headers,
     )
 
 
@@ -220,6 +236,7 @@ async def app_exception_handler(request: Request, exc: AppException) -> JSONResp
         detail=exc.detail,
         errors=exc.errors,
         type_uri=exc.type_uri,
+        headers=exc.headers,
     )
 
 

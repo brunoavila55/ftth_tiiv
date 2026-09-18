@@ -51,7 +51,7 @@ class ConnectionCreate(BaseModel):
         default=None,
         description="Estrutura (CEO, CTO, POP) onde a conexão física está localizada",
     )
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ConnectionRead(BaseModel):
@@ -83,7 +83,7 @@ class BatchOperationItem(BaseModel):
         default=None, ge=0.0, description="Perda em dB para action=connect"
     )
     reservation_reason: str | None = Field(
-        default=None, description="Motivo ou cliente para reserva/bloqueio"
+        default=None, description="Motivo ou cliente para reserva/bloqueio", max_length=500
     )
 
 
@@ -91,6 +91,7 @@ class ConnectionBatchRequest(BaseModel):
     expected_topology_revision: int = Field(
         ...,
         description="Revisão topológica esperada no cliente; falha com 409 se a revisão atual divergir",
+        le=2147483647,
     )
     structure_id: str = Field(
         ...,
@@ -100,6 +101,7 @@ class ConnectionBatchRequest(BaseModel):
         ...,
         min_length=1,
         description="Lista ordenada de operações atômicas a serem aplicadas em lote",
+        max_length=500,
     )
 
 

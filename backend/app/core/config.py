@@ -75,7 +75,16 @@ class Settings(BaseSettings):
 
     # Armazenamento
     STORAGE_PATH: str = "./storage"
-    MAX_UPLOAD_SIZE_BYTES: int = 10_485_760  # 10 MB
+    MAX_UPLOAD_SIZE_BYTES: int = 10_485_760  # 10 MB (anexos)
+    MAX_IMPORT_SIZE_BYTES: int = 20_971_520  # 20 MB (arquivos de importação GeoJSON/KML/CSV)
+
+    # Rate limit por usuário autenticado (janela de 1 minuto; limitador em memória por processo —
+    # com N réplicas/workers o teto efetivo é N × valor; ver docs/runbooks)
+    RATE_LIMIT_ENABLED: bool = True
+    RATE_LIMIT_COMPUTE_PER_MINUTE: int = 30  # trace, impact, budgets, simulations
+    RATE_LIMIT_SEARCH_PER_MINUTE: int = 60
+    RATE_LIMIT_UPLOAD_PER_MINUTE: int = 20  # anexos e prévias de importação
+    RATE_LIMIT_EXPORT_PER_MINUTE: int = 10
 
     # GIS e Mapa
     MAP_MAX_FEATURES: int = 500
