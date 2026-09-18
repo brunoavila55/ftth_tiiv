@@ -20,6 +20,8 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.core.config import get_settings
 from app.core.logging import job_id_ctx, setup_logging
+from app.core.metrics import metrics_collector
+from app.core.metrics_store import publish_metrics
 from app.db.session import build_engine, get_session_factory, set_engine_and_factory
 from app.modules.jobs.service import (
     claim_next_job,
@@ -85,6 +87,7 @@ def run_iteration(
             finally:
                 job_id_ctx.reset(token)
             touch_heartbeat(heartbeat_file)
+            publish_metrics(metrics_collector, role="worker", force=True)
             return "job"
 
         # Rotina periódica de limpeza de arquivos temporários e prévias expiradas
@@ -95,6 +98,7 @@ def run_iteration(
                 logger.info("Limpeza de retenção: %s", clean_res)
             cleanup_state["last"] = now
 
+    publish_metrics(metrics_collector, role="worker")  # throttle interno; mantém o snapshot fresco
     return "idle"
 
 

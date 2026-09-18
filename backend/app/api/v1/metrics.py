@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.core.dependencies import get_optional_current_user
 from app.core.errors import ForbiddenError, NotFoundError, UnauthorizedError
 from app.core.metrics import metrics_collector
+from app.core.metrics_store import get_metrics_store
 from app.db.session import get_db, get_engine
 from app.modules.identity.models import User
 
@@ -68,14 +69,18 @@ def get_metrics(
 ) -> Any:
     """Endpoint restrito de métricas operacionais e de desempenho."""
     engine = get_engine()
+    # Modo multiprocesso: publica o snapshot deste processo e soma com os demais (API × worker)
+    store = get_metrics_store("api")
+    if store is not None:
+        store.publish(metrics_collector, force=True)
     accept_header = request.headers.get("accept", "")
 
     # Se solicitado explicitamente JSON via query param ou Accept header
     if format == "json" or "application/json" in accept_header:
-        return metrics_collector.get_json_metrics(engine=engine, db=db)
+        return metrics_collector.get_json_metrics(engine=engine, db=db, store=store)
 
     # Formato padrão Prometheus texto puro
-    prometheus_data = metrics_collector.to_prometheus_text(engine=engine, db=db)
+    prometheus_data = metrics_collector.to_prometheus_text(engine=engine, db=db, store=store)
     return Response(
         content=prometheus_data,
         media_type="text/plain; version=0.0.4; charset=utf-8",

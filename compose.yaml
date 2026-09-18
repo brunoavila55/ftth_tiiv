@@ -50,6 +50,7 @@ services:
       # Só pares nestas redes (Caddy no docker network) têm X-Forwarded-For/-Proto respeitados
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-["172.16.0.0/12","10.0.0.0/8","192.168.0.0/16"]}
       STORAGE_PATH: /app/storage
+      METRICS_DIR: /app/storage/metrics  # volume compartilhado com o worker (métricas agregadas)
     depends_on:
       migrate:
         condition: service_completed_successfully
@@ -79,6 +80,7 @@ services:
       CSRF_SECRET: ${CSRF_SECRET:?defina CSRF_SECRET no .env (openssl rand -hex 32)}
       METRICS_SECRET_TOKEN: ${METRICS_SECRET_TOKEN:?defina METRICS_SECRET_TOKEN no .env (openssl rand -hex 16)}
       STORAGE_PATH: /app/storage
+      METRICS_DIR: /app/storage/metrics
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
       WORKER_HEARTBEAT_FILE: /tmp/ftth-worker.heartbeat
     depends_on:

@@ -111,6 +111,10 @@ class Settings(BaseSettings):
 
     # Desempenho e Observabilidade (B16)
     METRICS_ENABLED: bool = True  # False → /metrics responde 404
+    # Diretório compartilhado (API × workers × worker de jobs) para agregar métricas entre processos;
+    # vazio = modo processo único (métricas só em memória).
+    METRICS_DIR: str = ""
+    METRICS_SNAPSHOT_TTL_SECONDS: int = Field(default=300, ge=10)
     METRICS_SECRET_TOKEN: str = "dev-metrics-token-change-in-production"
     # Teto de saltos do rastreio óptico: ainda não aplicado; será usado na R14
     MAX_TRACE_HOPS: int = 300

@@ -1,15 +1,24 @@
 import re
 import threading
 import time
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from sqlalchemy import text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import QueuePool
 
+if TYPE_CHECKING:
+    from app.core.metrics_store import MetricsStore
+
 # Buckets padrão em segundos para latência HTTP
 LATENCY_BUCKETS = (0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.0, 5.0, 10.0)
+
+# Rótulo fixo para rotas não resolvidas (404): impede que cada URL inventada crie chaves novas
+UNMATCHED_ROUTE = "__unmatched__"
+# Teto defensivo de combinações de rótulos por processo; acima dele tudo vai para __overflow__
+MAX_LABEL_SETS = 1000
+OVERFLOW_ROUTE = "__overflow__"
 
 UUID_PATTERN = re.compile(
     r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
@@ -26,10 +35,9 @@ def normalize_route_path(path: str, route_format: str | None = None) -> str:
     if route_format:
         return route_format
 
-    # Fallback caso a rota do Starlette/FastAPI não tenha sido identificada
-    clean = UUID_PATTERN.sub("{id}", path)
-    clean = NUMBER_PATTERN.sub("{id}", clean)
-    return clean
+    # Sem rota resolvida (404/405): rótulo fixo. Nunca use o path bruto — ele é controlado por quem
+    # faz a requisição e criaria uma série nova por URL (explosão de cardinalidade).
+    return UNMATCHED_ROUTE
 
 
 class MetricsCollector:
@@ -66,10 +74,16 @@ class MetricsCollector:
     ) -> None:
         """Registra a conclusão de uma requisição HTTP."""
         norm_path = normalize_route_path(path, route_format)
-        req_key = (method.upper(), norm_path, status_code)
-        dur_key = (method.upper(), norm_path)
+        method = method.upper()[:10]
 
         with self._lock:
+            req_key = (method, norm_path, status_code)
+            dur_key = (method, norm_path)
+            # Teto defensivo: combinações novas além do limite viram __overflow__ (nada se perde)
+            if req_key not in self._http_requests and len(self._http_requests) >= MAX_LABEL_SETS:
+                req_key = (method, OVERFLOW_ROUTE, status_code)
+            if dur_key not in self._http_durations and len(self._http_durations) >= MAX_LABEL_SETS:
+                dur_key = (method, OVERFLOW_ROUTE)
             # Contador de requisições
             self._http_requests[req_key] = self._http_requests.get(req_key, 0) + 1
 
@@ -95,47 +109,95 @@ class MetricsCollector:
         with self._lock:
             self._job_counts[key] = self._job_counts.get(key, 0) + 1
 
+    def snapshot(self) -> dict[str, Any]:
+        """Estado serializável (JSON) deste processo, para publicação/agregação entre processos."""
+        with self._lock:
+            return {
+                "requests": {f"{m}|{p}|{st}": c for (m, p, st), c in self._http_requests.items()},
+                "durations": {
+                    f"{m}|{p}": {
+                        "count": v["count"],
+                        "sum": v["sum"],
+                        "buckets": {str(b): n for b, n in v["buckets"].items()},
+                    }
+                    for (m, p), v in self._http_durations.items()
+                },
+                "jobs": {f"{t}|{st}": c for (t, st), c in self._job_counts.items()},
+            }
+
+    @staticmethod
+    def merge_snapshots(snapshots: list[dict[str, Any]]) -> dict[str, Any]:
+        """Soma contadores e histogramas de vários processos."""
+        merged: dict[str, Any] = {"requests": {}, "durations": {}, "jobs": {}}
+        for snap in snapshots:
+            for key, count in snap.get("requests", {}).items():
+                merged["requests"][key] = merged["requests"].get(key, 0) + count
+            for key, count in snap.get("jobs", {}).items():
+                merged["jobs"][key] = merged["jobs"].get(key, 0) + count
+            for key, entry in snap.get("durations", {}).items():
+                acc = merged["durations"].setdefault(
+                    key,
+                    {
+                        "count": 0,
+                        "sum": 0.0,
+                        "buckets": dict.fromkeys(map(str, LATENCY_BUCKETS), 0),
+                    },
+                )
+                acc["count"] += entry["count"]
+                acc["sum"] += entry["sum"]
+                for bucket, n in entry["buckets"].items():
+                    acc["buckets"][bucket] = acc["buckets"].get(bucket, 0) + n
+        return merged
+
+    def _aggregate(self, store: "MetricsStore | None") -> tuple[dict[str, Any], dict[str, int]]:
+        """Snapshot somado (este processo + demais publicados) e nº de processos por papel."""
+        own = self.snapshot()
+        if store is None:
+            return own, {}
+        peers = store.load_peers()
+        processes: dict[str, int] = {store.role: 1}
+        for peer in peers:
+            processes[peer["role"]] = processes.get(peer["role"], 0) + 1
+        merged = self.merge_snapshots([own, *(p["snapshot"] for p in peers)])
+        return merged, processes
+
     def get_json_metrics(
         self,
         engine: Engine | None = None,
         db: Session | None = None,
+        store: "MetricsStore | None" = None,
     ) -> dict[str, Any]:
-        """Retorna métricas em formato JSON estruturado."""
+        """Retorna métricas em formato JSON estruturado (somadas entre processos se houver store)."""
         uptime_seconds = round(time.time() - self._start_time, 2)
+        merged, processes = self._aggregate(store)
 
-        with self._lock:
-            requests_summary = [
-                {
-                    "method": k[0],
-                    "path": k[1],
-                    "status_code": k[2],
-                    "count": v,
-                }
-                for k, v in self._http_requests.items()
-            ]
+        requests_summary = []
+        for key, count in merged["requests"].items():
+            method, path, status_code = key.split("|")
+            requests_summary.append(
+                {"method": method, "path": path, "status_code": int(status_code), "count": count}
+            )
 
-            durations_summary = [
+        durations_summary = []
+        for key, entry in merged["durations"].items():
+            method, path = key.split("|")
+            durations_summary.append(
                 {
-                    "method": k[0],
-                    "path": k[1],
-                    "count": v["count"],
-                    "sum_seconds": round(v["sum"], 4),
+                    "method": method,
+                    "path": path,
+                    "count": entry["count"],
+                    "sum_seconds": round(entry["sum"], 4),
                     "avg_latency_ms": (
-                        round((v["sum"] / v["count"]) * 1000, 2) if v["count"] > 0 else 0.0
+                        round((entry["sum"] / entry["count"]) * 1000, 2) if entry["count"] else 0.0
                     ),
-                    "p95_approx_seconds": self._calculate_p95_approx(v),
+                    "p95_approx_seconds": self._calculate_p95_approx(entry),
                 }
-                for k, v in self._http_durations.items()
-            ]
+            )
 
-            jobs_summary = [
-                {
-                    "job_type": k[0],
-                    "status": k[1],
-                    "count": v,
-                }
-                for k, v in self._job_counts.items()
-            ]
+        jobs_summary = []
+        for key, count in merged["jobs"].items():
+            job_type, job_status = key.split("|")
+            jobs_summary.append({"job_type": job_type, "status": job_status, "count": count})
 
         # Estatísticas do pool de conexões do banco
         pool_stats: dict[str, Any] = {}
@@ -167,6 +229,7 @@ class MetricsCollector:
             "http_requests": requests_summary,
             "http_durations": durations_summary,
             "background_jobs": jobs_summary,
+            "processes": processes,
         }
 
     def _calculate_p95_approx(self, entry: dict[str, Any]) -> float:
@@ -176,7 +239,7 @@ class MetricsCollector:
             return 0.0
         target = 0.95 * total
         for b in LATENCY_BUCKETS:
-            if entry["buckets"][b] >= target:
+            if entry["buckets"][str(b)] >= target:
                 return b
         return LATENCY_BUCKETS[-1]
 
@@ -184,59 +247,75 @@ class MetricsCollector:
         self,
         engine: Engine | None = None,
         db: Session | None = None,
+        store: "MetricsStore | None" = None,
     ) -> str:
-        """Serializa todas as métricas no formato padrão de exposição do Prometheus."""
+        """Serializa as métricas no formato de exposição do Prometheus (somadas entre processos)."""
+        merged, processes = self._aggregate(store)
         lines: list[str] = [
             "# HELP ftth_uptime_seconds Tempo de atividade do processo em segundos",
             "# TYPE ftth_uptime_seconds gauge",
             f"ftth_uptime_seconds {round(time.time() - self._start_time, 2)}",
-            "",
-            "# HELP ftth_http_requests_total Total de requisições HTTP atendidas por método, rota e status",
-            "# TYPE ftth_http_requests_total counter",
         ]
-
-        with self._lock:
-            for (method, path, status), count in sorted(self._http_requests.items()):
-                lines.append(
-                    f'ftth_http_requests_total{{method="{method}",path="{path}",status="{status}"}} {count}'
-                )
-
+        if processes:
             lines.extend(
                 [
                     "",
-                    "# HELP ftth_http_request_duration_seconds Duração das requisições HTTP em segundos",
-                    "# TYPE ftth_http_request_duration_seconds histogram",
+                    "# HELP ftth_processes Processos com métricas publicadas, por papel (api/worker)",
+                    "# TYPE ftth_processes gauge",
                 ]
             )
+            for role, count in sorted(processes.items()):
+                lines.append(f'ftth_processes{{role="{role}"}} {count}')
+        lines.extend(
+            [
+                "",
+                "# HELP ftth_http_requests_total Total de requisições HTTP atendidas por método, rota e status",
+                "# TYPE ftth_http_requests_total counter",
+            ]
+        )
 
-            for (method, path), entry in sorted(self._http_durations.items()):
-                for b in LATENCY_BUCKETS:
-                    b_count = entry["buckets"][b]
-                    lines.append(
-                        f'ftth_http_request_duration_seconds_bucket{{method="{method}",path="{path}",le="{b}"}} {b_count}'
-                    )
-                lines.append(
-                    f'ftth_http_request_duration_seconds_bucket{{method="{method}",path="{path}",le="+Inf"}} {entry["count"]}'
-                )
-                lines.append(
-                    f'ftth_http_request_duration_seconds_sum{{method="{method}",path="{path}"}} {round(entry["sum"], 6)}'
-                )
-                lines.append(
-                    f'ftth_http_request_duration_seconds_count{{method="{method}",path="{path}"}} {entry["count"]}'
-                )
-
-            lines.extend(
-                [
-                    "",
-                    "# HELP ftth_background_jobs_total Total de jobs assíncronos processados",
-                    "# TYPE ftth_background_jobs_total counter",
-                ]
+        for key, count in sorted(merged["requests"].items()):
+            method, path, status = key.split("|")
+            lines.append(
+                f'ftth_http_requests_total{{method="{method}",path="{path}",status="{status}"}} {count}'
             )
 
-            for (job_type, job_status), count in sorted(self._job_counts.items()):
+        lines.extend(
+            [
+                "",
+                "# HELP ftth_http_request_duration_seconds Duração das requisições HTTP em segundos",
+                "# TYPE ftth_http_request_duration_seconds histogram",
+            ]
+        )
+        for key, entry in sorted(merged["durations"].items()):
+            method, path = key.split("|")
+            for b in LATENCY_BUCKETS:
+                b_count = entry["buckets"][str(b)]
                 lines.append(
-                    f'ftth_background_jobs_total{{job_type="{job_type}",status="{job_status}"}} {count}'
+                    f'ftth_http_request_duration_seconds_bucket{{method="{method}",path="{path}",le="{b}"}} {b_count}'
                 )
+            lines.append(
+                f'ftth_http_request_duration_seconds_bucket{{method="{method}",path="{path}",le="+Inf"}} {entry["count"]}'
+            )
+            lines.append(
+                f'ftth_http_request_duration_seconds_sum{{method="{method}",path="{path}"}} {round(entry["sum"], 6)}'
+            )
+            lines.append(
+                f'ftth_http_request_duration_seconds_count{{method="{method}",path="{path}"}} {entry["count"]}'
+            )
+
+        lines.extend(
+            [
+                "",
+                "# HELP ftth_background_jobs_total Total de jobs assíncronos processados",
+                "# TYPE ftth_background_jobs_total counter",
+            ]
+        )
+        for key, count in sorted(merged["jobs"].items()):
+            job_type, job_status = key.split("|")
+            lines.append(
+                f'ftth_background_jobs_total{{job_type="{job_type}",status="{job_status}"}} {count}'
+            )
 
         # Métricas do Banco de Dados
         if engine and hasattr(engine, "pool") and isinstance(engine.pool, QueuePool):

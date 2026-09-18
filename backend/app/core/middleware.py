@@ -9,6 +9,7 @@ from starlette.types import ASGIApp, Receive, Scope, Send
 
 from app.core.logging import get_logger, request_id_ctx
 from app.core.metrics import metrics_collector
+from app.core.metrics_store import publish_metrics
 
 logger = get_logger("app.middleware.request_id")
 
@@ -45,6 +46,7 @@ class RequestIDMiddleware(BaseHTTPMiddleware):
                 duration_seconds=duration_s,
                 route_format=route_format,
             )
+            publish_metrics(metrics_collector, role="api")  # throttle interno (≥ 5 s)
 
             logger.info(
                 "HTTP request completed",

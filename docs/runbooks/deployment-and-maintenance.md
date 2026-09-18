@@ -271,3 +271,12 @@ Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
 - Com mais de um worker, as **métricas em memória** e o **rate limit em memória** são por processo (ver R16/R21).
 - `GET /auth/me` executa 1 SELECT; `last_activity_at` só é gravado após 60 s de inatividade da sessão.
 - A revisão topológica (`bump_topology_revision`) é o último passo antes do commit nas transações longas (divisão de trecho e importação): o lock da linha de estado dura só até o commit.
+
+---
+
+## 17. Métricas (`/api/v1/metrics`)
+
+- **Cardinalidade limitada**: requisições sem rota resolvida (404/405) usam o rótulo fixo `path="__unmatched__"` — nunca o caminho bruto — e há um teto de 1000 combinações de rótulos por processo (`__overflow__` além disso). Scans/bots não crescem a memória nem as séries.
+- **Agregação entre processos**: com `METRICS_DIR` definido (o compose usa `/app/storage/metrics`, volume compartilhado entre `backend` e `worker`) cada processo — workers da API e o worker de jobs — publica um snapshot JSON (a cada ≥ 5 s, escrita atômica) e o scrape soma tudo: contadores, histogramas e `background_jobs` do worker aparecem em qualquer resposta. `ftth_processes{role="api|worker"}` mostra quantos processos estão publicando.
+- Snapshots parados há mais de `METRICS_SNAPSHOT_TTL_SECONDS` (300) deixam de contar (processo morto → seus contadores "resetam", como um restart no Prometheus) e arquivos com mais de 1 h são apagados. Sem `METRICS_DIR`, o modo é processo único (métricas em memória).
+- O endpoint segue restrito (`X-Metrics-Token` ou sessão admin; `METRICS_ENABLED=false` → 404) e **não** é publicado pelo Caddy (ver R17).
