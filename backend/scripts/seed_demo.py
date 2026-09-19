@@ -148,7 +148,9 @@ def clean_demo_data(session: Session) -> None:
 
     # Remove Fibras, Tubos e Segmentos de Cabos demo
     session.execute(
-        text("DELETE FROM fibers WHERE cable_id IN (SELECT id FROM cables WHERE code LIKE '%DEMO%')")
+        text(
+            "DELETE FROM fibers WHERE cable_id IN (SELECT id FROM cables WHERE code LIKE '%DEMO%')"
+        )
     )
     session.execute(
         text("DELETE FROM tubes WHERE cable_id IN (SELECT id FROM cables WHERE code LIKE '%DEMO%')")

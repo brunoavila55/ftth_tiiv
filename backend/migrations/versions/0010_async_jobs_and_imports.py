@@ -22,8 +22,12 @@ def upgrade() -> None:
         "async_jobs",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
         sa.Column("type", sa.String(length=50), nullable=False, index=True),
-        sa.Column("status", sa.String(length=50), nullable=False, server_default="queued", index=True),
-        sa.Column("idempotency_key", sa.String(length=255), nullable=False, unique=True, index=True),
+        sa.Column(
+            "status", sa.String(length=50), nullable=False, server_default="queued", index=True
+        ),
+        sa.Column(
+            "idempotency_key", sa.String(length=255), nullable=False, unique=True, index=True
+        ),
         sa.Column("payload", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("result", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("progress_percentage", sa.Integer(), nullable=False, server_default="0"),
@@ -85,7 +89,12 @@ def upgrade() -> None:
         sa.Column("valid_records", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("error_records", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("collision_records", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("sample_items", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="[]"),
+        sa.Column(
+            "sample_items",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default="[]",
+        ),
         sa.Column("file_storage_path", sa.String(length=500), nullable=False),
         sa.Column(
             "committed_job_id",

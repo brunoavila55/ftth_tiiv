@@ -153,7 +153,10 @@ def restore_database_psycopg_binary(db_url: str, dump_path: Path) -> None:
         # Carrega dados tabela por tabela
         for f in bin_files:
             table_name = f.stem
-            with open(f, "rb") as bf, cur.copy(f"COPY {table_name} FROM STDIN (FORMAT binary)") as copy:
+            with (
+                open(f, "rb") as bf,
+                cur.copy(f"COPY {table_name} FROM STDIN (FORMAT binary)") as copy,
+            ):
                 while chunk := bf.read(65536):
                     copy.write(chunk)
 

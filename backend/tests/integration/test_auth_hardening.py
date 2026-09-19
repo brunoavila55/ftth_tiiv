@@ -265,7 +265,10 @@ def test_invalid_xff_is_ignored_and_login_does_not_500(
     ip_echo_app, db_session: Session, garbage: str
 ) -> None:  # type: ignore[no-untyped-def]
     client = ip_echo_app('["10.0.0.0/8"]', "10.1.2.3")
-    assert client.get("/__ip", headers={"X-Forwarded-For": garbage.encode()}).json()["ip"] == "10.1.2.3"
+    assert (
+        client.get("/__ip", headers={"X-Forwarded-For": garbage.encode()}).json()["ip"]
+        == "10.1.2.3"
+    )
 
     create_test_user(db_session, "xff@provedor.com.br", "viewer")
     token = client.get("/api/v1/auth/csrf").json()["csrf_token"]

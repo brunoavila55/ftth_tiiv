@@ -289,3 +289,12 @@ Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
 - **TLS em balanceador externo** (alternativa): deixe `SITE_ADDRESS=:80`; o balanceador termina o TLS e **deve** enviar `X-Forwarded-Proto: https` (o Caddy emite HSTS nesse caso e o backend enxerga `https` via `TRUSTED_PROXIES`). Não publique a porta 80 do Caddy diretamente na internet.
 - **CSP**: definido pelo Next.js com nonce por resposta (`script-src` sem `unsafe-inline`/`unsafe-eval`); a página raiz é renderizada dinamicamente por isso. Novas origens de tiles/APIs externas exigem ajustar `frontend/src/middleware.ts`.
 - Verificação: `curl -sI https://<domínio>/login` deve mostrar `content-security-policy` sem `unsafe-*` e `strict-transport-security`; `curl -s -o /dev/null -w '%{http_code}' https://<domínio>/api/v1/metrics` deve retornar `404`.
+
+---
+
+## 19. Supply chain e CI
+
+- **Dependências**: `pnpm audit` e `pip-audit` sem vulnerabilidades conhecidas. `maplibre-gl` 5.24 → 6.10 (a v6 removeu o export default: `import * as maplibregl from "maplibre-gl"`), `vitest` 3 → 4.1.11 e override de `postcss ^8.5.28` em `frontend/pnpm-workspace.yaml` (o `next` fixa 8.4.31, vulnerável). A versão do pnpm vem do campo `packageManager` (Dockerfile e CI usam a mesma).
+- **CI** (`.github/workflows/ci.yml`): `permissions: contents: read`; actions fixadas por SHA (comentário com a versão; o Dependabot atualiza); jobs: backend (ruff/mypy/contrato/migrações/pytest/restore drill), frontend (lint/typecheck/vitest/build), **security** (pip-audit, `pnpm audit --audit-level high`, gitleaks) e **docker-build** (`docker compose build` + Trivy CRITICAL/HIGH nas imagens). CodeQL roda em `codeql.yml` (python e javascript-typescript, semanalmente também).
+- **Imagens**: o build aplica os patches da distro (`apt-get upgrade`/`apk upgrade`) e a imagem do frontend não leva npm/corepack. Reexecute `docker compose build` + Trivy ao atualizar a imagem base.
+- **Smoke manual pendente**: o upgrade major do MapLibre foi validado por typecheck, testes e build, mas não por navegador; abra o mapa (arrastar, camadas, desenho de rota) antes de publicar.

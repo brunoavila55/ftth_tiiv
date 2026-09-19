@@ -23,9 +23,11 @@ RUN uv sync --frozen --no-dev --no-install-project
 FROM python:3.12-slim-bookworm AS runner
 
 # Instalar bibliotecas de runtime necessárias (ex: libgeos para shapely)
+# `upgrade` aplica os patches de segurança da distro publicados depois da imagem base (Trivy)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libgeos-c1v5 \
+    && apt-get -y upgrade \
     && rm -rf /var/lib/apt/lists/*
 
 # Criar usuário não-root seguro

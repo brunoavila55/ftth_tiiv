@@ -46,7 +46,9 @@ def test_engine_applies_statement_timeout() -> None:
                 conn.execute(text("SELECT pg_sleep(60)"))
             elapsed = time.perf_counter() - started
         assert "statement timeout" in str(exc.value.orig)
-        assert elapsed < 3, f"a query de 60 s deveria ser cancelada em ~0,3 s (levou {elapsed:.1f}s)"
+        assert elapsed < 3, (
+            f"a query de 60 s deveria ser cancelada em ~0,3 s (levou {elapsed:.1f}s)"
+        )
     finally:
         engine.dispose()
 
@@ -115,7 +117,9 @@ def test_readiness_stays_fast_with_the_application_pool_saturated(
 def test_readiness_does_not_read_alembic_directory_per_call() -> None:
     with TestClient(create_app(), raise_server_exceptions=False) as client:
         assert client.get("/health/ready").status_code == status.HTTP_200_OK  # aquecimento
-        with patch("app.db.health.ScriptDirectory.from_config", side_effect=AssertionError("Alembic lido")):
+        with patch(
+            "app.db.health.ScriptDirectory.from_config", side_effect=AssertionError("Alembic lido")
+        ):
             for _ in range(3):
                 assert client.get("/health/ready").status_code == status.HTTP_200_OK
 

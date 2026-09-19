@@ -2,6 +2,7 @@
 
 Usada só pelos testes de caracterização para provar que a nova travessia em memória devolve
 exatamente os mesmos resultados. NÃO importar em código de produção."""
+
 import hashlib
 import uuid
 from collections import deque
@@ -528,10 +529,11 @@ def analyze_cable_impact(
 
     # Analisa todos os clientes e vínculos de atendimento
     all_customers = db.scalars(
-        select(Customer)
-        .options(
+        select(Customer).options(
             selectinload(Customer.service_links).joinedload(ServiceLink.onu_device),
-            selectinload(Customer.service_links).joinedload(ServiceLink.port).joinedload(Port.structure),
+            selectinload(Customer.service_links)
+            .joinedload(ServiceLink.port)
+            .joinedload(Port.structure),
         )
     ).all()
 
@@ -643,4 +645,3 @@ def analyze_cable_impact(
         impacted_ctos=sorted(impacted_ctos_set),
         impacted_pon_ports=sorted(impacted_pon_ports_set),
     )
-
