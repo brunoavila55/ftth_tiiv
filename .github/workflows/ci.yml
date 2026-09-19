@@ -69,11 +69,12 @@ jobs:
       - name: Mypy Static Type Analysis
         run: uv run mypy app
 
-      - name: OpenAPI Contract Drift Detection
-        run: uv run pytest tests/contract/test_openapi_schema.py -v
-
+      # Migrações ANTES de qualquer pytest: as fixtures autouse do conftest truncam tabelas do schema
       - name: Apply Database Migrations (Alembic Head)
         run: uv run alembic upgrade head
+
+      - name: OpenAPI Contract Drift Detection
+        run: uv run pytest tests/contract/test_openapi_schema.py -v
 
       - name: Execute Full Pytest Test Suite
         run: uv run pytest --cov=app --cov-report=xml -v
@@ -124,6 +125,9 @@ jobs:
   security:
     name: Security (dependency audit & secret scan)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read  # gitleaks-action lista os commits do PR
 
     steps:
       - name: Checkout repository
@@ -170,6 +174,7 @@ jobs:
       CSRF_SECRET: ci-build-only
       METRICS_SECRET_TOKEN: ci-build-only
       POSTGRES_PASSWORD: ci-build-only
+      BACKUP_SIGNING_KEY: ci-build-only
 
     steps:
       - name: Checkout repository

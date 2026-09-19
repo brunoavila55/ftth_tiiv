@@ -16,6 +16,7 @@ jobs:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
     permissions:
+      actions: read  # o upload do SARIF consulta a execução do workflow
       contents: read
       security-events: write  # publicar os alertas na aba Security
     strategy:
