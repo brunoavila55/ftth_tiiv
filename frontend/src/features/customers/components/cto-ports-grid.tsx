@@ -25,6 +25,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { getCtoOccupancy, deactivateServiceLink } from "../api";
 import { ServiceLinkDialog } from "./service-link-dialog";
 import type { CtoPortDetail, CtoPortStatus } from "../types";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 interface CtoPortsGridProps {
   structureId: string;
@@ -339,18 +340,20 @@ export function CtoPortsGrid({ structureId, structureCode }: CtoPortsGridProps) 
             <RefreshCw className={`h-3.5 w-3.5 ${isRefetching ? "animate-spin" : ""}`} />
           </Button>
 
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => {
-              setSelectedPort(null);
-              setServiceLinkDialogOpen(true);
-            }}
-            className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Novo Atendimento</span>
-          </Button>
+          <PermissionGate permission="customers:write">
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                setSelectedPort(null);
+                setServiceLinkDialogOpen(true);
+              }}
+              className="h-7 text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Novo Atendimento</span>
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -641,16 +644,18 @@ export function CtoPortsGrid({ structureId, structureCode }: CtoPortsGridProps) 
                   </dl>
 
                   <div className="pt-2 border-t border-sky-500/20 flex justify-end">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleOpenDeactivate(selectedPort)}
-                      className="text-xs text-destructive hover:bg-destructive/10 border-destructive/30 gap-1.5"
-                    >
-                      <PowerOff className="h-3 w-3" />
-                      <span>Desativar Atendimento</span>
-                    </Button>
+                    <PermissionGate permission="customers:write">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={() => handleOpenDeactivate(selectedPort)}
+                        className="text-xs text-destructive hover:bg-destructive/10 border-destructive/30 gap-1.5"
+                      >
+                        <PowerOff className="h-3 w-3" />
+                        <span>Desativar Atendimento</span>
+                      </Button>
+                    </PermissionGate>
                   </div>
                 </div>
               )}
@@ -666,17 +671,19 @@ export function CtoPortsGrid({ structureId, structureCode }: CtoPortsGridProps) 
                     Esta porta já possui uma conexão física (cabo drop ou patch cord), porém nenhum
                     assinante foi provisionado a ela no sistema.
                   </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => {
-                      setServiceLinkDialogOpen(true);
-                    }}
-                    className="w-full text-xs gap-1 mt-1 bg-amber-600 hover:bg-amber-700 text-white"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>Vincular Assinante a esta Porta</span>
-                  </Button>
+                  <PermissionGate permission="customers:write">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        setServiceLinkDialogOpen(true);
+                      }}
+                      className="w-full text-xs gap-1 mt-1 bg-amber-600 hover:bg-amber-700 text-white"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Vincular Assinante a esta Porta</span>
+                    </Button>
+                  </PermissionGate>
                 </div>
               )}
 
@@ -721,17 +728,19 @@ export function CtoPortsGrid({ structureId, structureCode }: CtoPortsGridProps) 
                   <p className="text-[11px] text-muted-foreground">
                     Esta porta frontal está disponível para nova ativação de assinante.
                   </p>
-                  <Button
-                    type="button"
-                    size="sm"
-                    onClick={() => {
-                      setServiceLinkDialogOpen(true);
-                    }}
-                    className="w-full text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>Ativar Assinante nesta Porta</span>
-                  </Button>
+                  <PermissionGate permission="customers:write">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => {
+                        setServiceLinkDialogOpen(true);
+                      }}
+                      className="w-full text-xs gap-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>Ativar Assinante nesta Porta</span>
+                    </Button>
+                  </PermissionGate>
                 </div>
               )}
             </div>

@@ -47,6 +47,12 @@ def main() -> int:
             storage_path=args.storage_path,
         )
         print(f"SUCESSO: Backup criado em '{backup_file.resolve()}'")
+        if not backup_file.name.endswith(".enc"):
+            print(
+                "AVISO: backup SEM criptografia. Defina BACKUP_ENCRYPTION_KEY (openssl rand -hex 32) "
+                "e guarde a chave fora deste servidor.",
+                file=sys.stderr,
+            )
 
         if args.retention_count > 0:
             removed = prune_old_backups(args.target_dir, keep_count=args.retention_count)

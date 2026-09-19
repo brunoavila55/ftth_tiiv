@@ -11,6 +11,9 @@ request_id_ctx: contextvars.ContextVar[str | None] = contextvars.ContextVar(
     "request_id_ctx", default=None
 )
 
+# ContextVar com o job em execução no worker (correlação de logs de jobs assíncronos)
+job_id_ctx: contextvars.ContextVar[str | None] = contextvars.ContextVar("job_id_ctx", default=None)
+
 # Chaves sensíveis que devem ser mascaradas nos logs
 SENSITIVE_KEY_PATTERN = re.compile(
     r"(password|token|secret|key|authorization|cookie|credential|csrf)",
@@ -49,6 +52,10 @@ class JSONFormatter(logging.Formatter):
         req_id = request_id_ctx.get()
         if req_id:
             log_entry["request_id"] = req_id
+
+        job_id = job_id_ctx.get()
+        if job_id:
+            log_entry["job_id"] = job_id
 
         # Capturar atributos extras passados no log
         standard_attrs = {

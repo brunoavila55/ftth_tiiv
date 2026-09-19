@@ -5,11 +5,10 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import check_if_match
 from app.core.errors import (
     ConflictError,
     NotFoundError,
-    PreconditionFailedError,
-    PreconditionRequiredError,
     UnprocessableEntityError,
 )
 from app.modules.optical.models import OpticalProfile
@@ -25,17 +24,6 @@ from app.schemas.optical import (
     OpticalSimulationResponse,
     SimulationOverrideItem,
 )
-
-
-def _validate_if_match(if_match: str | None, current_version: int) -> None:
-    if not if_match or not if_match.strip():
-        raise PreconditionRequiredError()
-    try:
-        expected = int(if_match.strip('"'))
-    except ValueError:
-        raise PreconditionFailedError() from None
-    if current_version != expected:
-        raise PreconditionFailedError()
 
 
 def optical_profile_to_read(profile: OpticalProfile) -> OpticalProfileRead:
@@ -133,7 +121,7 @@ def update_optical_profile(
     if_match: str | None,
 ) -> OpticalProfile:
     profile = get_optical_profile_by_id(session, profile_id)
-    _validate_if_match(if_match, profile.version)
+    check_if_match(if_match, profile.version)
 
     new_tx_min = payload.tx_min_dbm if payload.tx_min_dbm is not None else profile.tx_min_dbm
     new_tx_max = payload.tx_max_dbm if payload.tx_max_dbm is not None else profile.tx_max_dbm
@@ -194,7 +182,7 @@ def update_optical_profile(
 
 def delete_optical_profile(session: Session, profile_id: str, if_match: str | None) -> None:
     profile = get_optical_profile_by_id(session, profile_id)
-    _validate_if_match(if_match, profile.version)
+    check_if_match(if_match, profile.version)
 
     try:
         session.delete(profile)

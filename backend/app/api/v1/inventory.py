@@ -35,7 +35,7 @@ from app.modules.inventory.service import (
     update_site,
     update_structure,
 )
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 from app.schemas.connectivity import StructureConnectivityResponse
 from app.schemas.inventory import (
     DeviceCreate,
@@ -113,7 +113,7 @@ def create_site_endpoint(
     dependencies=[Depends(require_permission("network:read"))],
 )
 def get_site_endpoint(
-    site_id: str,
+    site_id: UuidStr,
     response: Response,
     db: Session = Depends(get_db),
 ) -> SiteRead:
@@ -129,7 +129,7 @@ def get_site_endpoint(
     dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
 )
 def update_site_endpoint(
-    site_id: str,
+    site_id: UuidStr,
     payload: SiteUpdate,
     response: Response,
     if_match: str | None = Header(
@@ -149,7 +149,7 @@ def update_site_endpoint(
     dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
 )
 def delete_site_endpoint(
-    site_id: str,
+    site_id: UuidStr,
     if_match: str | None = Header(
         default=None, description="Versão atual do recurso para concorrência otimista"
     ),
@@ -214,7 +214,7 @@ def create_structure_endpoint(
     dependencies=[Depends(require_permission("network:read"))],
 )
 def get_structure_endpoint(
-    structure_id: str,
+    structure_id: UuidStr,
     response: Response,
     db: Session = Depends(get_db),
 ) -> StructureRead:
@@ -230,7 +230,7 @@ def get_structure_endpoint(
     dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
 )
 def update_structure_endpoint(
-    structure_id: str,
+    structure_id: UuidStr,
     payload: StructureUpdate,
     response: Response,
     if_match: str | None = Header(
@@ -252,7 +252,7 @@ def update_structure_endpoint(
     dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
 )
 def delete_structure_endpoint(
-    structure_id: str,
+    structure_id: UuidStr,
     if_match: str | None = Header(
         default=None, description="Versão atual do recurso para concorrência otimista"
     ),
@@ -265,8 +265,9 @@ def delete_structure_endpoint(
     "/structures/{structure_id}/occupancy",
     response_model=StructureOccupancyResponse,
     summary="Ocupação de portas da estrutura / CTO",
+    dependencies=[Depends(require_permission("network:read"))],
 )
-def get_structure_occupancy(structure_id: str) -> StructureOccupancyResponse:
+def get_structure_occupancy(structure_id: UuidStr) -> StructureOccupancyResponse:
     pending_endpoint("B08")
 
 
@@ -277,7 +278,7 @@ def get_structure_occupancy(structure_id: str) -> StructureOccupancyResponse:
     dependencies=[Depends(require_permission("network:read"))],
 )
 def get_structure_connectivity(
-    structure_id: str,
+    structure_id: UuidStr,
     db: Session = Depends(get_db),
 ) -> StructureConnectivityResponse:
     return fetch_structure_connectivity(db, uuid.UUID(structure_id))
@@ -337,7 +338,7 @@ def create_device_endpoint(
     dependencies=[Depends(require_permission("network:read"))],
 )
 def get_device_endpoint(
-    device_id: str,
+    device_id: UuidStr,
     response: Response,
     db: Session = Depends(get_db),
 ) -> DeviceRead:
@@ -353,7 +354,7 @@ def get_device_endpoint(
     dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
 )
 def update_device_endpoint(
-    device_id: str,
+    device_id: UuidStr,
     payload: DeviceUpdate,
     response: Response,
     if_match: str | None = Header(
@@ -373,7 +374,7 @@ def update_device_endpoint(
     dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
 )
 def delete_device_endpoint(
-    device_id: str,
+    device_id: UuidStr,
     if_match: str | None = Header(
         default=None, description="Versão atual do recurso para concorrência otimista"
     ),
@@ -393,8 +394,8 @@ def delete_device_endpoint(
 )
 def list_ports(
     pagination: PaginationParams = Depends(),
-    device_id: str | None = Query(default=None),
-    structure_id: str | None = Query(default=None),
+    device_id: UuidStr | None = Query(default=None),
+    structure_id: UuidStr | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[PortRead]:
     items, total = list_ports_paginated(
@@ -436,7 +437,7 @@ def create_port_endpoint(
     dependencies=[Depends(require_permission("network:read"))],
 )
 def get_port_endpoint(
-    port_id: str,
+    port_id: UuidStr,
     response: Response,
     db: Session = Depends(get_db),
 ) -> PortRead:
@@ -452,7 +453,7 @@ def get_port_endpoint(
     dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
 )
 def update_port_endpoint(
-    port_id: str,
+    port_id: UuidStr,
     payload: PortUpdate,
     response: Response,
     if_match: str | None = Header(
@@ -472,7 +473,7 @@ def update_port_endpoint(
     dependencies=[Depends(require_permission("network:write")), Depends(validate_csrf)],
 )
 def delete_port_endpoint(
-    port_id: str,
+    port_id: UuidStr,
     if_match: str | None = Header(
         default=None, description="Versão atual do recurso para concorrência otimista"
     ),

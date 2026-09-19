@@ -3,7 +3,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common import AdministrativeStatus, OccupancyStatus
+from app.schemas.common import AdministrativeStatus, OccupancyStatus, UuidStr
 from app.schemas.geojson import LineStringGeometry
 
 
@@ -19,18 +19,20 @@ class CableCreate(BaseModel):
     model: str = Field(
         ..., min_length=1, max_length=100, description="Modelo do cabo (ex: CFOA-SM-AS80-S-12F)"
     )
-    fiber_count: int = Field(..., ge=1, description="Quantidade total de fibras ópticas no cabo")
-    tube_count: int = Field(default=1, ge=1, description="Quantidade de tubos loose")
+    fiber_count: int = Field(
+        ..., ge=1, description="Quantidade total de fibras ópticas no cabo", le=1728
+    )
+    tube_count: int = Field(default=1, ge=1, description="Quantidade de tubos loose", le=144)
     color_standard: str = Field(
-        default="NBR", description="Padrão de código de cores (NBR, TIA-598, etc.)"
+        default="NBR", description="Padrão de código de cores (NBR, TIA-598, etc.)", max_length=50
     )
     status: AdministrativeStatus = Field(default=AdministrativeStatus.INSTALLED)
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class CableUpdate(BaseModel):
     status: AdministrativeStatus | None = None
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class CableRead(BaseModel):
@@ -48,11 +50,11 @@ class CableRead(BaseModel):
 
 
 class CableSegmentCreate(BaseModel):
-    cable_id: str = Field(..., description="UUID do cabo ao qual o trecho pertence")
-    origin_structure_id: str = Field(
+    cable_id: UuidStr = Field(..., description="UUID do cabo ao qual o trecho pertence")
+    origin_structure_id: UuidStr = Field(
         ..., description="UUID da estrutura inicial de acesso (poste, CEO, CTO)"
     )
-    destination_structure_id: str = Field(..., description="UUID da estrutura final de acesso")
+    destination_structure_id: UuidStr = Field(..., description="UUID da estrutura final de acesso")
     geometry: LineStringGeometry = Field(..., description="Linha geográfica do trecho do cabo")
     measured_length_m: float | None = Field(
         default=None,
@@ -128,7 +130,7 @@ class FiberSegmentRead(BaseModel):
 
 
 class SegmentSplitRequest(BaseModel):
-    access_structure_id: str = Field(
+    access_structure_id: UuidStr = Field(
         ...,
         description="UUID da estrutura física onde o cabo é aberto/dividido (ex: CEO ou CTO)",
     )
@@ -136,15 +138,25 @@ class SegmentSplitRequest(BaseModel):
         default=None,
         description="Coordenadas geodésicas opcionais do ponto de divisão (se omitido, usa as da estrutura de acesso)",
     )
-    cut_fiber_ids: list[str] = Field(
+    cut_fiber_ids: list[UuidStr] = Field(
         default_factory=list,
         description="Lista de UUIDs das fibras cortadas nesta caixa. Fibras não listadas permanecem passantes (continuidade interna)",
+        max_length=1728,
     )
     segment_1_slack_m: float = Field(
         default=0.0, ge=0.0, description="Reserva técnica alocada para o primeiro trecho em metros"
     )
     segment_2_slack_m: float = Field(
         default=0.0, ge=0.0, description="Reserva técnica alocada para o segundo trecho em metros"
+    )
+    expected_topology_revision: int | None = Field(
+        default=None,
+        ge=0,
+        le=2147483647,
+        description=(
+            "Revisão topológica que o cliente viu (padrão do editor de fusão). Divergência → 409. "
+            "A divisão exige este campo OU o cabeçalho If-Match com a versão do trecho."
+        ),
     )
 
 

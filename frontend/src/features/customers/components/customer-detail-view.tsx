@@ -26,6 +26,7 @@ import { LoadingState, ErrorState } from "@/components/ui/state-displays";
 import { getCustomer, listServiceLinks, deactivateServiceLink, deleteCustomer } from "../api";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import type { ServiceLinkRead } from "../types";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 interface CustomerDetailViewProps {
   customerId: string;
@@ -145,33 +146,37 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => setEditDialogOpen(true)}
-            className="text-xs gap-1.5"
-          >
-            <Edit className="h-3.5 w-3.5" />
-            <span>Editar Dados</span>
-          </Button>
+          <PermissionGate permission="customers:write">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setEditDialogOpen(true)}
+              className="text-xs gap-1.5"
+            >
+              <Edit className="h-3.5 w-3.5" />
+              <span>Editar Dados</span>
+            </Button>
+          </PermissionGate>
 
-          <Button
-            type="button"
-            variant="ghost"
-            size="sm"
-            onClick={() => setDeleteDialogOpen(true)}
-            disabled={activeLinks.length > 0}
-            title={
-              activeLinks.length > 0
-                ? "Não é possível excluir cliente com atendimentos ativos"
-                : "Excluir cadastro do cliente"
-            }
-            className="text-xs gap-1.5 text-destructive hover:bg-destructive/10"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span>Excluir</span>
-          </Button>
+          <PermissionGate permission="customers:write">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => setDeleteDialogOpen(true)}
+              disabled={activeLinks.length > 0}
+              title={
+                activeLinks.length > 0
+                  ? "Não é possível excluir cliente com atendimentos ativos"
+                  : "Excluir cadastro do cliente"
+              }
+              className="text-xs gap-1.5 text-destructive hover:bg-destructive/10"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Excluir</span>
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -322,19 +327,21 @@ export function CustomerDetailView({ customerId }: CustomerDetailViewProps) {
                     </Link>
                   </div>
 
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => {
-                      setLinkToDeactivate(link);
-                      setDeactivateDialogOpen(true);
-                    }}
-                    className="text-xs text-destructive hover:bg-destructive/10 border-destructive/30 gap-1.5"
-                  >
-                    <PowerOff className="h-3 w-3" />
-                    <span>Desativar</span>
-                  </Button>
+                  <PermissionGate permission="customers:write">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setLinkToDeactivate(link);
+                        setDeactivateDialogOpen(true);
+                      }}
+                      className="text-xs text-destructive hover:bg-destructive/10 border-destructive/30 gap-1.5"
+                    >
+                      <PowerOff className="h-3 w-3" />
+                      <span>Desativar</span>
+                    </Button>
+                  </PermissionGate>
                 </div>
               </div>
             ))}

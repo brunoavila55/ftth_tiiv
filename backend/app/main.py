@@ -10,7 +10,10 @@ from app.api.v1.router import api_v1_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import get_logger, setup_logging
-from app.core.middleware import RequestIDMiddleware
+from app.core.metrics import metrics_collector
+from app.core.metrics_store import start_metrics_heartbeat, stop_metrics_heartbeats
+from app.core.middleware import RequestIDMiddleware, TrustedProxyMiddleware
+from app.modules.audit.hooks import register_audit_listeners
 
 logger = get_logger("app.main")
 
@@ -21,9 +24,12 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     setup_logging(settings.LOG_LEVEL)
     logger.info(
         f"Iniciando {settings.APP_NAME} em ambiente [{settings.ENVIRONMENT}]",
-        extra={"environment": settings.ENVIRONMENT, "debug": settings.DEBUG},
+        extra={"environment": settings.ENVIRONMENT},
     )
+    # Modo multiprocesso de métricas: heartbeat periódico do snapshot deste processo (idle inclusive)
+    start_metrics_heartbeat(metrics_collector, role="api")
     yield
+    stop_metrics_heartbeats()
     logger.info(f"Encerrando {settings.APP_NAME}")
 
 
@@ -55,10 +61,11 @@ def create_app() -> FastAPI:
         generate_unique_id_function=custom_generate_unique_id,
     )
 
-    # Middlewares globais
-    from uvicorn.middleware.proxy_headers import ProxyHeadersMiddleware
+    register_audit_listeners()
 
-    app.add_middleware(ProxyHeadersMiddleware, trusted_hosts=["*"])
+    # Middlewares globais
+    # X-Forwarded-* só de proxies listados em TRUSTED_PROXIES (padrão: nenhum)
+    app.add_middleware(TrustedProxyMiddleware, trusted_proxies=settings.TRUSTED_PROXIES)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.CORS_ORIGINS,

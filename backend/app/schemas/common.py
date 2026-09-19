@@ -1,6 +1,30 @@
 from enum import StrEnum
+from typing import Annotated
 
 from pydantic import BaseModel, Field
+
+_UUID_REGEX = r"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+
+UUID_PATTERN = f"^{_UUID_REGEX}$"
+
+# Identificador UUID em texto: o FastAPI/Pydantic recusa valores malformados com 422 (antes o
+# `uuid.UUID(valor)` dos serviços estourava 500). Continua `str`, então os serviços não mudam; o
+# OpenAPI declara `format: uuid` (o cliente tipado segue `string`).
+UuidStr = Annotated[
+    str,
+    Field(
+        pattern=UUID_PATTERN,
+        min_length=36,
+        max_length=36,
+        json_schema_extra={"format": "uuid"},
+    ),
+]
+
+# Campo de atualização em que "" significa "remover o vínculo" (ex.: desassociar o site)
+UuidOrEmptyStr = Annotated[
+    str,
+    Field(pattern=f"^({_UUID_REGEX})?$", max_length=36, json_schema_extra={"format": "uuid"}),
+]
 
 
 class AdministrativeStatus(StrEnum):

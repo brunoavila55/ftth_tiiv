@@ -1,10 +1,10 @@
 import csv
-import io
 import json
 import os
 import uuid
-import xml.etree.ElementTree as ET
-from typing import Any
+from collections.abc import Iterator
+from typing import Any, TextIO
+from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import HTTPException, status
 from geoalchemy2.shape import to_shape
@@ -12,22 +12,22 @@ from shapely import to_geojson
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.config import get_settings
+from app.core.storage import ensure_storage_dir
+from app.modules.audit.service import record_audit_event
 from app.modules.cables.models import CableSegment
 from app.modules.customers.models import Customer
 from app.modules.identity.models import User
 from app.modules.imports.models import AsyncJob
 from app.modules.inventory.models import Site, Structure
+from app.modules.jobs.errors import JobValidationError
 from app.schemas.imports_exports import ExportRequest, ExportResponse
 
 FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 
 
 def get_export_storage_path() -> str:
-    settings = get_settings()
-    base_dir = os.path.join(getattr(settings, "STORAGE_DIR", "storage"), "exports")
-    os.makedirs(base_dir, exist_ok=True)
-    return base_dir
+    """Diretório absoluto/efetivo de exportações: `<STORAGE_PATH>/exports`."""
+    return str(ensure_storage_dir("exports"))
 
 
 def is_formula_injection(val: str) -> bool:
@@ -75,11 +75,24 @@ def create_export_request(
         payload={
             "format": payload.format.value,
             "layers": payload.layers,
+            # quem pediu: o download revalida o papel (camada de clientes exige admin)
+            "requested_by": str(user.id) if user else None,
+            "requested_by_role": user.role if user else None,
         },
         progress_percentage=0,
         user_id=user.id if user else None,
     )
     db.add(job)
+    db.flush()
+    record_audit_event(
+        db,
+        actor_id=user.id if user else None,
+        actor_name=user.name if user else "Sistema",
+        action="export_requested",
+        entity_type="async_job",
+        entity_id=job.id,
+        changes={"format": payload.format.value, "layers": payload.layers},
+    )
     db.commit()
     db.refresh(job)
 
@@ -89,167 +102,156 @@ def create_export_request(
     )
 
 
-def generate_geojson_export(db: Session, layers: list[str]) -> dict[str, Any]:
-    features: list[dict[str, Any]] = []
+# Linhas por página do cursor de servidor: memória proporcional a esta página, não à camada inteira
+YIELD_PER = 1000
 
+STRUCTURE_LAYERS = ("structures", "poles", "ctos", "ceos")
+
+
+def _stream(db: Session, statement: Any) -> Iterator[Any]:
+    """Itera o resultado com cursor de servidor (`yield_per`) sem carregar a camada toda."""
+    return db.execute(statement.execution_options(yield_per=YIELD_PER)).scalars()
+
+
+def _wants_structures(layers: list[str]) -> bool:
+    return any(name in layers for name in STRUCTURE_LAYERS)
+
+
+def _structure_in_geojson(kind: str, layers: list[str]) -> bool:
+    if kind == "pole":
+        return "poles" in layers or "structures" in layers
+    if kind == "cto":
+        return "ctos" in layers or "structures" in layers
+    if kind == "ceo":
+        return "ceos" in layers or "structures" in layers
+    return True  # demais tipos (manhole, pedestal...) entram com qualquer camada de estrutura
+
+
+def iter_geojson_features(db: Session, layers: list[str]) -> Iterator[dict[str, Any]]:
     if "sites" in layers:
-        sites = db.scalars(select(Site)).all()
-        for s in sites:
-            geom = to_shape(s.location)
-            features.append(
-                {
-                    "type": "Feature",
-                    "id": str(s.id),
-                    "geometry": json.loads(to_geojson(geom)),
-                    "properties": {
-                        "layer": "sites",
-                        "code": s.code,
-                        "name": s.name,
-                        "kind": s.kind,
-                        "status": s.status,
-                    },
-                }
-            )
+        for s in _stream(db, select(Site)):
+            yield {
+                "type": "Feature",
+                "id": str(s.id),
+                "geometry": json.loads(to_geojson(to_shape(s.location))),
+                "properties": {
+                    "layer": "sites",
+                    "code": s.code,
+                    "name": s.name,
+                    "kind": s.kind,
+                    "status": s.status,
+                },
+            }
 
-    if "structures" in layers or "poles" in layers or "ctos" in layers or "ceos" in layers:
-        structs = db.scalars(select(Structure)).all()
-        for st in structs:
-            if st.kind == "pole" and "poles" not in layers and "structures" not in layers:
+    if _wants_structures(layers):
+        for st in _stream(db, select(Structure)):
+            if not _structure_in_geojson(st.kind, layers):
                 continue
-            if st.kind == "cto" and "ctos" not in layers and "structures" not in layers:
-                continue
-            if st.kind == "ceo" and "ceos" not in layers and "structures" not in layers:
-                continue
-
-            geom = to_shape(st.location)
-            features.append(
-                {
-                    "type": "Feature",
-                    "id": str(st.id),
-                    "geometry": json.loads(to_geojson(geom)),
-                    "properties": {
-                        "layer": "structures",
-                        "code": st.code,
-                        "kind": st.kind,
-                        "status": st.status,
-                    },
-                }
-            )
+            yield {
+                "type": "Feature",
+                "id": str(st.id),
+                "geometry": json.loads(to_geojson(to_shape(st.location))),
+                "properties": {
+                    "layer": "structures",
+                    "code": st.code,
+                    "kind": st.kind,
+                    "status": st.status,
+                },
+            }
 
     if "cables" in layers:
-        segments = db.scalars(select(CableSegment)).all()
-        for seg in segments:
-            geom = to_shape(seg.geometry)
-            features.append(
-                {
-                    "type": "Feature",
-                    "id": str(seg.id),
-                    "geometry": json.loads(to_geojson(geom)),
-                    "properties": {
-                        "layer": "cables",
-                        "cable_id": str(seg.cable_id),
-                        "effective_length_m": seg.effective_length_m,
-                        "status": seg.status,
-                    },
-                }
-            )
+        for seg in _stream(db, select(CableSegment)):
+            yield {
+                "type": "Feature",
+                "id": str(seg.id),
+                "geometry": json.loads(to_geojson(to_shape(seg.geometry))),
+                "properties": {
+                    "layer": "cables",
+                    "cable_id": str(seg.cable_id),
+                    "effective_length_m": seg.effective_length_m,
+                    "status": seg.status,
+                },
+            }
 
     if "customers" in layers:
-        customers = db.scalars(select(Customer)).all()
-        for c in customers:
-            features.append(
-                {
-                    "type": "Feature",
-                    "id": str(c.id),
-                    "geometry": None,
-                    "properties": {
-                        "layer": "customers",
-                        "code": c.code,
-                        "name": c.name,
-                        "phone": c.phone,
-                        "address": c.address,
-                    },
-                }
-            )
-
-    return {
-        "type": "FeatureCollection",
-        "features": features,
-    }
+        for c in _stream(db, select(Customer)):
+            yield {
+                "type": "Feature",
+                "id": str(c.id),
+                "geometry": None,
+                "properties": {
+                    "layer": "customers",
+                    "code": c.code,
+                    "name": c.name,
+                    "phone": c.phone,
+                    "address": c.address,
+                },
+            }
 
 
-def generate_kml_export(db: Session, layers: list[str]) -> str:
-    kml = ET.Element("kml", xmlns="http://www.opengis.net/kml/2.2")
-    doc = ET.SubElement(kml, "Document")
-    doc_name = ET.SubElement(doc, "name")
-    doc_name.text = "FTTH Manager Export"
-
-    if "sites" in layers:
-        folder = ET.SubElement(doc, "Folder")
-        f_name = ET.SubElement(folder, "name")
-        f_name.text = "Sites"
-        sites = db.scalars(select(Site)).all()
-        for s in sites:
-            geom = to_shape(s.location)
-            pm = ET.SubElement(folder, "Placemark")
-            pm_name = ET.SubElement(pm, "name")
-            pm_name.text = f"{s.code} - {s.name}"
-            point = ET.SubElement(pm, "Point")
-            coords = ET.SubElement(point, "coordinates")
-            coords.text = f"{geom.x},{geom.y},0"
-
-    if "structures" in layers or "poles" in layers or "ctos" in layers or "ceos" in layers:
-        folder = ET.SubElement(doc, "Folder")
-        f_name = ET.SubElement(folder, "name")
-        f_name.text = "Estruturas"
-        structs = db.scalars(select(Structure)).all()
-        for st in structs:
-            geom = to_shape(st.location)
-            pm = ET.SubElement(folder, "Placemark")
-            pm_name = ET.SubElement(pm, "name")
-            pm_name.text = f"{st.code} ({st.kind})"
-            point = ET.SubElement(pm, "Point")
-            coords = ET.SubElement(point, "coordinates")
-            coords.text = f"{geom.x},{geom.y},0"
-
-    if "cables" in layers:
-        folder = ET.SubElement(doc, "Folder")
-        f_name = ET.SubElement(folder, "name")
-        f_name.text = "Cabos"
-        segments = db.scalars(select(CableSegment)).all()
-        for seg in segments:
-            geom = to_shape(seg.geometry)
-            pm = ET.SubElement(folder, "Placemark")
-            pm_name = ET.SubElement(pm, "name")
-            pm_name.text = f"Cabo {seg.cable_id}"
-            ls = ET.SubElement(pm, "LineString")
-            coords = ET.SubElement(ls, "coordinates")
-            coords.text = " ".join(f"{x},{y},0" for x, y in geom.coords)
-
-    raw_bytes: bytes = ET.tostring(kml, encoding="utf-8", xml_declaration=True)
-    return raw_bytes.decode("utf-8")
+def write_geojson_export(db: Session, layers: list[str], out: TextIO) -> None:
+    """Escreve um FeatureCollection incrementalmente (uma feature por vez)."""
+    out.write('{"type":"FeatureCollection","features":[')
+    first = True
+    for feature in iter_geojson_features(db, layers):
+        if not first:
+            out.write(",")
+        out.write(json.dumps(feature, ensure_ascii=False, separators=(",", ":")))
+        first = False
+    out.write("]}")
 
 
-def generate_csv_export(db: Session, layers: list[str]) -> str:
-    output = io.StringIO()
-    writer = csv.writer(output, delimiter=",")
-    writer.writerow(
-        [
-            "layer",
-            "id",
-            "code",
-            "name",
-            "kind",
-            "status",
-            "latitude",
-            "longitude",
-            "length_m",
-        ]
+def write_kml_export(db: Session, layers: list[str], out: TextIO) -> None:
+    def esc(value: Any) -> str:
+        return xml_escape(str(value))
+
+    out.write("<?xml version='1.0' encoding='utf-8'?>\n")
+    out.write(
+        '<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>FTTH Manager Export</name>'
     )
 
     if "sites" in layers:
-        sites = db.scalars(select(Site)).all()
-        for s in sites:
+        out.write("<Folder><name>Sites</name>")
+        for s in _stream(db, select(Site)):
+            geom = to_shape(s.location)
+            out.write(
+                f"<Placemark><name>{esc(f'{s.code} - {s.name}')}</name>"
+                f"<Point><coordinates>{geom.x},{geom.y},0</coordinates></Point></Placemark>"
+            )
+        out.write("</Folder>")
+
+    if _wants_structures(layers):
+        out.write("<Folder><name>Estruturas</name>")
+        for st in _stream(db, select(Structure)):
+            geom = to_shape(st.location)
+            out.write(
+                f"<Placemark><name>{esc(f'{st.code} ({st.kind})')}</name>"
+                f"<Point><coordinates>{geom.x},{geom.y},0</coordinates></Point></Placemark>"
+            )
+        out.write("</Folder>")
+
+    if "cables" in layers:
+        out.write("<Folder><name>Cabos</name>")
+        for seg in _stream(db, select(CableSegment)):
+            geom = to_shape(seg.geometry)
+            coords = " ".join(f"{x},{y},0" for x, y in geom.coords)
+            out.write(
+                f"<Placemark><name>{esc(f'Cabo {seg.cable_id}')}</name>"
+                f"<LineString><coordinates>{coords}</coordinates></LineString></Placemark>"
+            )
+        out.write("</Folder>")
+
+    out.write("</Document></kml>")
+
+
+def write_csv_export(db: Session, layers: list[str], out: TextIO) -> None:
+    writer = csv.writer(out, delimiter=",")
+    writer.writerow(
+        ["layer", "id", "code", "name", "kind", "status", "latitude", "longitude", "length_m"]
+    )
+
+    if "sites" in layers:
+        for s in _stream(db, select(Site)):
             geom = to_shape(s.location)
             writer.writerow(
                 [
@@ -265,9 +267,8 @@ def generate_csv_export(db: Session, layers: list[str]) -> str:
                 ]
             )
 
-    if "structures" in layers or "poles" in layers or "ctos" in layers or "ceos" in layers:
-        structs = db.scalars(select(Structure)).all()
-        for st in structs:
+    if _wants_structures(layers):
+        for st in _stream(db, select(Structure)):
             geom = to_shape(st.location)
             writer.writerow(
                 [
@@ -284,8 +285,7 @@ def generate_csv_export(db: Session, layers: list[str]) -> str:
             )
 
     if "cables" in layers:
-        segments = db.scalars(select(CableSegment)).all()
-        for seg in segments:
+        for seg in _stream(db, select(CableSegment)):
             geom = to_shape(seg.geometry)
             first_pt = geom.coords[0]
             writer.writerow(
@@ -303,8 +303,7 @@ def generate_csv_export(db: Session, layers: list[str]) -> str:
             )
 
     if "customers" in layers:
-        customers = db.scalars(select(Customer)).all()
-        for c in customers:
+        for c in _stream(db, select(Customer)):
             writer.writerow(
                 [
                     neutralize_csv_value("customers"),
@@ -319,8 +318,6 @@ def generate_csv_export(db: Session, layers: list[str]) -> str:
                 ]
             )
 
-    return output.getvalue()
-
 
 def execute_export_job(db: Session, job: AsyncJob) -> str:
     payload = job.payload or {}
@@ -329,21 +326,19 @@ def execute_export_job(db: Session, job: AsyncJob) -> str:
 
     storage_dir = get_export_storage_path()
     ext = fmt_str.lower()
+    stored_path = f"exports/{job.id}.{ext}"  # gravado relativo à raiz do storage
     file_path = os.path.join(storage_dir, f"{job.id}.{ext}")
 
-    if fmt_str == "geojson":
-        geojson_data = generate_geojson_export(db, layers)
-        with open(file_path, "w", encoding="utf-8") as f:
-            json.dump(geojson_data, f, ensure_ascii=False, indent=2)
-    elif fmt_str == "kml":
-        kml_str = generate_kml_export(db, layers)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(kml_str)
-    elif fmt_str == "csv":
-        csv_str = generate_csv_export(db, layers)
-        with open(file_path, "w", encoding="utf-8") as f:
-            f.write(csv_str)
-    else:
-        raise ValueError(f"Formato de exportação desconhecido: {fmt_str}")
+    writers = {
+        "geojson": write_geojson_export,
+        "kml": write_kml_export,
+        "csv": write_csv_export,
+    }
+    writer = writers.get(fmt_str)
+    if writer is None:
+        raise JobValidationError(f"Formato de exportação desconhecido: {fmt_str}")
+    # Escrita incremental (memória limitada); só o arquivo final concluído é referenciado pelo job
+    with open(file_path, "w", encoding="utf-8", newline="") as out:
+        writer(db, layers, out)
 
-    return file_path
+    return stored_path

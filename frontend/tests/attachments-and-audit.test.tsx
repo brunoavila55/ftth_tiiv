@@ -11,6 +11,8 @@ import { AuditTimeline } from "@/features/audit/components/audit-timeline";
 import { type Attachment } from "@/features/attachments/types";
 import { type AuditEvent } from "@/features/audit/types";
 
+vi.mock("@/features/auth/auth-context", () => import("./support/auth-context-mock"));
+
 // Mock do client fetch para download
 global.fetch = vi.fn();
 URL.createObjectURL = vi.fn(() => "blob:mock-url");

@@ -130,6 +130,7 @@
           "organization_name": {
             "anyOf": [
               {
+                "maxLength": 150,
                 "type": "string"
               },
               {
@@ -141,6 +142,7 @@
           "timezone": {
             "anyOf": [
               {
+                "maxLength": 64,
                 "type": "string"
               },
               {
@@ -412,6 +414,7 @@
           "reservation_reason": {
             "anyOf": [
               {
+                "maxLength": 500,
                 "type": "string"
               },
               {
@@ -423,12 +426,20 @@
           },
           "terminal_a_id": {
             "description": "UUID do terminal primário da operação",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Terminal A Id",
             "type": "string"
           },
           "terminal_b_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -461,6 +472,7 @@
           "caption": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -472,11 +484,16 @@
           },
           "entity_id": {
             "description": "UUID da entidade associada (ex: estrutura, site, cliente)",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Entity Id",
             "type": "string"
           },
           "entity_type": {
             "description": "Tipo da entidade (structure, site, customer, device, etc.)",
+            "maxLength": 50,
             "title": "Entity Type",
             "type": "string"
           },
@@ -538,6 +555,10 @@
           "profile_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -550,6 +571,10 @@
           "service_link_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -562,6 +587,10 @@
           "start_terminal_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -973,11 +1002,13 @@
           "color_standard": {
             "default": "NBR",
             "description": "Padrão de código de cores (NBR, TIA-598, etc.)",
+            "maxLength": 50,
             "title": "Color Standard",
             "type": "string"
           },
           "fiber_count": {
             "description": "Quantidade total de fibras ópticas no cabo",
+            "maximum": 1728.0,
             "minimum": 1.0,
             "title": "Fiber Count",
             "type": "integer"
@@ -992,6 +1023,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1007,6 +1039,7 @@
           "tube_count": {
             "default": 1,
             "description": "Quantidade de tubos loose",
+            "maximum": 144.0,
             "minimum": 1.0,
             "title": "Tube Count",
             "type": "integer"
@@ -1094,11 +1127,19 @@
         "properties": {
           "cable_id": {
             "description": "UUID do cabo ao qual o trecho pertence",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Cable Id",
             "type": "string"
           },
           "destination_structure_id": {
             "description": "UUID da estrutura final de acesso",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Destination Structure Id",
             "type": "string"
           },
@@ -1121,6 +1162,10 @@
           },
           "origin_structure_id": {
             "description": "UUID da estrutura inicial de acesso (poste, CEO, CTO)",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Origin Structure Id",
             "type": "string"
           },
@@ -1270,6 +1315,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1296,11 +1342,13 @@
         "properties": {
           "current_password": {
             "description": "Senha atual do usuário",
+            "maxLength": 128,
             "title": "Current Password",
             "type": "string"
           },
           "new_password": {
             "description": "Nova senha com no mínimo 8 caracteres",
+            "maxLength": 128,
             "minLength": 8,
             "title": "New Password",
             "type": "string"
@@ -1317,6 +1365,7 @@
         "properties": {
           "expected_topology_revision": {
             "description": "Revisão topológica esperada no cliente; falha com 409 se a revisão atual divergir",
+            "maximum": 2147483647.0,
             "title": "Expected Topology Revision",
             "type": "integer"
           },
@@ -1325,12 +1374,17 @@
             "items": {
               "$ref": "#/components/schemas/BatchOperationItem"
             },
+            "maxItems": 500,
             "minItems": 1,
             "title": "Operations",
             "type": "array"
           },
           "structure_id": {
             "description": "UUID do local/estrutura onde o lote de fusões/conexões está sendo executado",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Structure Id",
             "type": "string"
           }
@@ -1383,6 +1437,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1394,6 +1449,10 @@
           "structure_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -1405,11 +1464,19 @@
           },
           "terminal_a_id": {
             "description": "UUID do primeiro terminal distinto",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Terminal A Id",
             "type": "string"
           },
           "terminal_b_id": {
             "description": "UUID do segundo terminal distinto",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Terminal B Id",
             "type": "string"
           }
@@ -1539,6 +1606,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1656,6 +1724,7 @@
           "address": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -1667,6 +1736,7 @@
           "email": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -1691,6 +1761,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1702,6 +1773,7 @@
           "phone": {
             "anyOf": [
               {
+                "maxLength": 30,
                 "type": "string"
               },
               {
@@ -1796,6 +1868,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -1819,6 +1892,10 @@
           "site_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -1835,6 +1912,10 @@
           "structure_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -1980,6 +2061,7 @@
           "manufacturer": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -1991,6 +2073,7 @@
           "model": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -2002,6 +2085,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -2013,6 +2097,7 @@
           "serial_number": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -2024,6 +2109,9 @@
           "site_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
                 "type": "string"
               },
               {
@@ -2045,6 +2133,9 @@
           "structure_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
                 "type": "string"
               },
               {
@@ -2071,8 +2162,10 @@
             ],
             "description": "Camadas a exportar (ex: sites, structures, cables, ctos, ceos)",
             "items": {
+              "maxLength": 50,
               "type": "string"
             },
+            "maxItems": 20,
             "title": "Layers",
             "type": "array"
           }
@@ -2253,14 +2346,20 @@
           "cable_segment_ids": {
             "description": "Lista de UUIDs dos trechos de cabo rompidos ou sob teste",
             "items": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "type": "string"
             },
+            "maxItems": 500,
             "minItems": 1,
             "title": "Cable Segment Ids",
             "type": "array"
           },
           "expected_topology_revision": {
             "description": "Revisão topológica esperada do cenário de rede",
+            "maximum": 2147483647.0,
             "title": "Expected Topology Revision",
             "type": "integer"
           }
@@ -2372,11 +2471,16 @@
         "properties": {
           "file_hash": {
             "description": "Hash que deve corresponder exatamente ao arquivo pré-visualizado",
+            "maxLength": 64,
             "title": "File Hash",
             "type": "string"
           },
           "import_id": {
             "description": "UUID do preview aprovado pelo operador",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Import Id",
             "type": "string"
           }
@@ -2738,6 +2842,7 @@
               ],
               "type": "array"
             },
+            "maxItems": 10000,
             "minItems": 2,
             "title": "Coordinates",
             "type": "array"
@@ -2776,6 +2881,7 @@
           },
           "password": {
             "description": "Senha do usuário",
+            "maxLength": 128,
             "minLength": 1,
             "title": "Password",
             "type": "string"
@@ -3035,6 +3141,7 @@
           "instrument_model": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -3060,6 +3167,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -3081,6 +3189,10 @@
           "service_link_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -3092,6 +3204,10 @@
           },
           "terminal_id": {
             "description": "UUID do terminal óptico onde a medição foi realizada",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Terminal Id",
             "type": "string"
           },
@@ -3261,6 +3377,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -3301,6 +3418,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -3322,6 +3440,7 @@
           "technology": {
             "default": "GPON",
             "description": "Tecnologia PON (GPON, XGS-PON, etc.)",
+            "maxLength": 50,
             "title": "Technology",
             "type": "string"
           },
@@ -3451,6 +3570,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -3462,6 +3582,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -3534,11 +3655,16 @@
             "items": {
               "$ref": "#/components/schemas/SimulationOverrideItem"
             },
+            "maxItems": 200,
             "minItems": 1,
             "title": "Overrides",
             "type": "array"
           },
           "service_link_id": {
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Service Link Id",
             "type": "string"
           }
@@ -4369,12 +4495,17 @@
           "connector_type": {
             "default": "SC/APC",
             "description": "Padrão de conector óptico",
+            "maxLength": 50,
             "title": "Connector Type",
             "type": "string"
           },
           "device_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -4400,6 +4531,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -4415,6 +4547,10 @@
           "structure_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -4530,6 +4666,7 @@
           "connector_type": {
             "anyOf": [
               {
+                "maxLength": 50,
                 "type": "string"
               },
               {
@@ -4541,6 +4678,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 50,
                 "type": "string"
               },
               {
@@ -4552,6 +4690,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -4720,16 +4859,39 @@
         "properties": {
           "access_structure_id": {
             "description": "UUID da estrutura física onde o cabo é aberto/dividido (ex: CEO ou CTO)",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Access Structure Id",
             "type": "string"
           },
           "cut_fiber_ids": {
             "description": "Lista de UUIDs das fibras cortadas nesta caixa. Fibras não listadas permanecem passantes (continuidade interna)",
             "items": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "type": "string"
             },
+            "maxItems": 1728,
             "title": "Cut Fiber Ids",
             "type": "array"
+          },
+          "expected_topology_revision": {
+            "anyOf": [
+              {
+                "maximum": 2147483647.0,
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Revisão topológica que o cliente viu (padrão do editor de fusão). Divergência → 409. A divisão exige este campo OU o cabeçalho If-Match com a versão do trecho.",
+            "title": "Expected Topology Revision"
           },
           "segment_1_slack_m": {
             "default": 0.0,
@@ -4819,12 +4981,17 @@
         "properties": {
           "customer_id": {
             "description": "UUID do cliente atendido",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Customer Id",
             "type": "string"
           },
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -4835,11 +5002,19 @@
           },
           "onu_device_id": {
             "description": "UUID do equipamento ONU instalado no cliente",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Onu Device Id",
             "type": "string"
           },
           "port_id": {
             "description": "UUID da porta da CTO que atende esta ativação",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Port Id",
             "type": "string"
           }
@@ -4944,6 +5119,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -4970,6 +5146,10 @@
         "properties": {
           "element_id": {
             "description": "UUID do elemento óptico cujos parâmetros serão substituídos",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Element Id",
             "type": "string"
           },
@@ -4980,6 +5160,7 @@
           },
           "override_type": {
             "description": "Tipo de substituição: loss_db, length_m, splitter_ratio",
+            "maxLength": 50,
             "title": "Override Type",
             "type": "string"
           }
@@ -4997,6 +5178,7 @@
           "address": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -5030,6 +5212,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5139,6 +5322,7 @@
           "address": {
             "anyOf": [
               {
+                "maxLength": 255,
                 "type": "string"
               },
               {
@@ -5170,6 +5354,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 100,
                 "type": "string"
               },
               {
@@ -5181,6 +5366,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5215,6 +5401,10 @@
           "device_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -5227,6 +5417,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5247,18 +5438,24 @@
             "items": {
               "$ref": "#/components/schemas/SplitterPortLoss"
             },
+            "maxItems": 128,
             "title": "Ports",
             "type": "array"
           },
           "ratio": {
             "default": "1:8",
             "description": "Razão nominal de divisão (ex: 1:8, 1:16, 1:2 desbalanceado)",
+            "maxLength": 20,
             "title": "Ratio",
             "type": "string"
           },
           "structure_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -5305,6 +5502,7 @@
           },
           "port_number": {
             "description": "Número da porta de saída (1 a N)",
+            "maximum": 128.0,
             "minimum": 1.0,
             "title": "Port Number",
             "type": "integer"
@@ -5471,6 +5669,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5485,6 +5684,7 @@
                 "items": {
                   "$ref": "#/components/schemas/SplitterPortLoss"
                 },
+                "maxItems": 128,
                 "type": "array"
               },
               {
@@ -5552,6 +5752,7 @@
           "capacity": {
             "default": 0,
             "description": "Capacidade física cadastrada",
+            "maximum": 100000.0,
             "minimum": 0.0,
             "title": "Capacity",
             "type": "integer"
@@ -5578,6 +5779,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5589,6 +5791,10 @@
           "site_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -5762,6 +5968,7 @@
           "capacity": {
             "anyOf": [
               {
+                "maximum": 100000.0,
                 "minimum": 0.0,
                 "type": "integer"
               },
@@ -5794,6 +6001,7 @@
           "notes": {
             "anyOf": [
               {
+                "maxLength": 5000,
                 "type": "string"
               },
               {
@@ -5805,6 +6013,9 @@
           "site_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
                 "type": "string"
               },
               {
@@ -6029,6 +6240,10 @@
           },
           "start_terminal_id": {
             "description": "UUID do terminal de início da travessia",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Start Terminal Id",
             "type": "string"
           }
@@ -6207,12 +6422,14 @@
           },
           "name": {
             "description": "Nome completo do usuário",
+            "maxLength": 150,
             "minLength": 2,
             "title": "Name",
             "type": "string"
           },
           "password": {
             "description": "Senha inicial gerada pelo administrador",
+            "maxLength": 128,
             "minLength": 8,
             "title": "Password",
             "type": "string"
@@ -6318,6 +6535,7 @@
           "name": {
             "anyOf": [
               {
+                "maxLength": 150,
                 "minLength": 2,
                 "type": "string"
               },
@@ -6421,6 +6639,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -6579,6 +6801,10 @@
             "name": "attachment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Attachment Id",
               "type": "string"
             }
@@ -6623,6 +6849,10 @@
             "name": "attachment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Attachment Id",
               "type": "string"
             }
@@ -6666,6 +6896,10 @@
             "name": "attachment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Attachment Id",
               "type": "string"
             }
@@ -6707,6 +6941,10 @@
             "name": "attachment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Attachment Id",
               "type": "string"
             }
@@ -6740,7 +6978,7 @@
     },
     "/api/v1/audit-events": {
       "get": {
-        "description": "Retorna histórico ordenado de mutações e ações de usuários no sistema.",
+        "description": "Trilha append-only (imutável no banco) de TODAS as mutações da API — cadastros, cabos e segmentos, conexões, medições, anexos, importações/exportações, usuários — e de autenticação (login, falha de login, logout, troca de senha). Cada evento traz ator, request_id e o diff da alteração (nunca segredos). Campos pessoais de clientes (phone, email, address) são mascarados para quem não tem customers:read.",
         "operationId": "api_v1_audit_events_list_audit_events",
         "parameters": [
           {
@@ -6769,6 +7007,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -6787,6 +7029,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -7015,6 +7261,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -7125,6 +7375,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7176,6 +7430,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7216,6 +7474,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7286,6 +7548,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7351,8 +7617,30 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
+            }
+          },
+          {
+            "description": "Versão do trecho (If-Match). Obrigatório se expected_topology_revision faltar.",
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "Versão do trecho (If-Match). Obrigatório se expected_topology_revision faltar.",
+              "title": "If-Match"
             }
           }
         ],
@@ -7403,6 +7691,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7568,6 +7860,10 @@
             "name": "cable_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Cable Id",
               "type": "string"
             }
@@ -7619,6 +7915,10 @@
             "name": "cable_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Cable Id",
               "type": "string"
             }
@@ -7659,6 +7959,10 @@
             "name": "cable_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Cable Id",
               "type": "string"
             }
@@ -7732,6 +8036,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -7903,6 +8211,10 @@
             "name": "connection_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Connection Id",
               "type": "string"
             }
@@ -7954,6 +8266,10 @@
             "name": "connection_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Connection Id",
               "type": "string"
             }
@@ -8109,6 +8425,10 @@
             "name": "customer_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Customer Id",
               "type": "string"
             }
@@ -8153,6 +8473,10 @@
             "name": "customer_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Customer Id",
               "type": "string"
             }
@@ -8193,6 +8517,10 @@
             "name": "customer_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Customer Id",
               "type": "string"
             }
@@ -8407,6 +8735,10 @@
             "name": "device_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Device Id",
               "type": "string"
             }
@@ -8458,6 +8790,10 @@
             "name": "device_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Device Id",
               "type": "string"
             }
@@ -8498,6 +8834,10 @@
             "name": "device_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Device Id",
               "type": "string"
             }
@@ -8609,6 +8949,10 @@
             "name": "export_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Export Id",
               "type": "string"
             }
@@ -8651,6 +8995,10 @@
             "name": "export_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Export Id",
               "type": "string"
             }
@@ -8777,6 +9125,10 @@
             "name": "import_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Import Id",
               "type": "string"
             }
@@ -8820,6 +9172,10 @@
             "name": "import_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Import Id",
               "type": "string"
             }
@@ -8883,6 +9239,10 @@
             "name": "job_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Job Id",
               "type": "string"
             }
@@ -8925,6 +9285,10 @@
             "name": "job_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Job Id",
               "type": "string"
             }
@@ -9058,6 +9422,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -9076,6 +9444,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -9186,6 +9558,10 @@
             "name": "measurement_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Measurement Id",
               "type": "string"
             }
@@ -9237,6 +9613,10 @@
             "name": "measurement_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Measurement Id",
               "type": "string"
             }
@@ -9277,6 +9657,10 @@
             "name": "measurement_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Measurement Id",
               "type": "string"
             }
@@ -9348,6 +9732,10 @@
             "name": "measurement_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Measurement Id",
               "type": "string"
             }
@@ -9566,6 +9954,10 @@
             "name": "profile_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Profile Id",
               "type": "string"
             }
@@ -9617,6 +10009,10 @@
             "name": "profile_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Profile Id",
               "type": "string"
             }
@@ -9657,6 +10053,10 @@
             "name": "profile_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Profile Id",
               "type": "string"
             }
@@ -9813,6 +10213,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -9829,6 +10233,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -9938,6 +10346,10 @@
             "name": "port_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Port Id",
               "type": "string"
             }
@@ -9989,6 +10401,10 @@
             "name": "port_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Port Id",
               "type": "string"
             }
@@ -10029,6 +10445,10 @@
             "name": "port_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Port Id",
               "type": "string"
             }
@@ -10198,6 +10618,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -10381,13 +10805,14 @@
         "operationId": "api_v1_search_global_search",
         "parameters": [
           {
-            "description": "Termo de pesquisa",
+            "description": "Termo de pesquisa (mínimo de 3 caracteres: os índices trigram só atendem a partir daí)",
             "in": "query",
             "name": "q",
             "required": true,
             "schema": {
-              "description": "Termo de pesquisa",
-              "minLength": 2,
+              "description": "Termo de pesquisa (mínimo de 3 caracteres: os índices trigram só atendem a partir daí)",
+              "maxLength": 100,
+              "minLength": 3,
               "title": "Q",
               "type": "string"
             }
@@ -10446,6 +10871,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -10462,6 +10891,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -10571,6 +11004,10 @@
             "name": "link_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Link Id",
               "type": "string"
             }
@@ -10615,6 +11052,10 @@
             "name": "link_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Link Id",
               "type": "string"
             }
@@ -10655,6 +11096,10 @@
             "name": "link_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Link Id",
               "type": "string"
             }
@@ -10922,6 +11367,10 @@
             "name": "site_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Site Id",
               "type": "string"
             }
@@ -10973,6 +11422,10 @@
             "name": "site_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Site Id",
               "type": "string"
             }
@@ -11013,6 +11466,10 @@
             "name": "site_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Site Id",
               "type": "string"
             }
@@ -11086,6 +11543,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -11196,6 +11657,10 @@
             "name": "splitter_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Splitter Id",
               "type": "string"
             }
@@ -11240,6 +11705,10 @@
             "name": "splitter_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Splitter Id",
               "type": "string"
             }
@@ -11280,6 +11749,10 @@
             "name": "splitter_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Splitter Id",
               "type": "string"
             }
@@ -11474,6 +11947,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11525,6 +12002,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11565,6 +12046,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11635,6 +12120,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11670,6 +12159,7 @@
     },
     "/api/v1/structures/{structure_id}/cto-occupancy": {
       "get": {
+        "description": "Estado das portas (network:read). Dados pessoais do cliente só com customers:read.",
         "operationId": "api_v1_structures_structure_id_cto_occupancy_get_cto_occupancy",
         "parameters": [
           {
@@ -11677,6 +12167,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11719,6 +12213,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11961,6 +12459,10 @@
             "name": "user_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "User Id",
               "type": "string"
             }
@@ -12013,6 +12515,10 @@
             "name": "user_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "User Id",
               "type": "string"
             }
@@ -12054,6 +12560,10 @@
             "name": "user_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "User Id",
               "type": "string"
             }

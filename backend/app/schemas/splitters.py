@@ -2,9 +2,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.schemas.common import UuidStr
+
 
 class SplitterPortLoss(BaseModel):
-    port_number: int = Field(..., ge=1, description="Número da porta de saída (1 a N)")
+    port_number: int = Field(..., ge=1, description="Número da porta de saída (1 a N)", le=128)
     loss_1310_db: float = Field(..., ge=0.0, description="Perda de inserção em 1310 nm (dB)")
     loss_1490_db: float = Field(..., ge=0.0, description="Perda de inserção em 1490 nm (dB)")
     loss_1550_db: float | None = Field(
@@ -16,16 +18,18 @@ class SplitterCreate(BaseModel):
     code: str = Field(
         ..., min_length=2, max_length=50, description="Código único do splitter (ex: SPL-CTO04-1x8)"
     )
-    structure_id: str | None = Field(
+    structure_id: UuidStr | None = Field(
         default=None,
         description="Estrutura onde o splitter está instalado (exclusivo com device_id)",
     )
-    device_id: str | None = Field(
+    device_id: UuidStr | None = Field(
         default=None,
         description="Dispositivo onde o splitter está alojado (exclusivo com structure_id)",
     )
     ratio: str = Field(
-        default="1:8", description="Razão nominal de divisão (ex: 1:8, 1:16, 1:2 desbalanceado)"
+        default="1:8",
+        description="Razão nominal de divisão (ex: 1:8, 1:16, 1:2 desbalanceado)",
+        max_length=20,
     )
     output_ports_count: int = Field(
         ..., ge=2, le=64, description="Quantidade N de portas de saída (arquitetura estrita 1:N)"
@@ -33,13 +37,14 @@ class SplitterCreate(BaseModel):
     ports: list[SplitterPortLoss] = Field(
         default_factory=list,
         description="Perdas reais medidas ou de datasheet cadastradas para cada saída em dB",
+        max_length=128,
     )
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class SplitterUpdate(BaseModel):
-    notes: str | None = None
-    ports: list[SplitterPortLoss] | None = None
+    notes: str | None = Field(default=None, max_length=5000)
+    ports: list[SplitterPortLoss] | None = Field(default=None, max_length=128)
 
 
 class SplitterPortRead(BaseModel):

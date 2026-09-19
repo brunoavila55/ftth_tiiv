@@ -12,8 +12,9 @@ import {
   Loader2,
   type LucideIcon,
 } from "lucide-react";
-import { NAVIGATION_GROUPS, type NavItem } from "@/lib/navigation";
+import { visibleNavigationGroups, type NavItem } from "@/lib/navigation";
 import { Badge } from "@/components/ui/badge";
+import { useAuth } from "@/features/auth/auth-context";
 import { searchGlobal } from "@/features/reports/api";
 import { cn } from "@/lib/utils";
 
@@ -34,6 +35,7 @@ interface UnifiedItem {
 
 export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogProps) {
   const router = useRouter();
+  const { hasPermission } = useAuth();
   const [query, setQuery] = React.useState("");
   const [selectedIndex, setSelectedIndex] = React.useState(0);
   const [isSearchingServer, setIsSearchingServer] = React.useState(false);
@@ -46,13 +48,13 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
   // Flatten all nav items for searching
   const allNavItems = React.useMemo(() => {
     const list: (NavItem & { groupTitle: string })[] = [];
-    for (const group of NAVIGATION_GROUPS) {
+    for (const group of visibleNavigationGroups(hasPermission)) {
       for (const item of group.items) {
         list.push({ ...item, groupTitle: group.title });
       }
     }
     return list;
-  }, []);
+  }, [hasPermission]);
 
   // Filter local navigation items based on query
   const filteredNavItems = React.useMemo<UnifiedItem[]>(() => {
@@ -92,7 +94,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
   // Debounced server search with abort controller
   React.useEffect(() => {
     const trimmed = query.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < 3) {
       setServerResults([]);
       setIsSearchingServer(false);
       return;
@@ -281,8 +283,8 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
         >
           {combinedItems.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              {query.trim().length < 2 ? (
-                "Digite ao menos 2 caracteres para pesquisar na rede..."
+              {query.trim().length < 3 ? (
+                "Digite ao menos 3 caracteres para pesquisar na rede..."
               ) : (
                 <>Nenhum resultado encontrado para &ldquo;{query}&rdquo;</>
               )}

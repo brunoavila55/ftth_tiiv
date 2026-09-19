@@ -115,6 +115,7 @@ uv run alembic upgrade head
 ```bash
 uv run python scripts/seed_demo.py --clean
 ```
+A senha do admin de demonstração (`admin@provedor.com.br`) é gerada aleatoriamente e **exibida uma única vez** na saída. O seed (assim como `generate_synthetic_load.py` e `benchmark_endpoints.py`) aborta com código 2, sem tocar no banco, se `ENVIRONMENT=production` ou se o banco não for local (este último só com `--i-know-this-is-not-prod`).
 
 ### 5. Iniciar o Servidor Backend de Desenvolvimento
 ```bash

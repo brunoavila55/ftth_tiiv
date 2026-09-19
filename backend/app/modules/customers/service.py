@@ -6,13 +6,13 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import check_if_match
 from app.core.errors import (
     ConflictError,
     NotFoundError,
-    PreconditionFailedError,
-    PreconditionRequiredError,
     UnprocessableEntityError,
 )
+from app.core.search import contains
 from app.modules.audit.service import record_audit_event
 from app.modules.connectivity.models import Connection, Terminal, TerminalReservation
 from app.modules.customers.models import Customer, ServiceLink
@@ -26,17 +26,6 @@ from app.schemas.customers import (
     ServiceLinkStatus,
     ServiceLinkUpdate,
 )
-
-
-def _validate_if_match(if_match: str | None, current_version: int) -> None:
-    if not if_match or not if_match.strip():
-        raise PreconditionRequiredError()
-    try:
-        expected = int(if_match.strip('"'))
-    except ValueError:
-        raise PreconditionFailedError() from None
-    if current_version != expected:
-        raise PreconditionFailedError()
 
 
 def customer_to_customer_read(customer: Customer) -> CustomerRead:
@@ -82,8 +71,7 @@ def list_customers(
 ) -> tuple[list[CustomerRead], int]:
     stmt = select(Customer)
     if q and q.strip():
-        search = f"%{q.strip()}%"
-        stmt = stmt.where(Customer.code.ilike(search) | Customer.name.ilike(search))
+        stmt = stmt.where(contains(Customer.code, q) | contains(Customer.name, q))
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0
@@ -157,7 +145,7 @@ def update_customer(
     if not customer:
         raise NotFoundError(f"Cliente {customer_id} não existe.")
 
-    _validate_if_match(if_match, customer.version)
+    check_if_match(if_match, customer.version)
 
     changes: dict[str, str | None] = {}
     if payload.name is not None:
@@ -205,7 +193,7 @@ def delete_customer(
     if not customer:
         raise NotFoundError(f"Cliente {customer_id} não existe.")
 
-    _validate_if_match(if_match, customer.version)
+    check_if_match(if_match, customer.version)
 
     # Verifica se há service_links vinculados ao cliente
     active_links = (
@@ -380,7 +368,7 @@ def update_service_link(
     if not link:
         raise NotFoundError(f"Atendimento {link_id} não existe.")
 
-    _validate_if_match(if_match, link.version)
+    check_if_match(if_match, link.version)
 
     changes: dict[str, str | None] = {}
     if payload.status is not None and payload.status.value != link.status:
@@ -422,7 +410,7 @@ def deactivate_service_link(
     if not link:
         raise NotFoundError(f"Atendimento {link_id} não existe.")
 
-    _validate_if_match(if_match, link.version)
+    check_if_match(if_match, link.version)
 
     now = datetime.now(UTC)
     link.status = "deactivated"
@@ -448,8 +436,13 @@ def deactivate_service_link(
 def get_cto_port_occupancy(
     db: Session,
     structure_id: uuid.UUID,
+    include_customer_details: bool = True,
 ) -> dict[str, Any]:
-    """Calcula a ocupação exata das portas da CTO considerando conexões, reservas e atendimentos."""
+    """Calcula a ocupação exata das portas da CTO considerando conexões, reservas e atendimentos.
+
+    Sem `include_customer_details` (usuário sem `customers:read`) o estado das portas é mantido,
+    mas dados pessoais do cliente e anotações do atendimento são omitidos (SEC-03).
+    """
     structure = db.get(Structure, structure_id)
     if not structure:
         raise NotFoundError(f"Estrutura {structure_id} não existe.")
@@ -580,13 +573,13 @@ def get_cto_port_occupancy(
                 "terminal_id": str(term.id) if term else None,
                 "notes": port.notes,
                 "service_link": {
-                    "id": str(link.id),
-                    "status": link.status,
-                    "activated_at": link.activated_at.isoformat(),
-                    "version": link.version,
-                    "notes": link.notes,
+                    "id": str(srv_link.id),
+                    "status": srv_link.status,
+                    "activated_at": srv_link.activated_at.isoformat(),
+                    "version": srv_link.version,
+                    "notes": srv_link.notes if include_customer_details else None,
                 }
-                if link
+                if srv_link
                 else None,
                 "customer": {
                     "id": str(cust.id),
@@ -595,7 +588,7 @@ def get_cto_port_occupancy(
                     "phone": cust.phone,
                     "email": cust.email,
                 }
-                if cust
+                if cust and include_customer_details
                 else None,
                 "onu": {
                     "id": str(onu.id),

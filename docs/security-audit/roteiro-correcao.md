@@ -415,7 +415,7 @@ Siga o Prompt-base, exceto as regras 3 e 4 (não é uma correção). Tarefa: ver
 
 ## 6. Checklist e cobertura por ID
 
-**Etapas:** `[ ] R01` `[ ] R02` `[ ] R03` `[ ] R04` `[ ] R05` `[ ] R06` `[ ] R07` `[ ] R08` `[ ] R09` `[ ] R10` `[ ] R11` `[ ] R12` `[ ] R13` `[ ] R14` `[ ] R15` `[ ] R16` `[ ] R17` `[ ] R18` `[ ] R19` `[ ] R20` `[ ] R21` `[ ] R22` `[ ] R23` `[ ] R24` `[ ] R25` `[ ] R26` `[ ] R27` `[ ] R28`
+**Etapas:** `[x] R01` `[x] R02` `[x] R03` `[x] R04` `[x] R05` `[x] R06` `[x] R07` `[x] R08` `[x] R09` `[x] R10` `[x] R11` `[x] R12` `[x] R13` `[x] R14` `[x] R15` `[x] R16` `[x] R17` `[x] R18` `[x] R19` `[x] R20` `[x] R21` `[x] R22` `[x] R23` `[x] R24` `[x] R25` `[x] R26` `[x] R27` `[x] R28`
 
 | ID | Etapa | ID | Etapa | ID | Etapa |
 |---|---|---|---|---|---|

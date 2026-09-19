@@ -66,7 +66,9 @@ def prepare_isolated_db(db_name: str) -> str:
     backend_dir = Path(__file__).resolve().parent.parent
     alembic_cfg = Config(str(backend_dir / "alembic.ini"))
     alembic_cfg.set_main_option("script_location", str(backend_dir / "migrations"))
-    alembic_cfg.set_main_option("sqlalchemy.url", target_url.replace("postgresql://", "postgresql+psycopg://"))
+    alembic_cfg.set_main_option(
+        "sqlalchemy.url", target_url.replace("postgresql://", "postgresql+psycopg://")
+    )
     command.upgrade(alembic_cfg, "head")
 
     return target_url.replace("postgresql://", "postgresql+psycopg://")
@@ -97,11 +99,11 @@ def run_restore_drill() -> bool:
 
     # Criar imagem JPEG sintética válida com magic bytes padrão \xFF\xD8\xFF\xE0
     sample_jpeg_bytes = (
-        b"\xFF\xD8\xFF\xE0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00"
-        b"\xFF\xDB\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t"
-        b"\xFF\xC0\x00\x0B\x08\x00\x10\x00\x10\x01\x01\x11\x00"
-        b"\xFF\xDA\x00\x08\x01\x01\x00\x00?\x00\xBF\x00"
-        b"\xFF\xD9"
+        b"\xff\xd8\xff\xe0\x00\x10JFIF\x00\x01\x01\x01\x00H\x00H\x00\x00"
+        b"\xff\xdb\x00C\x00\x08\x06\x06\x07\x06\x05\x08\x07\x07\x07\t\t"
+        b"\xff\xc0\x00\x0b\x08\x00\x10\x00\x10\x01\x01\x11\x00"
+        b"\xff\xda\x00\x08\x01\x01\x00\x00?\x00\xbf\x00"
+        b"\xff\xd9"
     )
     expected_jpeg_sha = hashlib.sha256(sample_jpeg_bytes).hexdigest()
 
@@ -207,7 +209,9 @@ def run_restore_drill() -> bool:
             effective_length_m=350.0,
             length_source="measured",
             status="installed",
-            geometry=from_shape(LineString([(-46.6333, -23.5505), (-46.6360, -23.5530)]), srid=4326),
+            geometry=from_shape(
+                LineString([(-46.6333, -23.5505), (-46.6360, -23.5530)]), srid=4326
+            ),
         )
         db.add(seg)
         db.flush()
@@ -297,8 +301,12 @@ def run_restore_drill() -> bool:
     with Session(engine_source) as db:
         trace_req = TraceRequest(start_terminal_id=term_a_id, direction="downstream")
         trace_orig = trace_optical_path(db, trace_req)
-        assert len(trace_orig.paths) > 0 and len(trace_orig.paths[0].steps) >= 2, f"Trace na origem com poucos passos: {len(trace_orig.paths)}"
-        print(f"   [Origem OK] Trace óptico concluído com {len(trace_orig.paths[0].steps)} passos ({trace_orig.status}). Revisão: #{trace_orig.topology_revision}")
+        assert len(trace_orig.paths) > 0 and len(trace_orig.paths[0].steps) >= 2, (
+            f"Trace na origem com poucos passos: {len(trace_orig.paths)}"
+        )
+        print(
+            f"   [Origem OK] Trace óptico concluído com {len(trace_orig.paths[0].steps)} passos ({trace_orig.status}). Revisão: #{trace_orig.topology_revision}"
+        )
 
     # 3. Executar Backup
     backup_dir = Path(tempfile.mkdtemp(prefix="ftth_backups_drill_"))
@@ -333,11 +341,21 @@ def run_restore_drill() -> bool:
         # A. Checar Topologia e Circuito Óptico
         trace_req = TraceRequest(start_terminal_id=term_a_id, direction="downstream")
         trace_restored = trace_optical_path(db, trace_req)
-        assert trace_restored.status == trace_orig.status, f"Status do trace divergiu: {trace_restored.status} != {trace_orig.status}"
-        assert len(trace_restored.paths) == len(trace_orig.paths), "Quantidade de caminhos divergiu!"
-        assert len(trace_restored.paths[0].steps) == len(trace_orig.paths[0].steps), "Quantidade de passos divergiu!"
-        assert trace_restored.topology_revision == manifest.topology_revision, "Revisão topológica diverge!"
-        print(f"   [TESTE 1 PASS] Trace óptico restaurado idêntico: {len(trace_restored.paths[0].steps)} passos ({trace_restored.status}).")
+        assert trace_restored.status == trace_orig.status, (
+            f"Status do trace divergiu: {trace_restored.status} != {trace_orig.status}"
+        )
+        assert len(trace_restored.paths) == len(trace_orig.paths), (
+            "Quantidade de caminhos divergiu!"
+        )
+        assert len(trace_restored.paths[0].steps) == len(trace_orig.paths[0].steps), (
+            "Quantidade de passos divergiu!"
+        )
+        assert trace_restored.topology_revision == manifest.topology_revision, (
+            "Revisão topológica diverge!"
+        )
+        print(
+            f"   [TESTE 1 PASS] Trace óptico restaurado idêntico: {len(trace_restored.paths[0].steps)} passos ({trace_restored.status})."
+        )
 
         # B. Checar Anexo e Foto Física
         att_restored = db.get(Attachment, uuid.UUID(attachment_id))
@@ -345,21 +363,33 @@ def run_restore_drill() -> bool:
         assert att_restored.checksum_sha256 == expected_jpeg_sha, "Hash do anexo diverge no banco!"
 
         restored_file = target_storage / att_restored.storage_path
-        assert restored_file.exists(), f"Arquivo físico da foto não existe no disco restaurado: {restored_file}"
+        assert restored_file.exists(), (
+            f"Arquivo físico da foto não existe no disco restaurado: {restored_file}"
+        )
 
         with open(restored_file, "rb") as rf:
             restored_bytes = rf.read()
 
-        assert len(restored_bytes) == len(sample_jpeg_bytes), "Tamanho do arquivo restaurado diverge!"
-        assert hashlib.sha256(restored_bytes).hexdigest() == expected_jpeg_sha, "Hash do arquivo físico difere!"
-        assert restored_bytes[:3] == b"\xFF\xD8\xFF", "Magic bytes de JPEG inválidos no arquivo restaurado!"
+        assert len(restored_bytes) == len(sample_jpeg_bytes), (
+            "Tamanho do arquivo restaurado diverge!"
+        )
+        assert hashlib.sha256(restored_bytes).hexdigest() == expected_jpeg_sha, (
+            "Hash do arquivo físico difere!"
+        )
+        assert restored_bytes[:3] == b"\xff\xd8\xff", (
+            "Magic bytes de JPEG inválidos no arquivo restaurado!"
+        )
         print("   [TESTE 2 PASS] Foto restaurada byte-a-byte com validação JPEG e SHA256.")
 
         # C. Checar Contagem de Entidades
         site_count = db.scalar(select(func.count(Site.id)))
         struct_count = db.scalar(select(func.count(Structure.id)))
-        assert site_count == 1 and struct_count == 2, f"Contadores de inventário divergem ({site_count}, {struct_count})!"
-        print(f"   [TESTE 3 PASS] Inventário intacto ({site_count} site, {struct_count} estruturas).")
+        assert site_count == 1 and struct_count == 2, (
+            f"Contadores de inventário divergem ({site_count}, {struct_count})!"
+        )
+        print(
+            f"   [TESTE 3 PASS] Inventário intacto ({site_count} site, {struct_count} estruturas)."
+        )
 
     # 7. Limpeza dos Bancos e Pastas Temporárias do Drill
     print("7. Limpando bancos e volumes temporários de teste...")

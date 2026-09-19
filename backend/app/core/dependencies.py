@@ -19,14 +19,12 @@ SESSION_MAX_AGE_SECONDS = 7 * 24 * 3600  # 7 dias
 
 
 def get_client_ip(request: Request) -> str:
-    """Extrai endereço IP do cliente considerando proxies reversos comuns."""
-    forwarded = request.headers.get("x-forwarded-for")
-    if forwarded:
-        client_ip = forwarded.split(",")[0].strip()
-        if client_ip:
-            return client_ip
+    """IP do cliente: o do socket, ou o resolvido pelo TrustedProxyMiddleware (proxy confiável).
+
+    Nunca lê X-Forwarded-For diretamente — o cabeçalho é controlado pelo cliente.
+    """
     if request.client and request.client.host:
-        return request.client.host
+        return request.client.host[:45]  # cabe em login_attempts.ip_address (VARCHAR 45)
     return "127.0.0.1"
 
 
@@ -64,30 +62,38 @@ def clear_session_cookies(response: Response) -> None:
     response.delete_cookie(key=CSRF_COOKIE_NAME, path="/")
 
 
+def _normalize_origin(value: str) -> tuple[str, str, int] | None:
+    """(esquema, host, porta) de uma origem `scheme://host[:port]`; None se malformada."""
+    try:
+        parts = urlparse(value)
+        port = parts.port
+    except ValueError:
+        return None
+    if parts.scheme not in ("http", "https") or not parts.hostname:
+        return None
+    if parts.path or parts.query or parts.fragment or parts.username or parts.password:
+        return None  # Origin nunca carrega path/credenciais
+    return parts.scheme, parts.hostname.lower(), port or (443 if parts.scheme == "https" else 80)
+
+
+def _allowed_origins(request: Request) -> set[tuple[str, str, int]]:
+    settings = get_settings()
+    candidates = list(settings.CORS_ORIGINS)
+    # A própria origem da requisição (esquema/host efetivos; o esquema vem de proxy confiável)
+    candidates.append(str(request.base_url).rstrip("/"))
+    if settings.is_test:
+        candidates.append("http://testserver")
+    return {norm for c in candidates if (norm := _normalize_origin(c)) is not None}
+
+
 def validate_csrf(request: Request) -> None:
     """Valida proteção CSRF e Origin para métodos de mutação de estado."""
     if request.method in ("POST", "PUT", "PATCH", "DELETE"):
-        # 1. Validação de Origin se fornecido pelo navegador
+        # 1. Origin (quando enviado pelo navegador): igualdade EXATA de esquema+host+porta
         origin = request.headers.get("origin")
-        if origin:
-            settings = get_settings()
-            parsed_origin = urlparse(origin)
-            origin_netloc = parsed_origin.netloc or origin
-
-            allowed_origins = {urlparse(o).netloc or o for o in settings.CORS_ORIGINS}
-            # Adiciona a própria origem da requisição e domínios locais de teste
-            request_netloc = urlparse(str(request.base_url)).netloc
-            allowed_origins.add(request_netloc)
-            allowed_origins.add("localhost")
-            allowed_origins.add("127.0.0.1")
-            allowed_origins.add("testserver")
-
-            is_allowed = (
-                origin_netloc in allowed_origins
-                or any(origin.startswith(allowed) for allowed in settings.CORS_ORIGINS)
-                or origin.rstrip("/") == str(request.base_url).rstrip("/")
-            )
-            if not is_allowed:
+        if origin is not None:
+            normalized = _normalize_origin(origin)
+            if normalized is None or normalized not in _allowed_origins(request):
                 raise ForbiddenError(
                     "Origem da requisição não permitida pelo CORS/CSRF.",
                     code="csrf_origin_mismatch",
@@ -192,4 +198,6 @@ def require_permission(permission: str) -> Callable[..., User]:
             )
         return current_user
 
+    # Exposto para introspecção (testes de cobertura da matriz de permissões)
+    _permission_dependency.required_permission = permission  # type: ignore[attr-defined]
     return _permission_dependency

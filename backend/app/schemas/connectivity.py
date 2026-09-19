@@ -3,6 +3,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from app.schemas.common import UuidStr
+
 
 class TerminalKind(StrEnum):
     FIBER_ENDPOINT = "fiber_endpoint"
@@ -39,19 +41,19 @@ class TerminalRead(BaseModel):
 
 
 class ConnectionCreate(BaseModel):
-    terminal_a_id: str = Field(..., description="UUID do primeiro terminal distinto")
-    terminal_b_id: str = Field(..., description="UUID do segundo terminal distinto")
+    terminal_a_id: UuidStr = Field(..., description="UUID do primeiro terminal distinto")
+    terminal_b_id: UuidStr = Field(..., description="UUID do segundo terminal distinto")
     connection_type: ConnectionType = Field(..., description="Tipo físico da conexão")
     loss_db: float = Field(
         default=0.1,
         ge=0.0,
         description="Perda de inserção documentada da conexão em dB (ex: fusão 0.10 dB, acoplador 0.30 dB)",
     )
-    structure_id: str | None = Field(
+    structure_id: UuidStr | None = Field(
         default=None,
         description="Estrutura (CEO, CTO, POP) onde a conexão física está localizada",
     )
-    notes: str | None = None
+    notes: str | None = Field(default=None, max_length=5000)
 
 
 class ConnectionRead(BaseModel):
@@ -71,8 +73,8 @@ class BatchOperationItem(BaseModel):
     action: BatchOperationType = Field(
         ..., description="Ação atômica: connect, disconnect, reserve, release"
     )
-    terminal_a_id: str = Field(..., description="UUID do terminal primário da operação")
-    terminal_b_id: str | None = Field(
+    terminal_a_id: UuidStr = Field(..., description="UUID do terminal primário da operação")
+    terminal_b_id: UuidStr | None = Field(
         default=None,
         description="UUID do terminal secundário (obrigatório quando action=connect)",
     )
@@ -83,7 +85,7 @@ class BatchOperationItem(BaseModel):
         default=None, ge=0.0, description="Perda em dB para action=connect"
     )
     reservation_reason: str | None = Field(
-        default=None, description="Motivo ou cliente para reserva/bloqueio"
+        default=None, description="Motivo ou cliente para reserva/bloqueio", max_length=500
     )
 
 
@@ -91,8 +93,9 @@ class ConnectionBatchRequest(BaseModel):
     expected_topology_revision: int = Field(
         ...,
         description="Revisão topológica esperada no cliente; falha com 409 se a revisão atual divergir",
+        le=2147483647,
     )
-    structure_id: str = Field(
+    structure_id: UuidStr = Field(
         ...,
         description="UUID do local/estrutura onde o lote de fusões/conexões está sendo executado",
     )
@@ -100,6 +103,7 @@ class ConnectionBatchRequest(BaseModel):
         ...,
         min_length=1,
         description="Lista ordenada de operações atômicas a serem aplicadas em lote",
+        max_length=500,
     )
 
 

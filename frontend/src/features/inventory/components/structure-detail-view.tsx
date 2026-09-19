@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { CopyableCoordinates } from "@/components/ui/copyable-coordinates";
 import Link from "next/link";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 export interface StructureDetailViewProps {
   structureId: string;
@@ -182,25 +183,29 @@ export function StructureDetailView({ structureId, kindOverride }: StructureDeta
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs"
-            onClick={() => setEditDialogOpen(true)}
-          >
-            <Edit className="h-3.5 w-3.5" />
-            <span>Editar</span>
-          </Button>
+          <PermissionGate permission="network:write">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setEditDialogOpen(true)}
+            >
+              <Edit className="h-3.5 w-3.5" />
+              <span>Editar</span>
+            </Button>
+          </PermissionGate>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-xs text-destructive hover:bg-destructive/10"
-            onClick={() => setDeactivateDialogOpen(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span>Desativar</span>
-          </Button>
+          <PermissionGate permission="network:write">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs text-destructive hover:bg-destructive/10"
+              onClick={() => setDeactivateDialogOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Desativar</span>
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -366,10 +371,12 @@ export function StructureDetailView({ structureId, kindOverride }: StructureDeta
                     Grade visual de portas frontais, ocupação em tempo real, reservas e vínculo com clientes.
                   </p>
                 </div>
-                <Button size="sm" onClick={() => setPortDialogOpen(true)} className="gap-1.5 text-xs">
-                  <Plus className="h-4 w-4" />
-                  <span>Nova Porta</span>
-                </Button>
+                <PermissionGate permission="network:write">
+                  <Button size="sm" onClick={() => setPortDialogOpen(true)} className="gap-1.5 text-xs">
+                    <Plus className="h-4 w-4" />
+                    <span>Nova Porta</span>
+                  </Button>
+                </PermissionGate>
               </div>
 
               <CtoPortsGrid structureId={structureId} structureCode={structure.code} />
@@ -377,11 +384,13 @@ export function StructureDetailView({ structureId, kindOverride }: StructureDeta
           )}
 
           {/* Editor Transacional de Fusões, Terminais e Splitters */}
-          <FusionEditor
-            structureId={structureId}
-            structureCode={structure.code}
-            structureKind={structure.kind}
-          />
+          <PermissionGate permission="network:write">
+            <FusionEditor
+              structureId={structureId}
+              structureCode={structure.code}
+              structureKind={structure.kind}
+            />
+          </PermissionGate>
         </div>
       )}
 

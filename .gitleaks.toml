@@ -1,0 +1,10 @@
+# Configuração do gitleaks (job "security" do CI): regras padrão + allowlist mínima.
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Valores fictícios usados só em testes de validação de configuração (R05)"
+paths = [
+  '''backend/tests/unit/test_config\.py''',
+  '''backend/tests/integration/test_metrics_access\.py''',
+]

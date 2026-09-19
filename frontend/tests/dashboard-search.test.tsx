@@ -16,6 +16,11 @@ vi.mock("next/navigation", () => ({
   }),
 }));
 
+// O diálogo filtra a navegação pelas permissões do usuário (R27)
+vi.mock("@/features/auth/auth-context", () => ({
+  useAuth: () => ({ hasPermission: () => true }),
+}));
+
 function renderWithQuery(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: {

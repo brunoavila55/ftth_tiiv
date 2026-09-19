@@ -33,7 +33,7 @@ def main() -> int:
     parser.add_argument(
         "--no-verify",
         action="store_true",
-        help="Ignora verificação dos hashes SHA256 do manifesto (NÃO recomendado)",
+        help="Ignora a conferência dos hashes SHA256 (NÃO recomendado). A assinatura do manifesto é SEMPRE verificada.",
     )
 
     args = parser.parse_args()

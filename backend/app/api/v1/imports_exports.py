@@ -1,12 +1,19 @@
-import os
 import uuid
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Response, UploadFile, status
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.core.config import get_settings
 from app.core.dependencies import get_current_user, require_permission, validate_csrf
+from app.core.errors import ForbiddenError
+from app.core.privacy import user_can
+from app.core.rate_limit import rate_limit
+from app.core.storage import resolve_storage_path
+from app.core.uploads import read_upload_limited_sync
 from app.db.session import get_db
+from app.modules.audit.service import record_audit_event
 from app.modules.exports.service import create_export_request
 from app.modules.identity.models import User
 from app.modules.imports.models import AsyncJob
@@ -16,6 +23,7 @@ from app.modules.imports.service import (
     get_preview_by_id,
 )
 from app.modules.jobs.service import cancel_job_by_id, get_job_by_id
+from app.schemas.common import UuidStr
 from app.schemas.imports_exports import (
     ExportRequest,
     ExportResponse,
@@ -37,14 +45,19 @@ imports_exports_router = APIRouter(tags=["Importação, Exportação e Jobs"])
     status_code=status.HTTP_200_OK,
     summary="Pré-visualizar arquivo de importação",
     description="Analisa sintaxe, valida entidades, detecta colisões e gera resumo sem alterar a rede.",
-    dependencies=[Depends(require_permission("imports:write")), Depends(validate_csrf)],
+    dependencies=[
+        Depends(require_permission("imports:write")),
+        Depends(validate_csrf),
+        Depends(rate_limit("upload", "RATE_LIMIT_UPLOAD_PER_MINUTE")),
+    ],
 )
-async def preview_import(
+def preview_import(
     file: UploadFile = File(..., description="Arquivo GeoJSON, KML ou CSV"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ImportPreviewResponse:
-    content = await file.read()
+    # Handler síncrono (threadpool): o parse/validação de até 20 MB não bloqueia o event loop
+    content = read_upload_limited_sync(file, get_settings().MAX_IMPORT_SIZE_BYTES)
     filename = file.filename or "import.geojson"
     return create_import_preview(
         db=db,
@@ -61,7 +74,7 @@ async def preview_import(
     dependencies=[Depends(require_permission("imports:read"))],
 )
 def get_import_preview(
-    import_id: str,
+    import_id: UuidStr,
     db: Session = Depends(get_db),
 ) -> ImportPreviewResponse:
     return get_preview_by_id(db=db, import_id=import_id)
@@ -76,7 +89,7 @@ def get_import_preview(
     dependencies=[Depends(require_permission("imports:write")), Depends(validate_csrf)],
 )
 def commit_import(
-    import_id: str,
+    import_id: UuidStr,
     payload: ImportCommitRequest,
     idempotency_key: str = Header(..., description="Chave de idempotência única da operação"),
     db: Session = Depends(get_db),
@@ -99,7 +112,11 @@ def commit_import(
     response_model=ExportResponse,
     status_code=status.HTTP_202_ACCEPTED,
     summary="Solicitar exportação de dados",
-    dependencies=[Depends(require_permission("exports:write")), Depends(validate_csrf)],
+    dependencies=[
+        Depends(require_permission("exports:write")),
+        Depends(validate_csrf),
+        Depends(rate_limit("export", "RATE_LIMIT_EXPORT_PER_MINUTE")),
+    ],
 )
 def request_export(
     payload: ExportRequest,
@@ -120,7 +137,7 @@ def request_export(
     dependencies=[Depends(require_permission("exports:read"))],
 )
 def get_export_status(
-    export_id: str,
+    export_id: UuidStr,
     db: Session = Depends(get_db),
 ) -> JobRead:
     return get_job_by_id(db=db, job_id=export_id)
@@ -132,7 +149,8 @@ def get_export_status(
     dependencies=[Depends(require_permission("exports:read"))],
 )
 def download_export(
-    export_id: str,
+    export_id: UuidStr,
+    current_user: User = Depends(require_permission("exports:read")),
     db: Session = Depends(get_db),
 ) -> Response:
     try:
@@ -156,13 +174,37 @@ def download_export(
             detail=f"O arquivo de exportação ainda não está pronto. Status atual: {job.status}.",
         )
 
-    if not os.path.exists(job.result_path):
+    # Dados pessoais (LGPD): a camada de clientes só é baixável por admin — revalidado AQUI, não só
+    # na criação (exports:read + job_id não basta)
+    layers = (job.payload or {}).get("layers", [])
+    if "customers" in layers and current_user.role != "admin":
+        raise ForbiddenError(
+            "Exportações com dados pessoais de clientes só podem ser baixadas por administradores.",
+            code="insufficient_permissions",
+        )
+
+    expired = job.finished_at is not None and job.finished_at < datetime.now(UTC) - timedelta(
+        days=get_settings().EXPORT_TTL_DAYS
+    )
+    export_file = resolve_storage_path(job.result_path)
+    if expired or not export_file.exists():
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="O arquivo exportado expirou ou foi removido do servidor.",
         )
 
-    filename = os.path.basename(job.result_path)
+    record_audit_event(
+        db,
+        actor_id=current_user.id,
+        actor_name=current_user.name,
+        action="export_downloaded",
+        entity_type="async_job",
+        entity_id=job.id,
+        changes={"format": (job.payload or {}).get("format"), "layers": layers},
+    )
+    db.commit()
+
+    filename = export_file.name
     content_type = "application/octet-stream"
     if filename.endswith(".geojson") or filename.endswith(".json"):
         content_type = "application/geo+json"
@@ -172,7 +214,7 @@ def download_export(
         content_type = "text/csv; charset=utf-8"
 
     return FileResponse(
-        path=job.result_path,
+        path=str(export_file),
         media_type=content_type,
         filename=filename,
     )
@@ -188,10 +230,18 @@ def download_export(
     dependencies=[Depends(get_current_user)],
 )
 def get_job(
-    job_id: str,
+    job_id: UuidStr,
+    current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> JobRead:
-    return get_job_by_id(db=db, job_id=job_id)
+    job = get_job_by_id(db=db, job_id=job_id)
+    # Leitura conforme o tipo: exportações exigem exports:read; importações, imports:read
+    permission = "exports:read" if job.type.value.startswith("export_") else "imports:read"
+    if not user_can(current_user, permission):
+        raise ForbiddenError(
+            f"Acesso negado. Requer a permissão '{permission}'.", code="insufficient_permissions"
+        )
+    return job
 
 
 @imports_exports_router.post(
@@ -201,7 +251,7 @@ def get_job(
     dependencies=[Depends(require_permission("imports:write")), Depends(validate_csrf)],
 )
 def cancel_job(
-    job_id: str,
+    job_id: UuidStr,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> JobRead:

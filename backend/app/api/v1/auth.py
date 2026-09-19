@@ -5,6 +5,7 @@ from app.core.dependencies import (
     SESSION_COOKIE_NAME,
     clear_session_cookies,
     get_client_ip,
+    get_current_session,
     get_current_user,
     set_csrf_cookie,
     set_session_cookie,
@@ -12,7 +13,7 @@ from app.core.dependencies import (
 )
 from app.core.security import generate_csrf_token
 from app.db.session import get_db
-from app.modules.identity.models import User
+from app.modules.identity.models import User, UserSession
 from app.modules.identity.service import (
     authenticate_user,
     change_user_password,
@@ -121,16 +122,19 @@ def get_me(
     status_code=status.HTTP_204_NO_CONTENT,
     summary="Alterar senha do usuário atual",
     description="Atualiza a senha do usuário autenticado mediante confirmação da senha atual.",
-    dependencies=[Depends(validate_csrf)],
+    # get_current_user primeiro: anônimo recebe 401 (não 403 de CSRF)
+    dependencies=[Depends(get_current_user), Depends(validate_csrf)],
 )
 def change_password(
     payload: ChangePasswordRequest,
-    current_user: User = Depends(get_current_user),
+    user_session: UserSession = Depends(get_current_session),
     db: Session = Depends(get_db),
 ) -> None:
+    # Revoga as demais sessões do usuário; a sessão atual continua válida
     change_user_password(
         session=db,
-        user=current_user,
+        user=user_session.user,
         current_password=payload.current_password,
         new_password=payload.new_password,
+        keep_session_id=user_session.id,
     )

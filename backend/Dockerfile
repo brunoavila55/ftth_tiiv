@@ -23,9 +23,11 @@ RUN uv sync --frozen --no-dev --no-install-project
 FROM python:3.12-slim-bookworm AS runner
 
 # Instalar bibliotecas de runtime necessárias (ex: libgeos para shapely)
+# `upgrade` aplica os patches de segurança da distro publicados depois da imagem base (Trivy)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     curl \
     libgeos-c1v5 \
+    && apt-get -y upgrade \
     && rm -rf /var/lib/apt/lists/*
 
 # Criar usuário não-root seguro
@@ -46,14 +48,19 @@ COPY --chown=ftthuser:ftthuser migrations ./migrations
 COPY --chown=ftthuser:ftthuser scripts ./scripts
 
 # Criar diretório de storage persistente
-RUN mkdir -p /app/storage && chown -R ftthuser:ftthuser /app/storage
+RUN mkdir -p /app/storage /app/backups && chown -R ftthuser:ftthuser /app/storage /app/backups
 
 USER ftthuser
 
 ENV PATH="/app/.venv/bin:$PATH"
+# `python scripts/*.py` (worker, backup, healthcheck) roda com sys.path[0]=/app/scripts: sem isto o
+# pacote `app` não é importável e o worker morre com ModuleNotFoundError
+ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Workers por variável (padrão 2). O pool de conexões é POR processo (ver DB_POOL_SIZE).
+ENV WEB_CONCURRENCY=2
+CMD ["sh", "-c", "exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers ${WEB_CONCURRENCY:-2}"]

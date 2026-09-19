@@ -15,6 +15,7 @@ import { ErrorState } from "@/components/ui/state-displays";
 import { DeviceFormDialog } from "@/features/inventory/components/device-form-dialog";
 import { Plus, Eye, Edit, Building2, Box } from "lucide-react";
 import Link from "next/link";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 const DEVICE_KIND_LABELS: Record<string, string> = {
   olt: "OLT (Terminal Óptico)",
@@ -214,18 +215,20 @@ export function DevicesTable({ siteId, structureId }: DevicesTableProps) {
                 <span className="hidden sm:inline">Detalhes</span>
               </Link>
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground"
-              onClick={() => {
-                setEditingDevice(row.original);
-                setFormDialogOpen(true);
-              }}
-            >
-              <Edit className="h-3.5 w-3.5" />
-              <span className="sr-only">Editar</span>
-            </Button>
+            <PermissionGate permission="network:write">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => {
+                  setEditingDevice(row.original);
+                  setFormDialogOpen(true);
+                }}
+              >
+                <Edit className="h-3.5 w-3.5" />
+                <span className="sr-only">Editar</span>
+              </Button>
+            </PermissionGate>
           </div>
         ),
       },
@@ -272,17 +275,19 @@ export function DevicesTable({ siteId, structureId }: DevicesTableProps) {
           </select>
         </DataTableFilterBar>
 
-        <Button
-          size="sm"
-          className="gap-1.5 flex-shrink-0"
-          onClick={() => {
-            setEditingDevice(null);
-            setFormDialogOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          <span>Novo Dispositivo</span>
-        </Button>
+        <PermissionGate permission="network:write">
+          <Button
+            size="sm"
+            className="gap-1.5 flex-shrink-0"
+            onClick={() => {
+              setEditingDevice(null);
+              setFormDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Novo Dispositivo</span>
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Tabela de Dados */}

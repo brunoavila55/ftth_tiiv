@@ -171,9 +171,7 @@ def test_full_transversal_lifecycle_b18(client: TestClient, db_session: Session)
         effective_length_m=3500.0,
         length_source="measured",
         status="installed",
-        geometry=from_shape(
-            LineString([(-46.6333, -23.5505), (-46.6350, -23.5520)]), srid=4326
-        ),
+        geometry=from_shape(LineString([(-46.6333, -23.5505), (-46.6350, -23.5520)]), srid=4326),
         version=1,
     )
     db_session.add(feeder_seg)
@@ -320,9 +318,7 @@ def test_full_transversal_lifecycle_b18(client: TestClient, db_session: Session)
         effective_length_m=3500.0,
         length_source="measured",
         status="installed",
-        geometry=from_shape(
-            LineString([(-46.6350, -23.5520), (-46.6370, -23.5540)]), srid=4326
-        ),
+        geometry=from_shape(LineString([(-46.6350, -23.5520), (-46.6370, -23.5540)]), srid=4326),
         version=1,
     )
     db_session.add(dist_seg)

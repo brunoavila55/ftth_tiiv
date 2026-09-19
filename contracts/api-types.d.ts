@@ -118,7 +118,7 @@ export interface paths {
         };
         /**
          * Consultar trilha de auditoria append-only
-         * @description Retorna histórico ordenado de mutações e ações de usuários no sistema.
+         * @description Trilha append-only (imutável no banco) de TODAS as mutações da API — cadastros, cabos e segmentos, conexões, medições, anexos, importações/exportações, usuários — e de autenticação (login, falha de login, logout, troca de senha). Cada evento traz ator, request_id e o diff da alteração (nunca segredos). Campos pessoais de clientes (phone, email, address) são mascarados para quem não tem customers:read.
          */
         get: operations["api_v1_audit_events_list_audit_events"];
         put?: never;
@@ -1173,7 +1173,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Ocupação das portas da CTO */
+        /**
+         * Ocupação das portas da CTO
+         * @description Estado das portas (network:read). Dados pessoais do cliente só com customers:read.
+         */
         get: operations["api_v1_structures_structure_id_cto_occupancy_get_cto_occupancy"];
         put?: never;
         post?: never;
@@ -1553,6 +1556,7 @@ export interface components {
             reservation_reason?: string | null;
             /**
              * Terminal A Id
+             * Format: uuid
              * @description UUID do terminal primário da operação
              */
             terminal_a_id: string;
@@ -1576,6 +1580,7 @@ export interface components {
             caption?: string | null;
             /**
              * Entity Id
+             * Format: uuid
              * @description UUID da entidade associada (ex: estrutura, site, cliente)
              */
             entity_id: string;
@@ -1878,11 +1883,13 @@ export interface components {
         CableSegmentCreate: {
             /**
              * Cable Id
+             * Format: uuid
              * @description UUID do cabo ao qual o trecho pertence
              */
             cable_id: string;
             /**
              * Destination Structure Id
+             * Format: uuid
              * @description UUID da estrutura final de acesso
              */
             destination_structure_id: string;
@@ -1895,6 +1902,7 @@ export interface components {
             measured_length_m?: number | null;
             /**
              * Origin Structure Id
+             * Format: uuid
              * @description UUID da estrutura inicial de acesso (poste, CEO, CTO)
              */
             origin_structure_id: string;
@@ -1992,6 +2000,7 @@ export interface components {
             operations: components["schemas"]["BatchOperationItem"][];
             /**
              * Structure Id
+             * Format: uuid
              * @description UUID do local/estrutura onde o lote de fusões/conexões está sendo executado
              */
             structure_id: string;
@@ -2027,11 +2036,13 @@ export interface components {
             structure_id?: string | null;
             /**
              * Terminal A Id
+             * Format: uuid
              * @description UUID do primeiro terminal distinto
              */
             terminal_a_id: string;
             /**
              * Terminal B Id
+             * Format: uuid
              * @description UUID do segundo terminal distinto
              */
             terminal_b_id: string;
@@ -2417,6 +2428,7 @@ export interface components {
             file_hash: string;
             /**
              * Import Id
+             * Format: uuid
              * @description UUID do preview aprovado pelo operador
              */
             import_id: string;
@@ -2792,6 +2804,7 @@ export interface components {
             service_link_id?: string | null;
             /**
              * Terminal Id
+             * Format: uuid
              * @description UUID do terminal óptico onde a medição foi realizada
              */
             terminal_id: string;
@@ -2974,7 +2987,10 @@ export interface components {
              * @description Lista de substituições pontuais a simular no caminho óptico
              */
             overrides: components["schemas"]["SimulationOverrideItem"][];
-            /** Service Link Id */
+            /**
+             * Service Link Id
+             * Format: uuid
+             */
             service_link_id: string;
         };
         /** OpticalSimulationResponse */
@@ -3593,6 +3609,7 @@ export interface components {
         SegmentSplitRequest: {
             /**
              * Access Structure Id
+             * Format: uuid
              * @description UUID da estrutura física onde o cabo é aberto/dividido (ex: CEO ou CTO)
              */
             access_structure_id: string;
@@ -3601,6 +3618,11 @@ export interface components {
              * @description Lista de UUIDs das fibras cortadas nesta caixa. Fibras não listadas permanecem passantes (continuidade interna)
              */
             cut_fiber_ids?: string[];
+            /**
+             * Expected Topology Revision
+             * @description Revisão topológica que o cliente viu (padrão do editor de fusão). Divergência → 409. A divisão exige este campo OU o cabeçalho If-Match com a versão do trecho.
+             */
+            expected_topology_revision?: number | null;
             /**
              * Segment 1 Slack M
              * @description Reserva técnica alocada para o primeiro trecho em metros
@@ -3641,6 +3663,7 @@ export interface components {
         ServiceLinkCreate: {
             /**
              * Customer Id
+             * Format: uuid
              * @description UUID do cliente atendido
              */
             customer_id: string;
@@ -3648,11 +3671,13 @@ export interface components {
             notes?: string | null;
             /**
              * Onu Device Id
+             * Format: uuid
              * @description UUID do equipamento ONU instalado no cliente
              */
             onu_device_id: string;
             /**
              * Port Id
+             * Format: uuid
              * @description UUID da porta da CTO que atende esta ativação
              */
             port_id: string;
@@ -3705,6 +3730,7 @@ export interface components {
         SimulationOverrideItem: {
             /**
              * Element Id
+             * Format: uuid
              * @description UUID do elemento óptico cujos parâmetros serão substituídos
              */
             element_id: string;
@@ -4140,6 +4166,7 @@ export interface components {
             max_results: number;
             /**
              * Start Terminal Id
+             * Format: uuid
              * @description UUID do terminal de início da travessia
              */
             start_terminal_id: string;
@@ -4914,7 +4941,10 @@ export interface operations {
     api_v1_cable_segments_segment_id_split_split_segment: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Versão do trecho (If-Match). Obrigatório se expected_topology_revision faltar. */
+                "if-match"?: string | null;
+            };
             path: {
                 segment_id: string;
             };
@@ -6755,7 +6785,7 @@ export interface operations {
     api_v1_search_global_search: {
         parameters: {
             query: {
-                /** @description Termo de pesquisa */
+                /** @description Termo de pesquisa (mínimo de 3 caracteres: os índices trigram só atendem a partir daí) */
                 q: string;
                 /** @description Limite máximo de resultados por grupo */
                 limit?: number;

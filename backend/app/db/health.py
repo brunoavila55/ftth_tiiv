@@ -1,22 +1,47 @@
 import time
+from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
-from sqlalchemy import text
-from sqlalchemy.orm import Session
+from sqlalchemy import create_engine, text
+from sqlalchemy.engine import Engine
+from sqlalchemy.pool import NullPool
 
+from app.core.config import get_settings
 from app.core.logging import get_logger
 
 logger = get_logger("app.db.health")
 
 
-def check_database_connectivity(session: Session) -> dict[str, Any]:
-    """Verifica a conectividade com o banco de dados executando SELECT 1 com medição de latência."""
+@lru_cache
+def _readiness_engine(database_url: str, timeout_seconds: int) -> Engine:
+    """Engine dedicada da readiness: sem pool (NullPool), com connect/statement timeout curtos.
+
+    Independe do pool da aplicação — uma API saturada não derruba a sonda nem a faz esperar.
+    """
+    return create_engine(
+        database_url,
+        poolclass=NullPool,
+        connect_args={
+            "connect_timeout": timeout_seconds,
+            "options": f"-c statement_timeout={timeout_seconds * 1000}",
+        },
+    )
+
+
+def _engine() -> Engine:
+    settings = get_settings()
+    return _readiness_engine(settings.DATABASE_URL, settings.HEALTH_DB_TIMEOUT_SECONDS)
+
+
+def check_database_connectivity() -> dict[str, Any]:
+    """Verifica a conectividade (conexão curta e dedicada) com medição de latência."""
     start_time = time.perf_counter()
     try:
-        result = session.execute(text("SELECT 1")).scalar()
+        with _engine().connect() as conn:
+            result = conn.execute(text("SELECT 1")).scalar()
         latency_ms = round((time.perf_counter() - start_time) * 1000, 2)
         if result == 1:
             return {
@@ -35,8 +60,9 @@ def check_database_connectivity(session: Session) -> dict[str, Any]:
         }
 
 
+@lru_cache
 def get_expected_migration_head() -> str | None:
-    """Obtém a revisão 'head' esperada do diretório de migrações do Alembic."""
+    """Revisão 'head' esperada do Alembic — lida uma vez (cache), não a cada chamada da sonda."""
     try:
         backend_dir = Path(__file__).resolve().parent.parent.parent
         alembic_ini_path = backend_dir / "alembic.ini"
@@ -51,11 +77,12 @@ def get_expected_migration_head() -> str | None:
         return None
 
 
-def check_database_migrations(session: Session) -> dict[str, Any]:
+def check_database_migrations() -> dict[str, Any]:
     """Verifica a versão atual das migrações aplicadas no banco contra a head esperada."""
     try:
         # Checa se a tabela alembic_version existe e obtém a versão atual
-        result = session.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).scalar()
+        with _engine().connect() as conn:
+            result = conn.execute(text("SELECT version_num FROM alembic_version LIMIT 1")).scalar()
         current_version = str(result) if result else None
     except Exception:
         return {

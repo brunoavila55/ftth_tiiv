@@ -15,6 +15,7 @@ import { ErrorState } from "@/components/ui/state-displays";
 import { CableFormDialog } from "@/features/cables/components/cable-form-dialog";
 import { Plus, Eye, Edit } from "lucide-react";
 import Link from "next/link";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 export function CablesTable() {
   const router = useRouter();
@@ -133,18 +134,20 @@ export function CablesTable() {
                 <span className="hidden sm:inline">Detalhes</span>
               </Link>
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground"
-              onClick={() => {
-                setEditingCable(row.original);
-                setFormDialogOpen(true);
-              }}
-            >
-              <Edit className="h-3.5 w-3.5" />
-              <span className="sr-only">Editar</span>
-            </Button>
+            <PermissionGate permission="network:write">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => {
+                  setEditingCable(row.original);
+                  setFormDialogOpen(true);
+                }}
+              >
+                <Edit className="h-3.5 w-3.5" />
+                <span className="sr-only">Editar</span>
+              </Button>
+            </PermissionGate>
           </div>
         ),
       },
@@ -178,17 +181,19 @@ export function CablesTable() {
           onClearFilters={() => updateQueryParams({ q: null, page: 1 })}
         />
 
-        <Button
-          size="sm"
-          className="gap-1.5 flex-shrink-0"
-          onClick={() => {
-            setEditingCable(null);
-            setFormDialogOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          <span>Novo Cabo</span>
-        </Button>
+        <PermissionGate permission="network:write">
+          <Button
+            size="sm"
+            className="gap-1.5 flex-shrink-0"
+            onClick={() => {
+              setEditingCable(null);
+              setFormDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Novo Cabo</span>
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Tabela de Dados */}

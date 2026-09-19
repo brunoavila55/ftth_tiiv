@@ -1,15 +1,15 @@
 import uuid
 from collections.abc import Sequence
+from typing import Any
 
 from sqlalchemy import func, or_, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.concurrency import check_if_match
 from app.core.errors import (
     ConflictError,
     NotFoundError,
-    PreconditionFailedError,
-    PreconditionRequiredError,
     TopologyRevisionConflictError,
     UnprocessableEntityError,
     ValidationErrorItem,
@@ -37,17 +37,6 @@ from app.schemas.connectivity import (
     TerminalRead,
     TerminalReservationRead,
 )
-
-
-def _validate_if_match(if_match: str | None, current_version: int) -> None:
-    if not if_match or not if_match.strip():
-        raise PreconditionRequiredError()
-    try:
-        expected = int(if_match.strip('"'))
-    except ValueError:
-        raise PreconditionFailedError() from None
-    if current_version != expected:
-        raise PreconditionFailedError()
 
 
 def terminal_to_read(t: Terminal) -> TerminalRead:
@@ -362,7 +351,7 @@ def deactivate_connection(
             detail="Conexão óptica não encontrada ou já inativa.",
         )
 
-    _validate_if_match(if_match, conn.version)
+    check_if_match(if_match, conn.version)
 
     sorted_ids = sorted([conn.terminal_a_id, conn.terminal_b_id])
     locked_terms = {
@@ -501,7 +490,8 @@ def execute_batch_connections(
                 detail=f"O terminal '{term.label}' ({term.id}) pertence a outra estrutura e não pode ser manipulado nesta caixa.",
             )
 
-    # 4. Executar cada operação em ordem transacional
+    # 4. Executar cada operação em ordem transacional (auditoria única do lote ao final)
+    audit_ops: list[dict[str, Any]] = []
     for idx, op in enumerate(payload.operations):
         term_a = locked_terminals[uuid.UUID(op.terminal_a_id)]
 
@@ -523,15 +513,14 @@ def execute_batch_connections(
             term_a.occupancy = "free"
             term_a.is_occupied = False
 
-            record_audit_event(
-                db,
-                actor_id=actor_id,
-                actor_name=actor_name,
-                action="reservation_released",
-                entity_type="terminal_reservation",
-                entity_id=res.id if res else term_a.id,
-                changes={"terminal_id": str(term_a.id), "label": term_a.label},
-                request_id=request_id,
+            audit_ops.append(
+                {
+                    "action": "reservation_released",
+                    "entity_type": "terminal_reservation",
+                    "entity_id": str(res.id if res else term_a.id),
+                    "terminal_id": str(term_a.id),
+                    "label": term_a.label,
+                }
             )
 
         elif op.action == BatchOperationType.RESERVE:
@@ -558,19 +547,15 @@ def execute_batch_connections(
             db.flush()
             term_a.occupancy = "reserved"
 
-            record_audit_event(
-                db,
-                actor_id=actor_id,
-                actor_name=actor_name,
-                action="terminal_reserved",
-                entity_type="terminal_reservation",
-                entity_id=reservation.id,
-                changes={
+            audit_ops.append(
+                {
+                    "action": "terminal_reserved",
+                    "entity_type": "terminal_reservation",
+                    "entity_id": str(reservation.id),
                     "terminal_id": str(term_a.id),
                     "label": term_a.label,
                     "reason": reservation.reason,
-                },
-                request_id=request_id,
+                }
             )
 
         elif op.action == BatchOperationType.DISCONNECT:
@@ -618,19 +603,15 @@ def execute_batch_connections(
                 other_term.is_occupied = False
                 other_term.occupancy = "free"
 
-            record_audit_event(
-                db,
-                actor_id=actor_id,
-                actor_name=actor_name,
-                action="connection_deactivated",
-                entity_type="connection",
-                entity_id=conn.id,
-                changes={
+            audit_ops.append(
+                {
+                    "action": "connection_deactivated",
+                    "entity_type": "connection",
+                    "entity_id": str(conn.id),
                     "connection_id": str(conn.id),
                     "terminal_a_id": str(conn.terminal_a_id),
                     "terminal_b_id": str(conn.terminal_b_id),
-                },
-                request_id=request_id,
+                }
             )
 
         elif op.action == BatchOperationType.CONNECT:
@@ -720,24 +701,30 @@ def execute_batch_connections(
             term_b.is_occupied = True
             term_b.occupancy = "connected"
 
-            record_audit_event(
-                db,
-                actor_id=actor_id,
-                actor_name=actor_name,
-                action="connection_created",
-                entity_type="connection",
-                entity_id=new_conn.id,
-                changes={
+            audit_ops.append(
+                {
+                    "action": "connection_created",
+                    "entity_type": "connection",
+                    "entity_id": str(new_conn.id),
                     "terminal_a_id": str(term_a.id),
                     "terminal_b_id": str(term_b.id),
                     "connection_type": conn_type,
                     "loss_db": loss_db,
                     "structure_id": str(struct_id),
-                },
-                request_id=request_id,
+                }
             )
 
     new_rev = bump_topology_revision(db)
+    record_audit_event(
+        db,
+        actor_id=actor_id,
+        actor_name=actor_name,
+        action="connection_batch_applied",
+        entity_type="structure",
+        entity_id=struct_id,
+        changes={"operations": audit_ops, "new_topology_revision": new_rev},
+        request_id=request_id,
+    )
     db.commit()
 
     return ConnectionBatchResponse(

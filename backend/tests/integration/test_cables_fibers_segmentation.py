@@ -289,7 +289,7 @@ def test_segment_split_at_access_structure(
     # 4. Executa a divisão atômica
     split_resp = client.post(
         f"/api/v1/cable-segments/{original_seg_id}/split",
-        json=preview_payload,
+        json={**preview_payload, "expected_topology_revision": rev_before_split},
         headers={"X-CSRF-Token": csrf_token},
     )
     assert split_resp.status_code == 200, split_resp.text

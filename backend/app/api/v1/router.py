@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from app.api.v1.attachments import attachments_router
 from app.api.v1.auth import auth_router
@@ -17,24 +17,34 @@ from app.api.v1.settings import settings_router
 from app.api.v1.splitters import splitters_router
 from app.api.v1.topology import topology_router
 from app.api.v1.users import users_router
+from app.core.dependencies import get_current_user
+from app.modules.audit.hooks import audit_mutation
 
 api_v1_router = APIRouter()
 
-# Registro de todos os routers da API v1
+# Autenticação por padrão (allow-by-default é proibido): todo router de negócio nasce protegido
+# por `get_current_user`; a permissão específica de cada rota continua em `require_permission`.
+# Ficam de fora, deliberadamente: health (sondas do orquestrador), auth (login/CSRF/logout
+# precisam ser anônimos; /me e /change-password exigem sessão por rota) e metrics (aceita
+# X-Metrics-Token de agentes de monitoramento ou sessão admin — ver verify_metrics_access).
+# tests/integration/test_auth_by_default.py varre todas as rotas e falha se uma nascer aberta.
+# audit_mutation prepara o contexto da auditoria central de mutações (modules/audit/hooks.py)
+authenticated = [Depends(get_current_user), Depends(audit_mutation)]
+
 api_v1_router.include_router(health_router, prefix="/health")
 api_v1_router.include_router(auth_router)
-api_v1_router.include_router(users_router)
-api_v1_router.include_router(inventory_router)
-api_v1_router.include_router(cables_router)
-api_v1_router.include_router(splitters_router)
-api_v1_router.include_router(connectivity_router)
-api_v1_router.include_router(customers_router)
-api_v1_router.include_router(topology_router)
-api_v1_router.include_router(optical_router)
-api_v1_router.include_router(measurements_router)
-api_v1_router.include_router(map_router)
-api_v1_router.include_router(attachments_router)
-api_v1_router.include_router(imports_exports_router)
-api_v1_router.include_router(reports_router)
-api_v1_router.include_router(settings_router)
+api_v1_router.include_router(users_router, dependencies=authenticated)
+api_v1_router.include_router(inventory_router, dependencies=authenticated)
+api_v1_router.include_router(cables_router, dependencies=authenticated)
+api_v1_router.include_router(splitters_router, dependencies=authenticated)
+api_v1_router.include_router(connectivity_router, dependencies=authenticated)
+api_v1_router.include_router(customers_router, dependencies=authenticated)
+api_v1_router.include_router(topology_router, dependencies=authenticated)
+api_v1_router.include_router(optical_router, dependencies=authenticated)
+api_v1_router.include_router(measurements_router, dependencies=authenticated)
+api_v1_router.include_router(map_router, dependencies=authenticated)
+api_v1_router.include_router(attachments_router, dependencies=authenticated)
+api_v1_router.include_router(imports_exports_router, dependencies=authenticated)
+api_v1_router.include_router(reports_router, dependencies=authenticated)
+api_v1_router.include_router(settings_router, dependencies=authenticated)
 api_v1_router.include_router(metrics_router)

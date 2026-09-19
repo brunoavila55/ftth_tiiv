@@ -125,8 +125,9 @@ def test_login_deactivated_user(
         json={"email": test_admin_user.email, "password": "SenhaSegura123!"},
         headers={"X-CSRF-Token": csrf_token},
     )
-    assert resp.status_code == status.HTTP_403_FORBIDDEN
-    assert resp.json()["code"] == "user_deactivated"
+    # SEC-07: desativado responde igual a credencial inválida (não revela o estado da conta)
+    assert resp.status_code == status.HTTP_401_UNAUTHORIZED
+    assert resp.json()["code"] == "invalid_credentials"
 
 
 def test_login_rate_limiting(

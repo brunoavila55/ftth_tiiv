@@ -32,6 +32,7 @@ import {
   Plus,
 } from "lucide-react";
 import Link from "next/link";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 export interface CableDetailViewProps {
   cableId: string;
@@ -150,25 +151,29 @@ export function CableDetailView({ cableId }: CableDetailViewProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs"
-            onClick={() => setEditDialogOpen(true)}
-          >
-            <Edit className="h-3.5 w-3.5" />
-            <span>Editar</span>
-          </Button>
+          <PermissionGate permission="network:write">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setEditDialogOpen(true)}
+            >
+              <Edit className="h-3.5 w-3.5" />
+              <span>Editar</span>
+            </Button>
+          </PermissionGate>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-xs text-destructive hover:bg-destructive/10"
-            onClick={() => setDeactivateDialogOpen(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span>Desativar</span>
-          </Button>
+          <PermissionGate permission="network:write">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs text-destructive hover:bg-destructive/10"
+              onClick={() => setDeactivateDialogOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Desativar</span>
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -348,28 +353,32 @@ export function CableDetailView({ cableId }: CableDetailViewProps) {
                     </div>
 
                     <div className="flex items-center gap-2 shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          setSplittingSegment(seg);
-                          setSplitDialogOpen(true);
-                        }}
-                        className="h-8 gap-1.5 text-xs"
-                      >
-                        <Scissors className="h-3.5 w-3.5 text-primary" />
-                        <span>Dividir Trecho</span>
-                      </Button>
+                      <PermissionGate permission="network:write">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            setSplittingSegment(seg);
+                            setSplitDialogOpen(true);
+                          }}
+                          className="h-8 gap-1.5 text-xs"
+                        >
+                          <Scissors className="h-3.5 w-3.5 text-primary" />
+                          <span>Dividir Trecho</span>
+                        </Button>
+                      </PermissionGate>
 
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeleteSegment(seg.id, seg.version)}
-                        className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                        <span className="sr-only">Excluir Trecho</span>
-                      </Button>
+                      <PermissionGate permission="network:write">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleDeleteSegment(seg.id, seg.version)}
+                          className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          <span className="sr-only">Excluir Trecho</span>
+                        </Button>
+                      </PermissionGate>
                     </div>
                   </div>
                 );

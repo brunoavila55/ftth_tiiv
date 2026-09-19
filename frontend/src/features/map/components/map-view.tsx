@@ -14,6 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { LoadingState, ErrorState } from "@/components/ui/state-displays";
+import { PermissionGate } from "@/components/auth/permission-gate";
 import { getMapFeatures, formatBBox } from "../api";
 import { MapLegend } from "./map-legend";
 import { MapFeatureSheet } from "./map-feature-sheet";
@@ -444,20 +445,22 @@ export function MapView() {
         {viewMode === "map" ? (
           <div className="relative w-full h-full">
             {/* Barra de Ferramentas de Desenho Flutuante */}
-            <DrawingToolbar
-              mode={interactionMode}
-              pointKind={pointKind}
-              draft={activeDraft}
-              canUndo={historyIndex >= 0}
-              canRedo={historyIndex < history.length - 1}
-              currentLengthMeters={currentLengthMeters}
-              snapCandidate={snapCandidate}
-              onSetMode={handleSetMode}
-              onUndo={handleUndo}
-              onRedo={handleRedo}
-              onCancel={handleCancelDrawing}
-              onFinish={handleFinishDrawing}
-            />
+            <PermissionGate permission="network:write">
+              <DrawingToolbar
+                mode={interactionMode}
+                pointKind={pointKind}
+                draft={activeDraft}
+                canUndo={historyIndex >= 0}
+                canRedo={historyIndex < history.length - 1}
+                currentLengthMeters={currentLengthMeters}
+                snapCandidate={snapCandidate}
+                onSetMode={handleSetMode}
+                onUndo={handleUndo}
+                onRedo={handleRedo}
+                onCancel={handleCancelDrawing}
+                onFinish={handleFinishDrawing}
+              />
+            </PermissionGate>
 
             <OperationalMap
               features={features}

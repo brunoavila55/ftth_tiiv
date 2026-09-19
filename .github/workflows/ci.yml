@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [master, main]
 
+# Menor privilégio: nenhum job escreve no repositório. Jobs que precisam de mais declaram por conta própria.
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -38,25 +42,24 @@ jobs:
       ENVIRONMENT: test
       DATABASE_URL: postgresql+psycopg://ftth_user:ftth_password@localhost:5432/ftth_manager_test
       SECRET_KEY: test-secret-key-for-ci-must-be-long-and-secure-enough
-      STORAGE_LOCAL_PATH: /tmp/ftth_test_storage
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v3
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
         with:
           enable-cache: true
           cache-dependency-glob: "backend/uv.lock"
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
         with:
           python-version: "3.12"
 
       - name: Install dependencies
-        run: uv sync --frozen
+        run: uv sync --frozen --extra dev
 
       - name: Ruff Linter & Formatter Check
         run: |
@@ -66,11 +69,12 @@ jobs:
       - name: Mypy Static Type Analysis
         run: uv run mypy app
 
-      - name: OpenAPI Contract Drift Detection
-        run: uv run pytest tests/contract/test_openapi_schema.py -v
-
+      # Migrações ANTES de qualquer pytest: as fixtures autouse do conftest truncam tabelas do schema
       - name: Apply Database Migrations (Alembic Head)
         run: uv run alembic upgrade head
+
+      - name: OpenAPI Contract Drift Detection
+        run: uv run pytest tests/contract/test_openapi_schema.py -v
 
       - name: Execute Full Pytest Test Suite
         run: uv run pytest --cov=app --cov-report=xml -v
@@ -79,7 +83,7 @@ jobs:
         run: uv run python scripts/restore_drill.py
 
   frontend-ci:
-    name: Frontend CI (Lint, Typecheck & Vitest)
+    name: Frontend CI (Lint, Typecheck, Vitest & Build)
     runs-on: ubuntu-latest
 
     defaults:
@@ -88,17 +92,18 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
 
+      # A versão do pnpm vem do campo "packageManager" do package.json (mesma do Dockerfile)
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
         with:
-          version: 9
+          package_json_file: frontend/package.json
 
-      - name: Set up Node.js 20
-        uses: actions/setup-node@v4
+      - name: Set up Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
         with:
-          node-version: 20
+          node-version: 22
           cache: "pnpm"
           cache-dependency-path: frontend/pnpm-lock.yaml
 
@@ -113,3 +118,91 @@ jobs:
 
       - name: Component & Integration Tests (Vitest)
         run: pnpm test
+
+      - name: Production Build (Next.js)
+        run: pnpm build
+
+  security:
+    name: Security (dependency audit & secret scan)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read  # gitleaks-action lista os commits do PR
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0  # gitleaks varre o histórico
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+
+      - name: pip-audit (dependências Python de runtime)
+        working-directory: backend
+        run: |
+          uv export --frozen --no-dev --no-hashes --no-emit-project > /tmp/requirements-audit.txt
+          uvx pip-audit -r /tmp/requirements-audit.txt --no-deps --disable-pip
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@fc06bc1257f339d1d5d8b3a19a8cae5388b55320 # v4.4.0
+        with:
+          package_json_file: frontend/package.json
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: 22
+
+      - name: pnpm audit (falha em severidade alta ou crítica)
+        working-directory: frontend
+        run: pnpm audit --audit-level high
+
+      - name: Gitleaks (segredos no histórico)
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2.3.9
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  docker-build:
+    name: Docker (compose build & Trivy)
+    runs-on: ubuntu-latest
+
+    env:
+      COMPOSE_PROJECT_NAME: ftth
+      # Valores só para a interpolação do compose durante o build (nada disso vai para a imagem)
+      SECRET_KEY: ci-build-only
+      CSRF_SECRET: ci-build-only
+      METRICS_SECRET_TOKEN: ci-build-only
+      POSTGRES_PASSWORD: ci-build-only
+      BACKUP_SIGNING_KEY: ci-build-only
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+
+      # Falha se o build de qualquer imagem quebrar (ex.: COPY de diretório inexistente — issue 22)
+      - name: docker compose build
+        run: docker compose build backend frontend
+
+      # O worker roda `python scripts/run_worker.py` (sys.path[0]=/app/scripts): garante que o pacote
+      # `app` é importável dentro da imagem (regressão: ModuleNotFoundError e worker em loop de restart)
+      - name: Smoke — worker importa dentro da imagem
+        run: |
+          docker run --rm --entrypoint python ftth-backend \
+            -c "import runpy; runpy.run_path('scripts/run_worker.py', run_name='smoke')"
+
+      - name: Trivy — imagem do backend
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ftth-backend
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Trivy — imagem do frontend
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ftth-frontend
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          exit-code: "1"

@@ -43,7 +43,9 @@ O FTTH Manager implementa os seguintes controles de segurança nativos:
 ### 3.2. Proteção de Transporte e Navegação
 - **Proteção CSRF**: Validação rigorosa em tempo constante via token duplo (`X-CSRF-Token` + cookie) e validação do cabeçalho `Origin`.
 - **Cookies Seguros**: Cookies com flags `HttpOnly`, `SameSite=Lax` e `Secure` (em produção com TLS).
-- **Content-Security-Policy (CSP)**: Política estrita aplicada no Caddy/Reverse Proxy, bloqueando scripts inline e permitindo exclusivamente conexões autorizadas a servidores de tiles cartográficos.
+- **Content-Security-Policy (CSP)**: política por resposta com **nonce**, gerada pelo Next.js (`frontend/src/middleware.ts`): `script-src 'self' 'nonce-…' 'strict-dynamic'` — sem `unsafe-inline` nem `unsafe-eval` (o `unsafe-eval` existe só em desenvolvimento) —, workers `blob:` para o MapLibre e conexões/imagens restritas ao próprio site e aos servidores de tiles autorizados. As respostas da API recebem `default-src 'none'; frame-ancestors 'none'` no Caddy.
+- **TLS e HSTS**: com `SITE_ADDRESS=<domínio>` o Caddy obtém/renova certificados (Let's Encrypt), redireciona HTTP→HTTPS e envia `Strict-Transport-Security` (1 ano, `includeSubDomains`). Se o TLS for terminado em um balanceador externo, ele deve enviar `X-Forwarded-Proto: https` (o HSTS é emitido nesse caso também) e o backend deve listar o proxy em `TRUSTED_PROXIES`. Sem TLS (padrão `:80`) o cookie de sessão `Secure` só funciona em `localhost`.
+- **Endpoint de métricas**: `/api/v1/metrics` não é publicado pelo proxy (404 externo); o Prometheus deve acessá-lo pela rede interna com `X-Metrics-Token`.
 
 ### 3.3. Isolamento e Ambiente de Execução
 - **Usuários Não-Root em Contêineres**: Backend executado sob `ftthuser` (UID 1000) e frontend sob `nextjs` (UID 1001).

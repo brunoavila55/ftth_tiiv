@@ -7,6 +7,7 @@ import { type Attachment } from "../types";
 import { listAttachments } from "../api";
 import { AttachmentCard } from "./attachment-card";
 import { AttachmentUploadDialog } from "./attachment-upload-dialog";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 interface AttachmentsGalleryProps {
   entityType?: string;
@@ -79,14 +80,16 @@ export function AttachmentsGallery({
           </Button>
 
           {canUpload && entityId && entityType && (
-            <Button
-              size="sm"
-              onClick={() => setUploadOpen(true)}
-              className="h-8 text-xs"
-            >
-              <Camera className="h-3.5 w-3.5 mr-1.5" />
-              Adicionar Anexo / Foto
-            </Button>
+            <PermissionGate permission="attachments:write">
+              <Button
+                size="sm"
+                onClick={() => setUploadOpen(true)}
+                className="h-8 text-xs"
+              >
+                <Camera className="h-3.5 w-3.5 mr-1.5" />
+                Adicionar Anexo / Foto
+              </Button>
+            </PermissionGate>
           )}
         </div>
       </div>

@@ -8,6 +8,7 @@ from sqlalchemy import select
 from app.core.security import hash_password
 from app.db.session import get_session_factory
 from app.modules.identity.models import User
+from app.modules.identity.service import revoke_user_sessions
 from app.schemas.common import UserRole
 
 
@@ -80,6 +81,7 @@ def main() -> int:
             user.role = UserRole.ADMIN.value
             user.is_active = True
             user.version += 1
+            revoke_user_sessions(db, user.id)  # credencial nova: derruba todas as sessões antigas
             db.commit()
             print(f"SUCESSO: Credencial do administrador '{email}' redefinida com sucesso.")
             return 0

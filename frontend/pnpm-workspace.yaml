@@ -3,3 +3,7 @@ packages:
 allowBuilds:
   esbuild: true
   unrs-resolver: true
+# next fixa postcss 8.4.31 (vulnerável: XSS no stringify e leitura arbitrária via sourceMappingURL);
+# força a versão corrigida em todo o grafo de dependências.
+overrides:
+  postcss: ^8.5.28

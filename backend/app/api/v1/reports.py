@@ -3,7 +3,10 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 
-from app.core.dependencies import get_optional_current_user, require_permission
+from app.core.dependencies import get_current_user, require_permission
+from app.core.privacy import mask_pii_changes, user_can
+from app.core.rate_limit import rate_limit
+from app.core.search import MIN_SEARCH_LENGTH
 from app.db.session import get_db
 from app.modules.identity.models import User
 from app.modules.reports.service import (
@@ -13,7 +16,7 @@ from app.modules.reports.service import (
     get_cto_occupancy_report,
     get_inconsistencies_report,
 )
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 from app.schemas.reports import (
     AuditEventRead,
     CableCapacityReportItem,
@@ -31,6 +34,7 @@ reports_router = APIRouter(tags=["Relatórios, Busca e Auditoria"])
     response_model=DashboardSummaryResponse,
     summary="Resumo de indicadores do painel",
     description="Retorna contadores de ativos, faixas de ocupação de CTOs e alertas de incompletude técnica.",
+    dependencies=[Depends(require_permission("reports:read"))],
 )
 def get_dashboard_summary(db: Session = Depends(get_db)) -> DashboardSummaryResponse:
     return calculate_dashboard_summary(db)
@@ -41,14 +45,20 @@ def get_dashboard_summary(db: Session = Depends(get_db)) -> DashboardSummaryResp
     response_model=GlobalSearchResponse,
     summary="Busca global no inventário e rede",
     description="Realiza busca textual indexada por código, nome ou serial com agrupamento por tipo de entidade e escopo autorizado.",
+    dependencies=[Depends(rate_limit("search", "RATE_LIMIT_SEARCH_PER_MINUTE"))],
 )
 def global_search(
-    q: str = Query(..., min_length=2, description="Termo de pesquisa"),
+    q: str = Query(
+        ...,
+        min_length=MIN_SEARCH_LENGTH,
+        max_length=100,
+        description="Termo de pesquisa (mínimo de 3 caracteres: os índices trigram só atendem a partir daí)",
+    ),
     limit: int = Query(
         default=20, ge=1, le=100, description="Limite máximo de resultados por grupo"
     ),
     db: Session = Depends(get_db),
-    current_user: User | None = Depends(get_optional_current_user),
+    current_user: User = Depends(get_current_user),
 ) -> GlobalSearchResponse:
     return execute_global_search(db=db, q=q, limit=limit, current_user=current_user)
 
@@ -62,7 +72,7 @@ def global_search(
 )
 def list_cto_occupancy_report(
     pagination: PaginationParams = Depends(),
-    site_id: str | None = Query(default=None, description="Filtrar por UUID do Site"),
+    site_id: UuidStr | None = Query(default=None, description="Filtrar por UUID do Site"),
     min_occupancy_pct: float | None = Query(
         default=None, ge=0, le=100, description="Ocupação mínima %"
     ),
@@ -157,15 +167,21 @@ def list_inconsistencies_report(
     "/audit-events",
     response_model=PaginatedResponse[AuditEventRead],
     summary="Consultar trilha de auditoria append-only",
-    description="Retorna histórico ordenado de mutações e ações de usuários no sistema.",
-    dependencies=[Depends(require_permission("audit:read"))],
+    description=(
+        "Trilha append-only (imutável no banco) de TODAS as mutações da API — cadastros, cabos e "
+        "segmentos, conexões, medições, anexos, importações/exportações, usuários — e de "
+        "autenticação (login, falha de login, logout, troca de senha). Cada evento traz ator, "
+        "request_id e o diff da alteração (nunca segredos). Campos pessoais de clientes "
+        "(phone, email, address) são mascarados para quem não tem customers:read."
+    ),
 )
 def list_audit_events(
     pagination: PaginationParams = Depends(),
     entity_type: str | None = Query(default=None, description="Filtrar por tipo de entidade"),
-    entity_id: str | None = Query(default=None, description="Filtrar por UUID da entidade"),
-    actor_id: str | None = Query(default=None, description="Filtrar por UUID do autor"),
+    entity_id: UuidStr | None = Query(default=None, description="Filtrar por UUID da entidade"),
+    actor_id: UuidStr | None = Query(default=None, description="Filtrar por UUID do autor"),
     action: str | None = Query(default=None, description="Filtrar por tipo de ação"),
+    current_user: User = Depends(require_permission("audit:read")),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[AuditEventRead]:
     e_uuid: uuid.UUID | None = None
@@ -200,6 +216,7 @@ def list_audit_events(
         offset=(pagination.page - 1) * pagination.page_size,
     )
 
+    can_see_pii = user_can(current_user, "customers:read")
     results = [
         AuditEventRead(
             id=str(e.id),
@@ -208,7 +225,7 @@ def list_audit_events(
             action=e.action,
             entity_type=e.entity_type,
             entity_id=str(e.entity_id),
-            changes=e.changes or {},
+            changes=(e.changes or {}) if can_see_pii else mask_pii_changes(e.changes or {}),
             reason=e.reason,
             request_id=e.request_id,
             created_at=e.created_at,

@@ -16,13 +16,13 @@ def test_postgis_extension_and_real_database_readiness() -> None:
         assert postgis_version is not None
         assert "3." in str(postgis_version)
 
-        # Checa conectividade
-        conn_health = check_database_connectivity(session)
+        # Checa conectividade (conexão dedicada e curta, fora do pool da aplicação)
+        conn_health = check_database_connectivity()
         assert conn_health["status"] == "connected"
         assert conn_health["latency_ms"] >= 0.0
 
         # Checa migrações
-        mig_health = check_database_migrations(session)
+        mig_health = check_database_migrations()
         assert mig_health["status"] == "applied"
         assert mig_health["current_revision"] is not None
         assert mig_health["current_revision"].startswith("00")

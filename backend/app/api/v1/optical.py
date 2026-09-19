@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Header, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.dependencies import require_permission, validate_csrf
+from app.core.rate_limit import rate_limit
 from app.db.session import get_db
 from app.modules.optical.service import (
     calculate_service_link_budget,
@@ -13,7 +14,7 @@ from app.modules.optical.service import (
     simulate_optical_budget,
     update_optical_profile,
 )
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 from app.schemas.optical import (
     BudgetCalculationRequest,
     BudgetCalculationResponse,
@@ -77,7 +78,7 @@ def create_optical_profile_endpoint(
     dependencies=[Depends(require_permission("optical:read"))],
 )
 def get_optical_profile_endpoint(
-    profile_id: str,
+    profile_id: UuidStr,
     response: Response,
     db: Session = Depends(get_db),
 ) -> OpticalProfileRead:
@@ -93,7 +94,7 @@ def get_optical_profile_endpoint(
     dependencies=[Depends(require_permission("optical:write")), Depends(validate_csrf)],
 )
 def update_optical_profile_endpoint(
-    profile_id: str,
+    profile_id: UuidStr,
     payload: OpticalProfileUpdate,
     response: Response,
     if_match: str | None = Header(
@@ -115,7 +116,7 @@ def update_optical_profile_endpoint(
     dependencies=[Depends(require_permission("optical:write")), Depends(validate_csrf)],
 )
 def delete_optical_profile_endpoint(
-    profile_id: str,
+    profile_id: UuidStr,
     if_match: str | None = Header(
         default=None, description="Versão atual do recurso para concorrência otimista"
     ),
@@ -136,7 +137,10 @@ def delete_optical_profile_endpoint(
         "Calcula atenuação acumulada, potência RX prevista, margem de engenharia "
         "e sobrecarga para um atendimento documentado."
     ),
-    dependencies=[Depends(require_permission("optical:read"))],
+    dependencies=[
+        Depends(require_permission("optical:read")),
+        Depends(rate_limit("compute", "RATE_LIMIT_COMPUTE_PER_MINUTE")),
+    ],
 )
 def calculate_budget(
     payload: BudgetCalculationRequest,
@@ -154,7 +158,10 @@ def calculate_budget(
         "Compara o orçamento de potência original com um cenário hipotético que aplica overrides "
         "em perdas, comprimentos ou splitters sem alterar a rede física."
     ),
-    dependencies=[Depends(require_permission("optical:read"))],
+    dependencies=[
+        Depends(require_permission("optical:read")),
+        Depends(rate_limit("compute", "RATE_LIMIT_COMPUTE_PER_MINUTE")),
+    ],
 )
 def simulate_budget(
     payload: OpticalSimulationRequest,

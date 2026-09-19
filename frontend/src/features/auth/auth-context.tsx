@@ -82,9 +82,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const hasPermission = React.useCallback(
     (permission: Permission): boolean => {
       if (!user) return false;
-      // Valida tanto a lista explícita de permissões retornada pelo backend quanto a matriz de papéis
-      if (user.permissions && user.permissions.includes(permission)) {
-        return true;
+      // O backend é a autoridade: `permissions` de /auth/me manda; a matriz gerada só cobre
+      // respostas antigas sem o campo. (O servidor recusa qualquer ação sem permissão de qualquer forma.)
+      if (Array.isArray(user.permissions)) {
+        return user.permissions.includes(permission);
       }
       return checkPermission(user.role as UserRole, permission);
     },

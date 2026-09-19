@@ -7,7 +7,7 @@ from app.schemas.common import UserRole
 
 class LoginRequest(BaseModel):
     email: EmailStr = Field(..., description="E-mail corporativo do usuário")
-    password: str = Field(..., min_length=1, description="Senha do usuário")
+    password: str = Field(..., min_length=1, description="Senha do usuário", max_length=128)
 
 
 class MeResponse(BaseModel):
@@ -32,21 +32,23 @@ class CSRFResponse(BaseModel):
 
 
 class ChangePasswordRequest(BaseModel):
-    current_password: str = Field(..., description="Senha atual do usuário")
+    current_password: str = Field(..., description="Senha atual do usuário", max_length=128)
     new_password: str = Field(
-        ..., min_length=8, description="Nova senha com no mínimo 8 caracteres"
+        ..., min_length=8, description="Nova senha com no mínimo 8 caracteres", max_length=128
     )
 
 
 class UserCreate(BaseModel):
-    name: str = Field(..., min_length=2, description="Nome completo do usuário")
+    name: str = Field(..., min_length=2, description="Nome completo do usuário", max_length=150)
     email: EmailStr = Field(..., description="E-mail único do usuário")
     role: UserRole = Field(default=UserRole.VIEWER, description="Perfil de acesso inicial")
-    password: str = Field(..., min_length=8, description="Senha inicial gerada pelo administrador")
+    password: str = Field(
+        ..., min_length=8, description="Senha inicial gerada pelo administrador", max_length=128
+    )
 
 
 class UserUpdate(BaseModel):
-    name: str | None = Field(default=None, min_length=2)
+    name: str | None = Field(default=None, min_length=2, max_length=150)
     email: EmailStr | None = None
     role: UserRole | None = None
     is_active: bool | None = None

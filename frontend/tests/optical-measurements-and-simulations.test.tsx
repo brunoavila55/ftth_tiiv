@@ -8,6 +8,8 @@ import * as simulationsApi from "@/features/simulations/api";
 import type { MeasurementComparisonResponse, MeasurementRead } from "@/features/measurements/types";
 import type { OpticalSimulationResponse } from "@/features/simulations/types";
 
+vi.mock("@/features/auth/auth-context", () => import("./support/auth-context-mock"));
+
 // Mock das APIs
 vi.mock("@/features/measurements/api", () => ({
   listMeasurements: vi.fn(),

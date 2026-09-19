@@ -28,6 +28,7 @@ import {
   Cpu,
 } from "lucide-react";
 import Link from "next/link";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 export interface DeviceDetailViewProps {
   deviceId: string;
@@ -151,35 +152,41 @@ export function DeviceDetailView({ deviceId }: DeviceDetailViewProps) {
         </div>
 
         <div className="flex items-center gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs"
-            onClick={() => setPortDialogOpen(true)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            <span>Nova Porta</span>
-          </Button>
+          <PermissionGate permission="network:write">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setPortDialogOpen(true)}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              <span>Nova Porta</span>
+            </Button>
+          </PermissionGate>
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs"
-            onClick={() => setEditDialogOpen(true)}
-          >
-            <Edit className="h-3.5 w-3.5" />
-            <span>Editar</span>
-          </Button>
+          <PermissionGate permission="network:write">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setEditDialogOpen(true)}
+            >
+              <Edit className="h-3.5 w-3.5" />
+              <span>Editar</span>
+            </Button>
+          </PermissionGate>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-xs text-destructive hover:bg-destructive/10"
-            onClick={() => setDeactivateDialogOpen(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span>Desativar</span>
-          </Button>
+          <PermissionGate permission="network:write">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs text-destructive hover:bg-destructive/10"
+              onClick={() => setDeactivateDialogOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Desativar</span>
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -323,10 +330,12 @@ export function DeviceDetailView({ deviceId }: DeviceDetailViewProps) {
                 Portas PON, uplinks de agregação e interfaces ópticas do dispositivo.
               </p>
             </div>
-            <Button size="sm" onClick={() => setPortDialogOpen(true)} className="gap-1.5 text-xs">
-              <Plus className="h-4 w-4" />
-              <span>Nova Porta</span>
-            </Button>
+            <PermissionGate permission="network:write">
+              <Button size="sm" onClick={() => setPortDialogOpen(true)} className="gap-1.5 text-xs">
+                <Plus className="h-4 w-4" />
+                <span>Nova Porta</span>
+              </Button>
+            </PermissionGate>
           </div>
 
           {portsData?.items && portsData.items.length > 0 ? (

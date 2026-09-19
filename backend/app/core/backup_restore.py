@@ -5,36 +5,67 @@ Garante backup atômico e verificável de:
 2. Anexos físicos e fotos armazenados no volume persistente.
 3. Manifesto com hashes criptográficos SHA256, versão de schema e revisão topológica.
 
-Suporta pg_dump/pg_restore quando disponíveis e fallback nativo de alta performance
-via protocolo binário COPY do psycopg com 'session_replication_role = replica'.
+Suporta pg_dump/pg_restore quando disponíveis e fallback nativo via protocolo binário COPY do
+psycopg (snapshot REPEATABLE READ; a restauração desativa triggers só durante a carga e revalida
+TODAS as chaves estrangeiras antes do commit).
+
+Segurança (SEC-10 / EST-19):
+- manifesto autenticado por HMAC-SHA256 (`BACKUP_SIGNING_KEY`), verificado ANTES de extrair;
+- toda extração de tar usa `filter="data"` (sem path traversal/links) e nomes validados;
+- nomes de tabela vindos do arquivo passam por regex + allowlist (information_schema) e por
+  `psycopg.sql.Identifier` — nunca são interpolados em SQL;
+- pacote opcionalmente criptografado com AES-256-GCM (`BACKUP_ENCRYPTION_KEY`), permissão 0600.
 """
 
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import logging
 import os
+import re
 import shutil
 import subprocess
 import tarfile
 import tempfile
 import uuid
+from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Literal
 from urllib.parse import urlparse
 
 import psycopg
+from psycopg import sql
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
+from app.core.backup_crypto import (
+    BackupCryptoError,
+    decrypt_file,
+    encrypt_file,
+    is_encrypted_file,
+)
 from app.core.config import get_settings
 from app.db.session import get_session_factory
 
 logger = logging.getLogger("ftth.backup")
 
 EXCLUDED_TABLES = {"spatial_ref_sys", "raster_columns", "raster_overviews"}
+TABLE_MEMBER_PATTERN = re.compile(r"^[a-z_][a-z0-9_]{0,62}\.bin$")
+MAX_MANIFEST_BYTES = 1024 * 1024
+# Usada só fora de produção quando BACKUP_SIGNING_KEY não está definida (em produção é obrigatória)
+DEV_SIGNING_KEY = "ftth-manager-dev-backup-signing-key-not-for-production"
+
+
+class BackupError(Exception):
+    """Falha operacional de backup/restore."""
+
+
+class BackupIntegrityError(BackupError, ValueError):
+    """Pacote adulterado, com assinatura inválida, conteúdo malicioso ou dado inconsistente."""
 
 
 @dataclass
@@ -51,6 +82,67 @@ class BackupManifest:
     database_size_bytes: int
     attachments_size_bytes: int
     total_archive_size_bytes: int = 0
+    signature: str = ""  # HMAC-SHA256 do manifesto (sem este campo) com BACKUP_SIGNING_KEY
+
+
+def get_signing_key() -> str:
+    settings = get_settings()
+    if settings.BACKUP_SIGNING_KEY:
+        return settings.BACKUP_SIGNING_KEY
+    if settings.is_production:
+        raise BackupError("BACKUP_SIGNING_KEY não configurada (obrigatória em produção).")
+    logger.warning(
+        "BACKUP_SIGNING_KEY ausente: usando chave de desenvolvimento (não use em produção)."
+    )
+    return DEV_SIGNING_KEY
+
+
+def sign_manifest(manifest: dict[str, object], key: str) -> str:
+    """HMAC-SHA256 do manifesto canônico (JSON ordenado, sem o campo `signature`)."""
+    payload = {k: v for k, v in manifest.items() if k != "signature"}
+    canonical = json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return hmac.new(key.encode("utf-8"), canonical.encode("utf-8"), hashlib.sha256).hexdigest()
+
+
+def read_verified_manifest(archive_path: Path) -> BackupManifest:
+    """Lê `manifest.json` SEM extrair nada e confere a assinatura antes de qualquer outra ação."""
+    try:
+        with tarfile.open(archive_path, "r:gz") as tar:
+            candidates = [m for m in tar.getmembers() if m.name == "manifest.json" and m.isfile()]
+            if len(candidates) != 1 or candidates[0].size > MAX_MANIFEST_BYTES:
+                raise BackupIntegrityError("Backup inválido: manifest.json ausente ou anômalo.")
+            handle = tar.extractfile(candidates[0])
+            manifest_dict = json.loads(handle.read().decode("utf-8")) if handle else {}
+    except (tarfile.TarError, OSError, ValueError, UnicodeDecodeError) as err:
+        if isinstance(err, BackupIntegrityError):
+            raise
+        raise BackupIntegrityError(f"Backup ilegível ou corrompido: {err}") from err
+
+    signature = str(manifest_dict.get("signature") or "")
+    expected = sign_manifest(manifest_dict, get_signing_key())
+    if not signature or not hmac.compare_digest(signature, expected):
+        raise BackupIntegrityError(
+            "Assinatura do manifesto inválida ou ausente: o backup foi adulterado, "
+            "é de outra instalação ou foi gerado sem assinatura."
+        )
+    try:
+        return BackupManifest(**manifest_dict)
+    except TypeError as err:
+        raise BackupIntegrityError(f"Manifesto com campos inesperados: {err}") from err
+
+
+def safe_extract(
+    archive: Path, destination: Path, mode: Literal["r:*", "r:gz", "r:"] = "r:*"
+) -> None:
+    """Extrai um tar com o filtro seguro `data` (bloqueia `..`, caminhos absolutos, links e devices)."""
+    destination.mkdir(parents=True, exist_ok=True)
+    try:
+        with tarfile.open(archive, mode) as tar:
+            tar.extractall(path=destination, filter="data")
+    except (tarfile.FilterError, tarfile.TarError, OSError) as err:
+        raise BackupIntegrityError(
+            f"Conteúdo do pacote recusado (extração insegura): {err}"
+        ) from err
 
 
 def calculate_sha256(file_path: Path) -> str:
@@ -92,33 +184,47 @@ def get_current_schema_version(db_url: str | None = None) -> str:
         return str(res) if res is not None else "head"
 
 
-def dump_database_psycopg_binary(db_url: str, output_dir: Path) -> Path:
-    """Exporta tabelas do PostgreSQL em formato binário COPY nativo do psycopg."""
+def _raw_url(db_url: str) -> str:
+    return db_url.replace("postgresql+psycopg://", "postgresql://")
+
+
+def dump_database_psycopg_binary(
+    db_url: str,
+    output_dir: Path,
+    on_table_dumped: Callable[[str], None] | None = None,
+) -> Path:
+    """Exporta as tabelas em COPY binário dentro de UM snapshot (REPEATABLE READ, somente leitura).
+
+    Todas as tabelas refletem o mesmo instante: escritas concorrentes durante o dump não geram
+    linhas-filhas sem o pai. `on_table_dumped` é um gancho para testes.
+    """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Converte URL do SQLAlchemy (ex: postgresql+psycopg://...) para formato psycopg puro
-    raw_url = db_url.replace("postgresql+psycopg://", "postgresql://")
-
-    with psycopg.connect(raw_url) as conn, conn.cursor() as cur:
-        # Lista todas as tabelas da aplicação
-        cur.execute(
-            """
+    with psycopg.connect(_raw_url(db_url)) as conn:
+        conn.isolation_level = psycopg.IsolationLevel.REPEATABLE_READ
+        conn.read_only = True
+        with conn.cursor() as cur:
+            cur.execute(
+                """
                 SELECT table_name
                 FROM information_schema.tables
                 WHERE table_schema = 'public'
                   AND table_type = 'BASE TABLE'
                 ORDER BY table_name;
                 """
-        )
-        tables = [r[0] for r in cur.fetchall() if r[0] not in EXCLUDED_TABLES]
+            )
+            tables = [r[0] for r in cur.fetchall() if r[0] not in EXCLUDED_TABLES]
 
-        dump_files: list[tuple[str, Path]] = []
-        for t in tables:
-            t_file = output_dir / f"{t}.bin"
-            with open(t_file, "wb") as f, cur.copy(f"COPY {t} TO STDOUT (FORMAT binary)") as copy:
-                for chunk in copy:
-                    f.write(chunk)
-            dump_files.append((t, t_file))
+            dump_files: list[tuple[str, Path]] = []
+            for t in tables:
+                t_file = output_dir / f"{t}.bin"
+                query = sql.SQL("COPY {} TO STDOUT (FORMAT binary)").format(sql.Identifier(t))
+                with open(t_file, "wb") as f, cur.copy(query) as copy:
+                    for chunk in copy:
+                        f.write(chunk)
+                dump_files.append((t, t_file))
+                if on_table_dumped is not None:
+                    on_table_dumped(t)
 
     # Compacta em um único arquivo de banco
     final_dump = output_dir / "database.dump"
@@ -130,38 +236,102 @@ def dump_database_psycopg_binary(db_url: str, output_dir: Path) -> Path:
     return final_dump
 
 
+def _verify_foreign_keys(cur: psycopg.Cursor) -> None:
+    """Falha se alguma chave estrangeira do schema public estiver violada (linha filha sem pai)."""
+    cur.execute(
+        """
+        SELECT c.conname,
+               (SELECT relname FROM pg_class WHERE oid = c.conrelid),
+               (SELECT relname FROM pg_class WHERE oid = c.confrelid),
+               (SELECT array_agg(a.attname::text ORDER BY k.ord)
+                  FROM unnest(c.conkey) WITH ORDINALITY k(attnum, ord)
+                  JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = k.attnum),
+               (SELECT array_agg(a.attname::text ORDER BY k.ord)
+                  FROM unnest(c.confkey) WITH ORDINALITY k(attnum, ord)
+                  JOIN pg_attribute a ON a.attrelid = c.confrelid AND a.attnum = k.attnum)
+        FROM pg_constraint c
+        WHERE c.contype = 'f' AND c.connamespace = 'public'::regnamespace
+        """
+    )
+    constraints = cur.fetchall()
+    violated: list[str] = []
+    for conname, child, parent, child_cols, parent_cols in constraints:
+        not_null = sql.SQL(" AND ").join(
+            sql.SQL("c.{} IS NOT NULL").format(sql.Identifier(col)) for col in child_cols
+        )
+        match = sql.SQL(" AND ").join(
+            sql.SQL("p.{} = c.{}").format(sql.Identifier(pc), sql.Identifier(cc))
+            for cc, pc in zip(child_cols, parent_cols, strict=True)
+        )
+        query = sql.SQL(
+            "SELECT 1 FROM {child} c WHERE {not_null} "
+            "AND NOT EXISTS (SELECT 1 FROM {parent} p WHERE {match}) LIMIT 1"
+        ).format(
+            child=sql.Identifier(child),
+            parent=sql.Identifier(parent),
+            not_null=not_null,
+            match=match,
+        )
+        cur.execute(query)
+        if cur.fetchone() is not None:
+            violated.append(f"{child}.{conname}")
+    if violated:
+        raise BackupIntegrityError(
+            "Restauração recusada: violação de integridade referencial em "
+            + ", ".join(sorted(violated))
+        )
+
+
 def restore_database_psycopg_binary(db_url: str, dump_path: Path) -> None:
-    """Restaura tabelas do PostgreSQL usando COPY FROM binário com desativação de triggers."""
-    extract_dir = dump_path.parent / "extracted_db"
-    extract_dir.mkdir(parents=True, exist_ok=True)
+    """Restaura as tabelas com COPY FROM binário, de forma atômica e validada.
 
-    with tarfile.open(dump_path, "r") as tar:
-        tar.extractall(path=extract_dir)
+    1. valida os nomes dos membros do dump (regex) — antes de abrir qualquer conexão;
+    2. confere cada tabela contra a allowlist do banco (information_schema);
+    3. carrega tudo numa transação com triggers desativados, revalida as chaves estrangeiras e só
+       então faz commit (qualquer falha reverte tudo).
+    """
+    with tempfile.TemporaryDirectory(prefix="ftth_restore_db_") as tmp:
+        extract_dir = Path(tmp)
+        try:
+            with tarfile.open(dump_path, "r") as tar:
+                names = [m.name for m in tar.getmembers()]
+        except (tarfile.TarError, OSError) as err:
+            raise BackupIntegrityError(f"Dump do banco ilegível: {err}") from err
+        invalid = [n for n in names if not TABLE_MEMBER_PATTERN.fullmatch(n)]
+        if invalid:
+            raise BackupIntegrityError(
+                f"Dump recusado: nome(s) de tabela inválido(s) no arquivo: {invalid[:3]!r}"
+            )
+        safe_extract(dump_path, extract_dir, "r:")
 
-    raw_url = db_url.replace("postgresql+psycopg://", "postgresql://")
+        with psycopg.connect(_raw_url(db_url), autocommit=False) as conn, conn.cursor() as cur:
+            cur.execute(
+                "SELECT table_name FROM information_schema.tables "
+                "WHERE table_schema = 'public' AND table_type = 'BASE TABLE'"
+            )
+            allowed = {r[0] for r in cur.fetchall()} - EXCLUDED_TABLES
+            bin_files = sorted(extract_dir.glob("*.bin"))
+            unknown = [f.stem for f in bin_files if f.stem not in allowed]
+            if unknown:
+                raise BackupIntegrityError(
+                    f"Dump recusado: tabela(s) inexistente(s) no schema do destino: {unknown[:3]!r}"
+                )
 
-    with psycopg.connect(raw_url, autocommit=False) as conn, conn.cursor() as cur:
-        # Desativa temporariamente validação de integridade referencial para carga em lote
-        cur.execute("SET session_replication_role = 'replica';")
+            # Desativa temporariamente triggers/FKs para a carga em lote
+            cur.execute("SET session_replication_role = 'replica';")
+            for f in bin_files:
+                cur.execute(sql.SQL("TRUNCATE TABLE {} CASCADE").format(sql.Identifier(f.stem)))
+            for f in bin_files:
+                copy_sql = sql.SQL("COPY {} FROM STDIN (FORMAT binary)").format(
+                    sql.Identifier(f.stem)
+                )
+                with open(f, "rb") as bf, cur.copy(copy_sql) as copy:
+                    while chunk := bf.read(65536):
+                        copy.write(chunk)
 
-        bin_files = sorted(extract_dir.glob("*.bin"))
-        # Limpa tabelas antes de restaurar
-        for f in bin_files:
-            table_name = f.stem
-            cur.execute(f"TRUNCATE TABLE {table_name} CASCADE;")
-
-        # Carrega dados tabela por tabela
-        for f in bin_files:
-            table_name = f.stem
-            with open(f, "rb") as bf, cur.copy(f"COPY {table_name} FROM STDIN (FORMAT binary)") as copy:
-                while chunk := bf.read(65536):
-                    copy.write(chunk)
-
-        # Reativa verificação de constraints
-        cur.execute("SET session_replication_role = 'origin';")
-        conn.commit()
-
-    shutil.rmtree(extract_dir, ignore_errors=True)
+            cur.execute("SET session_replication_role = 'origin';")
+            _verify_foreign_keys(cur)  # falha → o `with` faz rollback de toda a carga
+            conn.commit()
 
 
 def create_backup(
@@ -173,6 +343,7 @@ def create_backup(
     settings = get_settings()
     db_url = db_url or settings.DATABASE_URL
     storage_path = Path(storage_path or settings.STORAGE_PATH)
+    signing_key = get_signing_key()  # falha cedo (produção sem chave)
 
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     backup_id = str(uuid.uuid4())
@@ -194,7 +365,7 @@ def create_backup(
         db_dump_file = tmp_dir / "database.dump"
 
         if has_pg_dump:
-            parsed = urlparse(db_url.replace("postgresql+psycopg://", "postgresql://"))
+            parsed = urlparse(_raw_url(db_url))
             cmd = [
                 "pg_dump",
                 "-h",
@@ -205,7 +376,7 @@ def create_backup(
                 parsed.username or "postgres",
                 "-d",
                 parsed.path.lstrip("/"),
-                "-Fc",
+                "-Fc",  # snapshot único e consistente
                 "--no-owner",
                 "--no-privileges",
                 "-f",
@@ -245,7 +416,7 @@ def create_backup(
         att_sha256 = calculate_sha256(attachments_tar)
         att_size = attachments_tar.stat().st_size
 
-        # 4. Criar Manifesto
+        # 4. Criar Manifesto autenticado (HMAC-SHA256)
         manifest = BackupManifest(
             backup_id=backup_id,
             created_at=datetime.now(UTC).isoformat(),
@@ -259,10 +430,12 @@ def create_backup(
             database_size_bytes=db_size,
             attachments_size_bytes=att_size,
         )
+        manifest_dict = asdict(manifest)
+        manifest_dict["signature"] = sign_manifest(manifest_dict, signing_key)
 
         manifest_file = tmp_dir / "manifest.json"
         with open(manifest_file, "w", encoding="utf-8") as f:
-            json.dump(asdict(manifest), f, indent=2)
+            json.dump(manifest_dict, f, indent=2)
 
         # 5. Compactar Pacote Final
         with tarfile.open(final_archive_path, "w:gz") as tar:
@@ -270,11 +443,26 @@ def create_backup(
             tar.add(db_dump_file, arcname="database.dump")
             tar.add(attachments_tar, arcname="attachments.tar.gz")
 
+        # 6. Criptografia opcional do pacote (AES-256-GCM); o texto claro é removido
+        encryption_key = settings.BACKUP_ENCRYPTION_KEY
+        if encryption_key:
+            encrypted_path = final_archive_path.with_name(final_archive_path.name + ".enc")
+            encrypt_file(final_archive_path, encrypted_path, encryption_key)
+            final_archive_path.unlink()
+            final_archive_path = encrypted_path
+        else:
+            logger.warning(
+                "Backup SEM criptografia (BACKUP_ENCRYPTION_KEY ausente): proteja o arquivo "
+                "com controles de acesso/criptografia de disco."
+            )
+        final_archive_path.chmod(0o600)  # só o dono lê
+
         manifest.total_archive_size_bytes = final_archive_path.stat().st_size
 
     logger.info(
         f"Backup concluído com sucesso: {final_archive_path.name} "
-        f"({manifest.total_archive_size_bytes / 1024:.1f} KB, rev #{topo_rev})"
+        f"({manifest.total_archive_size_bytes / 1024:.1f} KB, rev #{topo_rev}, "
+        f"{'criptografado' if encryption_key else 'sem criptografia'})"
     )
     return final_archive_path
 
@@ -285,7 +473,11 @@ def restore_backup(
     target_storage_path: Path | str | None = None,
     verify_checksums: bool = True,
 ) -> BackupManifest:
-    """Restaura banco e anexos a partir de um arquivo de backup verificado."""
+    """Restaura banco e anexos a partir de um pacote autenticado e verificado.
+
+    Ordem: (0) decifra, se criptografado; (1) verifica a assinatura do manifesto ANTES de extrair;
+    (2) extrai com filtro seguro; (3) confere os checksums; (4) restaura banco e anexos.
+    """
     archive_path = Path(archive_path)
     if not archive_path.exists():
         raise FileNotFoundError(f"Arquivo de backup não encontrado: {archive_path}")
@@ -297,26 +489,36 @@ def restore_backup(
     with tempfile.TemporaryDirectory() as tmp_dir_str:
         tmp_dir = Path(tmp_dir_str)
 
-        # 1. Extrair pacote de backup
-        with tarfile.open(archive_path, "r:gz") as tar:
-            tar.extractall(path=tmp_dir)
+        # 0. Pacote criptografado: exige a chave e autentica cada bloco (GCM)
+        working_archive = archive_path
+        if is_encrypted_file(archive_path):
+            if not settings.BACKUP_ENCRYPTION_KEY:
+                raise BackupIntegrityError(
+                    "Backup criptografado: defina BACKUP_ENCRYPTION_KEY para restaurar."
+                )
+            working_archive = tmp_dir / "decrypted.tar.gz"
+            try:
+                decrypt_file(archive_path, working_archive, settings.BACKUP_ENCRYPTION_KEY)
+            except BackupCryptoError as err:
+                raise BackupIntegrityError(str(err)) from err
 
-        manifest_file = tmp_dir / "manifest.json"
-        db_dump_file = tmp_dir / "database.dump"
-        attachments_tar = tmp_dir / "attachments.tar.gz"
+        # 1. Assinatura do manifesto — antes de extrair QUALQUER arquivo
+        manifest = read_verified_manifest(working_archive)
 
-        if not manifest_file.exists() or not db_dump_file.exists():
-            raise ValueError("Arquivo de backup inválido: manifest.json ou database.dump ausente.")
+        # 2. Extração segura
+        extract_dir = tmp_dir / "pkg"
+        safe_extract(working_archive, extract_dir, "r:gz")
 
-        with open(manifest_file, encoding="utf-8") as f:
-            manifest_dict = json.load(f)
-            manifest = BackupManifest(**manifest_dict)
+        db_dump_file = extract_dir / "database.dump"
+        attachments_tar = extract_dir / "attachments.tar.gz"
+        if not db_dump_file.exists():
+            raise BackupIntegrityError("Arquivo de backup inválido: database.dump ausente.")
 
-        # 2. Verificação Criptográfica de Integridade
+        # 3. Verificação Criptográfica de Integridade
         if verify_checksums:
             calc_db_sha = calculate_sha256(db_dump_file)
             if calc_db_sha != manifest.database_checksum_sha256:
-                raise ValueError(
+                raise BackupIntegrityError(
                     f"Integridade corrompida no dump do banco! "
                     f"Esperado: {manifest.database_checksum_sha256}, Obtido: {calc_db_sha}"
                 )
@@ -324,15 +526,19 @@ def restore_backup(
             if attachments_tar.exists():
                 calc_att_sha = calculate_sha256(attachments_tar)
                 if calc_att_sha != manifest.attachments_checksum_sha256:
-                    raise ValueError(
+                    raise BackupIntegrityError(
                         f"Integridade corrompida nos anexos! "
                         f"Esperado: {manifest.attachments_checksum_sha256}, Obtido: {calc_att_sha}"
                     )
 
-        # 3. Restauração do Banco de Dados
+        # 4a. Anexos primeiro (extração validada): se forem recusados, o banco nem é tocado
+        if attachments_tar.exists() and manifest.attachments_count > 0:
+            safe_extract(attachments_tar, target_storage_path, "r:gz")
+
+        # 4b. Restauração do Banco de Dados
         has_pg_restore = shutil.which("pg_restore") is not None
         if manifest.database_format == "pg_dump" and has_pg_restore:
-            parsed = urlparse(target_db_url.replace("postgresql+psycopg://", "postgresql://"))
+            parsed = urlparse(_raw_url(target_db_url))
             cmd = [
                 "pg_restore",
                 "-h",
@@ -358,12 +564,6 @@ def restore_backup(
         else:
             restore_database_psycopg_binary(target_db_url, db_dump_file)
 
-        # 4. Restauração dos Anexos Físicos
-        if attachments_tar.exists() and manifest.attachments_count > 0:
-            target_storage_path.mkdir(parents=True, exist_ok=True)
-            with tarfile.open(attachments_tar, "r:gz") as tar:
-                tar.extractall(path=target_storage_path)
-
     # 5. Verificação Pós-Restauração
     restored_topo_rev = get_current_topology_revision(target_db_url)
     restored_schema_rev = get_current_schema_version(target_db_url)
@@ -384,7 +584,7 @@ def prune_old_backups(backup_dir: Path | str, keep_count: int = 7) -> list[Path]
         return []
 
     backups = sorted(
-        bdir.glob("ftth_backup_*.tar.gz"),
+        [*bdir.glob("ftth_backup_*.tar.gz"), *bdir.glob("ftth_backup_*.tar.gz.enc")],
         key=lambda p: p.stat().st_mtime,
         reverse=True,
     )

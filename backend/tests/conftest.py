@@ -7,8 +7,9 @@ from fastapi.testclient import TestClient
 # Configurar ambiente de teste antes de importar a aplicação
 os.environ["ENVIRONMENT"] = "test"
 os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-characters-long"
-os.environ["DATABASE_URL"] = (
-    "postgresql+psycopg://ftth_user:ftth_password@127.0.0.1:5432/ftth_manager_test"
+os.environ["DATABASE_URL"] = os.environ.get(
+    "TEST_DATABASE_URL",
+    "postgresql+psycopg://ftth_user:ftth_password@127.0.0.1:5432/ftth_manager_test",
 )
 
 from sqlalchemy import text
@@ -17,6 +18,7 @@ from sqlalchemy.orm import Session
 from app.core.config import get_settings
 from app.db.session import get_session_factory
 from app.main import create_app
+from app.modules.identity.models import User  # noqa: E402
 
 
 @pytest.fixture(autouse=True)
@@ -24,6 +26,15 @@ def clear_settings_cache() -> Generator[None, None, None]:
     get_settings.cache_clear()
     yield
     get_settings.cache_clear()
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter() -> Generator[None, None, None]:
+    from app.core.rate_limit import reset_rate_limits
+
+    reset_rate_limits()
+    yield
+    reset_rate_limits()
 
 
 @pytest.fixture
@@ -59,3 +70,46 @@ def client() -> Generator[TestClient, None, None]:
     app = create_app()
     with TestClient(app, raise_server_exceptions=False) as test_client:
         yield test_client
+
+
+DEFAULT_TEST_PASSWORD = "SenhaSegura123!"
+
+
+def create_test_user(
+    db_session: Session,
+    email: str,
+    role: str = "admin",
+    password: str = DEFAULT_TEST_PASSWORD,
+    name: str | None = None,
+) -> User:
+    """Cria (e comita) um usuário ativo para os testes de integração."""
+    from app.core.security import hash_password
+    from app.modules.identity.models import User
+
+    user = User(
+        email=email,
+        name=name or f"User {role}",
+        password_hash=hash_password(password),
+        role=role,
+        is_active=True,
+        version=1,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+def login_test_client(client: TestClient, email: str, password: str = DEFAULT_TEST_PASSWORD) -> str:
+    """Faz login pelo fluxo real (CSRF + cookie) e devolve o token CSRF rotacionado."""
+    csrf_resp = client.get("/api/v1/auth/csrf")
+    assert csrf_resp.status_code == 200
+    login_resp = client.post(
+        "/api/v1/auth/login",
+        json={"email": email, "password": password},
+        headers={"X-CSRF-Token": csrf_resp.json()["csrf_token"]},
+    )
+    assert login_resp.status_code == 200, login_resp.text
+    rotated = client.cookies.get("ftth_csrf_token")
+    assert rotated is not None
+    return str(rotated)

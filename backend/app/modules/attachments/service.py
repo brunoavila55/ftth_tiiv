@@ -1,7 +1,9 @@
 import contextlib
 import hashlib
 import io
+import os
 import re
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -12,8 +14,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.privacy import CUSTOMER_PII_ENTITY_TYPES
 from app.modules.attachments.models import Attachment
-from app.modules.audit.service import record_audit_event
+from app.modules.audit.service import record_audit_event, record_contextual_event
 from app.modules.cables.models import Cable
 from app.modules.connectivity.models import Terminal
 from app.modules.customers.models import Customer, ServiceLink
@@ -107,9 +110,49 @@ def get_storage_directories() -> tuple[Path, Path]:
     return originals_dir, thumbnails_dir
 
 
+# entity_id fixo dos eventos de manutenção do armazenamento (não há linha por trás)
+STORAGE_AUDIT_ENTITY_ID = uuid.UUID("00000000-0000-4000-8000-0000000000a7")
+
+IMAGE_MIME_TYPES = ("image/jpeg", "image/png", "image/webp")
+
+
+def validate_image_dimensions(content: bytes, mime_type: str) -> None:
+    """Rejeita (422) imagens inválidas ou acima de MAX_IMAGE_PIXELS **sem decodificá-las**.
+
+    `Image.open` lê só o cabeçalho; a checagem de `size` evita bombas de descompressão (arquivo
+    pequeno que expande para centenas de MiB) e a exceção do Pillow é convertida em 422.
+    """
+    if mime_type not in IMAGE_MIME_TYPES:
+        return
+
+    max_pixels = get_settings().MAX_IMAGE_PIXELS
+    try:
+        with Image.open(io.BytesIO(content)) as img:
+            width, height = img.size
+    except (Image.DecompressionBombError, Image.DecompressionBombWarning) as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Imagem rejeitada: dimensões excedem o limite de {max_pixels} pixels.",
+        ) from err
+    except (UnidentifiedImageError, OSError, ValueError, SyntaxError) as err:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Imagem inválida ou corrompida.",
+        ) from err
+
+    if width * height > max_pixels:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"Imagem rejeitada: {width}x{height} pixels excede o limite de "
+                f"{max_pixels} pixels ({max_pixels / 1_000_000:.0f} megapixels)."
+            ),
+        )
+
+
 def generate_thumbnail_image(content: bytes, mime_type: str) -> bytes | None:
     """Gera miniatura redimensionada e reencodificada de forma segura para imagens."""
-    if mime_type not in ("image/jpeg", "image/png", "image/webp"):
+    if mime_type not in IMAGE_MIME_TYPES:
         return None
 
     try:
@@ -124,7 +167,7 @@ def generate_thumbnail_image(content: bytes, mime_type: str) -> bytes | None:
             output = io.BytesIO()
             thumb_img.save(output, format="WEBP", quality=80, method=6)
             return output.getvalue()
-    except (UnidentifiedImageError, OSError, ValueError):
+    except (Image.DecompressionBombError, UnidentifiedImageError, OSError, ValueError):
         return None
 
 
@@ -199,8 +242,9 @@ def save_attachment(
     # 1. Validar entidade existente
     validate_entity_exists(db, entity_type, entity_id)
 
-    # 2. Inspecionar conteúdo e magic bytes
+    # 2. Inspecionar conteúdo e magic bytes; validar dimensões da imagem sem decodificá-la
     mime_type, ext = inspect_file_content(raw_content)
+    validate_image_dimensions(raw_content, mime_type)
 
     # 3. Gerar hash SHA-256 e sanitizar nome
     sha256_hash = hashlib.sha256(raw_content).hexdigest()
@@ -211,58 +255,100 @@ def save_attachment(
     storage_filename = f"{file_id.hex}{ext}"
     originals_dir, thumbnails_dir = get_storage_directories()
 
-    original_target_path = originals_dir / storage_filename
-    original_target_path.write_bytes(raw_content)
-
-    # 5. Gerar miniatura se imagem
-    thumbnail_rel_path: str | None = None
+    # 5. Gerar miniatura (em memória) antes de gravar qualquer arquivo em disco
     thumb_bytes = generate_thumbnail_image(raw_content, mime_type)
-    if thumb_bytes:
-        thumb_filename = f"{file_id.hex}.webp"
-        thumb_target_path = thumbnails_dir / thumb_filename
-        thumb_target_path.write_bytes(thumb_bytes)
-        thumbnail_rel_path = f"thumbnails/{thumb_filename}"
+    if mime_type in IMAGE_MIME_TYPES and thumb_bytes is None:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Imagem inválida ou corrompida: não foi possível gerar a miniatura.",
+        )
 
-    # 6. Gravar metadados no banco
-    attachment = Attachment(
-        id=file_id,
-        entity_id=entity_id,
-        entity_type=entity_type.lower().strip(),
-        file_name=safe_name,
-        content_type=mime_type,
-        file_size_bytes=len(raw_content),
-        storage_path=f"originals/{storage_filename}",
-        thumbnail_path=thumbnail_rel_path,
-        checksum_sha256=sha256_hash,
-        caption=caption.strip() if caption else None,
-        user_id=user_id,
-    )
-    db.add(attachment)
+    original_target_path = originals_dir / storage_filename
+    thumb_filename = f"{file_id.hex}.webp"
+    thumb_target_path = thumbnails_dir / thumb_filename
+    thumbnail_rel_path = f"thumbnails/{thumb_filename}" if thumb_bytes else None
 
-    # 7. Registrar evento de auditoria append-only na mesma transação
-    record_audit_event(
-        db,
-        actor_id=user_id,
-        actor_name=user_name,
-        action="ATTACHMENT_UPLOAD",
-        entity_type=entity_type,
-        entity_id=entity_id,
-        changes={
-            "attachment_id": str(file_id),
-            "file_name": safe_name,
-            "content_type": mime_type,
-            "file_size_bytes": len(raw_content),
-            "checksum_sha256": sha256_hash,
-            "caption": caption,
-        },
-        reason="Upload de anexo/foto documental",
-        request_id=request_id,
-    )
+    # Consistência banco × disco (EST-09). Ordem:
+    #   1) grava em arquivos temporários (`*.uploading`, invisíveis para o reconciliador recente);
+    #   2) monta a linha + auditoria na sessão (nada visível ainda);
+    #   3) promove os temporários ao caminho final com os.replace (atômico);
+    #   4) commit. Se QUALQUER passo falhar, remove temporários e finais e reverte a sessão.
+    # Escolha (justificada): promover ANTES do commit e compensar na falha. O pior caso (queda do
+    # processo entre 3 e 4) deixa um arquivo órfão, que o reconciliador com carência por idade
+    # remove — nunca um registro apontando para arquivo inexistente (esse seria visível ao usuário).
+    staged: list[Path] = []
+    promoted: list[Path] = []
+    try:
+        staged_original = _stage_file(original_target_path, raw_content)
+        staged.append(staged_original)
+        staged_thumb: Path | None = None
+        if thumb_bytes:
+            staged_thumb = _stage_file(thumb_target_path, thumb_bytes)
+            staged.append(staged_thumb)
 
-    db.commit()
+        # 6. Gravar metadados no banco
+        attachment = Attachment(
+            id=file_id,
+            entity_id=entity_id,
+            entity_type=entity_type.lower().strip(),
+            file_name=safe_name,
+            content_type=mime_type,
+            file_size_bytes=len(raw_content),
+            storage_path=f"originals/{storage_filename}",
+            thumbnail_path=thumbnail_rel_path,
+            checksum_sha256=sha256_hash,
+            caption=caption.strip() if caption else None,
+            user_id=user_id,
+        )
+        db.add(attachment)
+
+        # 7. Registrar evento de auditoria append-only na mesma transação
+        record_audit_event(
+            db,
+            actor_id=user_id,
+            actor_name=user_name,
+            action="ATTACHMENT_UPLOAD",
+            entity_type=entity_type,
+            entity_id=entity_id,
+            changes={
+                "attachment_id": str(file_id),
+                "file_name": safe_name,
+                "content_type": mime_type,
+                "file_size_bytes": len(raw_content),
+                "checksum_sha256": sha256_hash,
+                "caption": caption,
+            },
+            reason="Upload de anexo/foto documental",
+            request_id=request_id,
+        )
+
+        # 8. Promove os temporários e confirma
+        os.replace(staged_original, original_target_path)
+        staged.remove(staged_original)
+        promoted.append(original_target_path)
+        if staged_thumb is not None:
+            os.replace(staged_thumb, thumb_target_path)
+            staged.remove(staged_thumb)
+            promoted.append(thumb_target_path)
+
+        db.commit()
+    except BaseException:
+        db.rollback()
+        for leftover in (*staged, *promoted):
+            with contextlib.suppress(OSError):
+                leftover.unlink()
+        raise
+
     db.refresh(attachment)
 
     return build_attachment_read(attachment)
+
+
+def _stage_file(target: Path, data: bytes) -> Path:
+    """Grava `data` em um arquivo temporário ao lado de `target` (promovido depois com os.replace)."""
+    staged = target.with_name(f"{target.name}.{uuid.uuid4().hex[:8]}.uploading")
+    staged.write_bytes(data)
+    return staged
 
 
 def get_attachment_by_id(db: Session, attachment_id: uuid.UUID) -> Attachment:
@@ -313,9 +399,16 @@ def list_attachments_paginated(
     entity_id: uuid.UUID | None = None,
     limit: int = 50,
     offset: int = 0,
+    include_customer_pii: bool = True,
 ) -> tuple[list[Attachment], int]:
-    """Lista anexos filtrados por entidade com paginação."""
+    """Lista anexos filtrados por entidade com paginação.
+
+    Sem `include_customer_pii` (usuário sem customers:read) omite anexos de cliente/vínculo.
+    """
     query = select(Attachment)
+
+    if not include_customer_pii:
+        query = query.where(Attachment.entity_type.not_in(sorted(CUSTOMER_PII_ENTITY_TYPES)))
 
     if entity_type:
         query = query.where(Attachment.entity_type == entity_type.lower().strip())
@@ -423,11 +516,22 @@ def reconcile_storage_orphans(
     orphans_removed: list[str] = []
     missing_disk_files: list[str] = []
 
-    # Detectar órfãos (arquivos em disco não cadastrados no banco)
+    # Carência: arquivo recente pode ser de um upload ainda não commitado (EST-09)
+    grace_seconds = settings.ATTACHMENT_ORPHAN_GRACE_MINUTES * 60
+    now = time.time()
+
+    # Detectar órfãos (arquivos em disco não cadastrados no banco e mais antigos que a carência)
     for f in disk_files:
         try:
             rel = str(f.relative_to(base_dir))
         except ValueError:
+            continue
+
+        try:
+            too_recent = now - f.stat().st_mtime < grace_seconds
+        except OSError:
+            continue
+        if too_recent:
             continue
 
         if rel not in known_relative_paths:
@@ -441,6 +545,20 @@ def reconcile_storage_orphans(
         orig_file = base_dir / a.storage_path
         if not orig_file.exists():
             missing_disk_files.append(f"{a.id}: {a.storage_path}")
+
+    if not dry_run:
+        # Manutenção destrutiva de arquivos (sem alterar linhas): auditada explicitamente
+        record_contextual_event(
+            db,
+            action="storage:reconciled",
+            entity_type="storage",
+            entity_id=STORAGE_AUDIT_ENTITY_ID,
+            changes={
+                "orphans_removed": len(orphans_removed),
+                "missing_disk_files": len(missing_disk_files),
+            },
+        )
+        db.commit()
 
     return AttachmentReconciliationResponse(
         total_disk_files=total_disk_files,

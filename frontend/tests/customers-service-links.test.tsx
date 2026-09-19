@@ -10,6 +10,8 @@ import * as customerApi from "@/features/customers/api";
 import type { CtoPortOccupancy, CustomerRead, ServiceLinkRead } from "@/features/customers/types";
 import type { DeviceRead } from "@/features/inventory/api";
 
+vi.mock("@/features/auth/auth-context", () => import("./support/auth-context-mock"));
+
 // Mock do next/navigation
 vi.mock("next/navigation", () => ({
   useRouter: () => ({

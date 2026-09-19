@@ -10,6 +10,8 @@ import * as mapApi from "@/features/map/api";
 import { api } from "@/lib/api/client";
 import type { MapFeature } from "@/features/map/types";
 
+vi.mock("@/features/auth/auth-context", () => import("./support/auth-context-mock"));
+
 // Mock do router do Next.js
 const mockReplace = vi.fn();
 vi.mock("next/navigation", () => ({

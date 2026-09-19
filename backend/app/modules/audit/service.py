@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.logging import request_id_ctx
 from app.modules.audit.models import AuditEvent
 
 SENSITIVE_KEYS = {
@@ -59,6 +60,8 @@ def record_audit_event(
     Se a transação for revertida (rollback), o evento de auditoria também é revertido atomicamente.
     """
     safe_changes = sanitize_audit_payload(changes or {})
+    if request_id is None:
+        request_id = request_id_ctx.get()  # correlação automática com o X-Request-ID da requisição
 
     event = AuditEvent(
         actor_id=actor_id,
@@ -72,6 +75,30 @@ def record_audit_event(
     )
     db.add(event)
     return event
+
+
+def record_contextual_event(
+    db: Session,
+    *,
+    action: str,
+    entity_type: str,
+    entity_id: uuid.UUID,
+    changes: dict[str, Any] | None = None,
+    reason: str | None = None,
+) -> AuditEvent:
+    """Registra evento explícito usando ator/request_id do contexto de auditoria da requisição."""
+    ctx = db.info.get("audit_ctx")
+    return record_audit_event(
+        db,
+        actor_id=getattr(ctx, "actor_id", None),
+        actor_name=getattr(ctx, "actor_name", "Sistema"),
+        action=action,
+        entity_type=entity_type,
+        entity_id=entity_id,
+        changes=changes,
+        reason=reason,
+        request_id=getattr(ctx, "request_id", None),
+    )
 
 
 def list_audit_events_paginated(

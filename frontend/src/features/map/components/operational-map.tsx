@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import maplibregl from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useTheme } from "next-themes";
 import { Plus, Minus, Maximize2, Locate, AlertTriangle, Fullscreen, Minimize2 } from "lucide-react";
