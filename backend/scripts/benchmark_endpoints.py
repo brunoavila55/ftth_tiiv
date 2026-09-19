@@ -19,6 +19,7 @@ import concurrent.futures
 import datetime
 import os
 import platform
+import secrets
 import statistics
 import sys
 import time
@@ -28,6 +29,7 @@ from typing import Any
 from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, text
 
+from app.core.script_safety import ALLOW_FLAG, guard_or_exit, raw_environment
 from app.core.security import hash_password, hash_session_token
 from app.main import create_app
 
@@ -56,6 +58,12 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=30,
         help="Número de repetições por teste de benchmark. Padrão: 30.",
+    )
+    parser.add_argument(
+        ALLOW_FLAG,
+        dest="allow_non_local",
+        action="store_true",
+        help="Permite rodar contra um banco NÃO local (nunca contra produção).",
     )
     return parser.parse_args()
 
@@ -131,7 +139,9 @@ def setup_benchmark_admin(engine: Any) -> tuple[str, str]:
                 {
                     "id": u_id,
                     "email": "benchmark.admin@ftth.local",
-                    "pw": hash_password("BenchmarkAdminSecret123!"),
+                    "pw": hash_password(
+                        secrets.token_urlsafe(24)
+                    ),  # aleatória e descartada: o benchmark autentica por sessão
                     "name": "Operador Benchmark B16",
                     "role": "admin",
                 },
@@ -433,6 +443,13 @@ def main() -> None:
     else:
         db_url = "postgresql+psycopg://ftth_user:ftth_password@127.0.0.1:5432/ftth_manager_test"
 
+    # Guarda ANTES de forçar ENVIRONMENT=test (senão produção passaria despercebida)
+    guard_or_exit(
+        db_url,
+        environment=raw_environment(),
+        allow_non_local=args.allow_non_local,
+        script="benchmark_endpoints.py",
+    )
     os.environ["ENVIRONMENT"] = "test"
     os.environ["DATABASE_URL"] = db_url
 

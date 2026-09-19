@@ -26,6 +26,13 @@ from typing import Any
 
 from sqlalchemy import create_engine, text
 
+from app.core.script_safety import (
+    ALLOW_FLAG,
+    guard_environment_or_exit,
+    guard_or_exit,
+    raw_environment,
+)
+
 # Coordenadas centrais (São Paulo - SP)
 CENTER_LAT = -23.550520
 CENTER_LON = -46.633308
@@ -86,6 +93,12 @@ def parse_args() -> argparse.Namespace:
         action="store_false",
         dest="clean",
         help="Não limpar tabelas antes de inserir.",
+    )
+    parser.add_argument(
+        ALLOW_FLAG,
+        dest="allow_non_local",
+        action="store_true",
+        help="Permite rodar contra um banco NÃO local (nunca contra produção).",
     )
     return parser.parse_args()
 
@@ -933,6 +946,7 @@ def generate_dataset(db_url: str, num_structures: int, seed: int, clean: bool) -
 
 def main() -> None:
     args = parse_args()
+    guard_environment_or_exit(environment=raw_environment(), script="generate_synthetic_load.py")
     if args.db_url:
         db_url = args.db_url
     elif args.target_db == "dev":
@@ -940,6 +954,13 @@ def main() -> None:
     else:
         db_url = "postgresql+psycopg://ftth_user:ftth_password@127.0.0.1:5432/ftth_manager_test"
 
+    # `TRUNCATE ... CASCADE` em banco remoto/produção é destrutivo: guarda ANTES de conectar
+    guard_or_exit(
+        db_url,
+        environment=raw_environment(),
+        allow_non_local=args.allow_non_local,
+        script="generate_synthetic_load.py",
+    )
     generate_dataset(
         db_url=db_url,
         num_structures=args.structures,

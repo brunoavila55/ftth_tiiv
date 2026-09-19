@@ -2,10 +2,11 @@
 """Seed Determinístico e Idempotente do Cenário Transversal B18.
 
 Executado sob demanda via CLI:
-    uv run python scripts/seed_demo.py [--clean] [--target-db dev|test]
+    uv run python scripts/seed_demo.py [--clean] [--target-db dev|test] [--i-know-this-is-not-prod]
 
 Popula o cenário transversal completo:
-1. Admin padrão (admin@provedor.com.br / AdminPass123!)
+1. Admin de demonstração (admin@provedor.com.br) com **senha aleatória**, exibida uma única vez
+   na criação (nenhuma senha fixa no repositório)
 2. Perfil Óptico GPON ITU-T G.984 Classe B+ (1490 nm, TX +2 a +5 dBm, RX -27 a -8 dBm)
 3. Site POP Central com Rack e OLT Huawei MA5800-X7 (Portas PON 1/1/1 e PON 1/1/2)
 4. Trajeto principal (7 km total):
@@ -21,11 +22,14 @@ Popula o cenário transversal completo:
 9. Histórico de atenuação degradada (-28.50 dBm) para relatórios de degradação
 
 ATENÇÃO: Este seed é estritamente opt-in e NUNCA é executado automaticamente no boot de produção.
+Ele **aborta** (código 2, sem tocar no banco) com ENVIRONMENT=production ou quando o banco não é
+local — neste último caso só roda com a flag explícita `--i-know-this-is-not-prod`.
 """
 
 from __future__ import annotations
 
 import argparse
+import secrets
 import sys
 from datetime import UTC, datetime
 from typing import Any
@@ -36,6 +40,12 @@ from sqlalchemy import create_engine, select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.script_safety import (
+    ALLOW_FLAG,
+    guard_environment_or_exit,
+    guard_or_exit,
+    raw_environment,
+)
 from app.core.security import hash_password
 from app.modules.cables.models import Cable, CableSegment, Fiber, FiberSegment, Tube
 from app.modules.connectivity.models import (
@@ -67,6 +77,12 @@ def parse_args() -> argparse.Namespace:
         "--clean",
         action="store_true",
         help="Remove todos os dados com prefixo DEMO antes de inserir o cenário.",
+    )
+    parser.add_argument(
+        ALLOW_FLAG,
+        dest="allow_non_local",
+        action="store_true",
+        help="Permite rodar contra um banco NÃO local (nunca contra produção).",
     )
     return parser.parse_args()
 
@@ -182,10 +198,12 @@ def seed_demo_scenario(session: Session) -> dict[str, Any]:
     # 1. Admin Bootstrap
     admin = session.scalar(select(User).where(User.email == "admin@provedor.com.br"))
     if not admin:
+        # Senha aleatória (128 bits), exibida UMA vez; só o hash Argon2id é gravado
+        admin_password = secrets.token_urlsafe(16)
         admin = User(
             email="admin@provedor.com.br",
             name="Administrador do Sistema",
-            password_hash=hash_password("AdminPass123!"),
+            password_hash=hash_password(admin_password),
             role=UserRole.ADMIN.value,
             is_active=True,
             version=1,
@@ -193,6 +211,9 @@ def seed_demo_scenario(session: Session) -> dict[str, Any]:
         session.add(admin)
         session.flush()
         print("  [+] Admin admin@provedor.com.br provisionado.")
+        print(
+            f"  [!] Senha do administrador (exibida uma única vez, anote agora): {admin_password}"
+        )
     else:
         print("  [.] Admin admin@provedor.com.br já existe.")
 
@@ -1103,7 +1124,15 @@ def seed_demo_scenario(session: Session) -> dict[str, Any]:
 
 def main() -> None:
     args = parse_args()
+    guard_environment_or_exit(environment=raw_environment(), script="seed_demo.py")
     db_url = get_db_url(args.target_db)
+    # Aborta ANTES de qualquer conexão: produção nunca; banco remoto só com a flag explícita
+    guard_or_exit(
+        db_url,
+        environment=raw_environment() or get_settings().ENVIRONMENT.value,
+        allow_non_local=args.allow_non_local,
+        script="seed_demo.py",
+    )
     print(f"[*] Conectando ao banco de dados [{args.target_db}]: {db_url}")
 
     engine = create_engine(db_url, echo=False)

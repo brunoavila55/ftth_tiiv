@@ -366,3 +366,14 @@ Rotina idempotente executada pelo worker a cada `RETENTION_INTERVAL_SECONDS` (36
 ## 26. Validação de identificadores
 
 Todo identificador de entrada (`*_id` em caminho, query, formulário ou corpo JSON) é validado como UUID (`UuidStr`, `format: uuid` no OpenAPI): valor malformado responde `422 application/problem+json` com o campo apontado — antes, ~14 rotas (clientes, atendimentos, conexões, conectividade/ocupação de estruturas, trace, criação de vínculos) respondiam `500` ao chamar `uuid.UUID(valor)`. UUID bem formado mas inexistente segue respondendo `404`. Nos campos de atualização em que `""` significa "remover o vínculo" (`DeviceUpdate.site_id/structure_id`, `StructureUpdate.site_id`) a string vazia continua aceita. Os testes `tests/integration/test_uuid_validation.py` varrem todas as rotas e o OpenAPI, e o guarda `test_request_caps.py` não abre mais exceção para `*_id`.
+
+---
+
+## 27. Scripts de demonstração e carga (guarda de ambiente)
+
+`backend/scripts/seed_demo.py`, `generate_synthetic_load.py` (faz `TRUNCATE ... CASCADE`) e `benchmark_endpoints.py` criam dados sintéticos e usuários; por isso **recusam rodar** (mensagem em stderr, **código de saída 2**, nenhuma conexão aberta) quando:
+
+- `ENVIRONMENT=production` — sempre, mesmo com a flag; ou
+- o host do banco não é local (`localhost`, `127.0.0.0/8`, `::1`, socket) e a flag `--i-know-this-is-not-prod` não foi passada (banco de homologação remoto: passe a flag conscientemente).
+
+A checagem de produção usa a variável `ENVIRONMENT` lida diretamente (antes das `Settings`) e, no benchmark, **antes** de o script forçar `ENVIRONMENT=test` para si. O admin do seed (`admin@provedor.com.br`) recebe senha **aleatória** (`secrets.token_urlsafe(16)`) impressa uma única vez — não há mais senha fixa no repositório, e a tela de login não exibe mais "credenciais de demonstração". Guarda: `app/core/script_safety.py`; testes: `tests/unit/test_script_safety.py` e `frontend/tests/login-no-demo-credentials.test.ts`.

@@ -45,6 +45,7 @@ Agradecemos o seu interesse em contribuir com o **FTTH Manager**! Este projeto �
    cd backend
    uv run python scripts/seed_demo.py --clean
    ```
+   > A senha do admin de demonstração (`admin@provedor.com.br`) é **aleatória** e aparece uma única vez na saída do seed — anote-a. O script aborta (código 2) com `ENVIRONMENT=production` e contra banco não local, salvo `--i-know-this-is-not-prod` (nunca em produção).
 
 ---
 
