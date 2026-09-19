@@ -9,7 +9,7 @@
 
 | | Antes | Agora |
 |---|---|---|
-| Achados (53) | 53 abertos (10 altos) | **50 corrigidos, 3 parciais** (PERF-09, EST-14, EST-17), 0 pendentes |
+| Achados (53) | 53 abertos (10 altos) | **51 corrigidos, 2 parciais** (PERF-09, EST-14), 0 pendentes |
 | Rotas sem autenticação (110 handlers) | 18 | **8** — todas intencionais: `health/live`×2, `health/ready`×2, `auth/csrf`, `auth/login`, `auth/logout`, `metrics` (token; o Caddy responde 404 externamente) |
 | Rotas com alguma dependência de autenticação | 92 | 102; todas as rotas de negócio autenticadas por padrão (`router.py:32`) |
 | `pip-audit` (backend, 56 pacotes) | 0 | 0 |
@@ -84,7 +84,7 @@ Legenda de status: **corrigido** · **parcial**. `arquivo:linha` = onde o códig
 | EST-14 | **parcial** | e08f7f2 (R21) | `unit/test_compose_scaling.py` | `docs/adr/0007-escala-horizontal.md`; `compose.yaml` sem `container_name` em backend/worker/frontend, Caddy balanceando, `backup` agendado. **Falta** storage compartilhado de anexos (S3/MinIO/NFS) para multi-réplica de verdade — só ADR (decisão humana) |
 | EST-15 | corrigido | bf4a2db (R01) | build de imagem no CI (`ci.yml`) | `frontend/public/.gitkeep` versionado; `frontend/Dockerfile:30` `COPY --from=builder /app/public` |
 | EST-16 | corrigido (não executado no GitHub) | 0d5fe04 (R18) | os próprios workflows | `.github/workflows/ci.yml:10` `permissions:`, `:137` pip-audit, gitleaks/Trivy; `codeql.yml:31,36`; `dependabot.yml`. Executei os comandos equivalentes localmente; a execução no GitHub Actions não foi feita |
-| EST-17 | **parcial** | 94a0309 (R05), f13bc94 (R09) | `unit/test_config.py`, `test_auth_hardening.py` | Passaram a ser usadas: `CSRF_SECRET` (`core/security.py:62`), `METRICS_ENABLED` (`config.py:128`), `MAX_TRACE_HOPS` (`topology/service.py:62,178`); `DEBUG` removido. **`SECRET_KEY` continua sem consumidor** (`config.py:54`; só é validada em produção) e o comentário em `config.py:52-53` ("serão usadas na R09") ficou desatualizado (N-09) |
+| EST-17 | corrigido (adendo §7) | 94a0309 (R05), f13bc94 (R09) | `unit/test_config.py`, `test_auth_hardening.py` | Passaram a ser usadas: `CSRF_SECRET` (`core/security.py:62`), `METRICS_ENABLED` (`config.py:128`), `MAX_TRACE_HOPS` (`topology/service.py:62,178`); `DEBUG` removido. `SECRET_KEY`, sem consumidor, foi removida no adendo §7 (N-09) |
 | EST-18 | corrigido | 2a2995e (R02) | `test_worker_script.py` | logs JSON e correlação no worker, heartbeat (`check_worker_heartbeat.py:12`), métricas de job (`core/metrics.py:106` `record_job`) |
 | EST-19 | corrigido | 1daabb9 (R19) | `test_backup_security.py` | `backup_restore.py` snapshot consistente, `backup_crypto.py:19-45`, chaves `BACKUP_SIGNING_KEY`/`BACKUP_ENCRYPTION_KEY` |
 | EST-20 | corrigido | 8ac2c1c (R27) | `contract/test_permissions_contract.py`, `frontend/tests/permissions-parity.test.ts`, `route-permission-guard.test.tsx` | `scripts/export_permissions.py:52` gera `contracts/permissions.json` e `rbac.generated.ts`; `rbac.ts:1-12` só reexporta; `route-permission-guard.tsx:12`; `PermissionGate` nas ações de escrita. `telemetry:write` (só no front) removido |
@@ -108,15 +108,15 @@ Legenda de status: **corrigido** · **parcial**. `arquivo:linha` = onde o códig
 
 | # | Item | Severidade | Situação |
 |---|---|---|---|
-| N-01 | `DELETE /customers/{id}` responde **500** quando o cliente tem vínculos históricos (desativados): a FK impede a exclusão e o erro não é mapeado. Já existia antes das correções | baixa | **aberto** (não fazia parte dos 53) |
-| N-02 | Diálogo de divisão de segmento no frontend envia o **número** da fibra como `cut_fiber_ids` em vez do UUID; com a validação de UUID (R25) a chamada vira 422 | média (funcional) | **aberto**; corrigir junto com um teste do diálogo |
+| N-01 | `DELETE /customers/{id}` responde **500** quando o cliente tem vínculos históricos (desativados): a FK impede a exclusão e o erro não é mapeado. Já existia antes das correções | baixa | **corrigido** no adendo (§7): 409 com mensagem clara; `test_customers_service_links.py` |
+| N-02 | Diálogo de divisão de segmento no frontend envia o **número** da fibra como `cut_fiber_ids` em vez do UUID; com a validação de UUID (R25) a chamada vira 422 | média (funcional) | **corrigido** no adendo (§7): o diálogo carrega o mapa número → `fiber_id` e envia UUIDs; `cables-fibers-segmentation.test.tsx` |
 | N-03 | Permissões definidas sem rota que as exija (`cables:*`, `connectivity:*`, `topology:*`, `map:read`): as rotas usam `network:*`. A UI segue o que o servidor exige | baixa | **aberto** — decisão de produto (afinar ou remover; altera `/auth/me`) |
-| N-04 | `generate_thumbnail_image`/`inspect_file_content` não limitam pixels por conta própria; o teto está em `validate_image_dimensions` (`attachments/service.py:247`), chamado por `save_attachment`. Hoje o único caminho de entrada é o upload, então não há exploração, mas um novo chamador herdaria o risco | baixa | **aberto** (defesa em profundidade) |
+| N-04 | `generate_thumbnail_image`/`inspect_file_content` não limitam pixels por conta própria; o teto está em `validate_image_dimensions` (`attachments/service.py:247`), chamado por `save_attachment`. Hoje o único caminho de entrada é o upload, então não há exploração, mas um novo chamador herdaria o risco | baixa | **corrigido** no adendo (§7): `generate_thumbnail_image` recusa acima de `MAX_IMAGE_PIXELS` sem decodificar |
 | N-05 | Rate limit em memória por processo (`WEB_CONCURRENCY=2` ⇒ o limite efetivo é ×2 e zera a cada restart). A interface `RateLimiter` (`core/rate_limit.py:27`) permite trocar por Postgres/Redis | baixa | aceito (decisão §5) |
 | N-06 | `METRICS_SECRET_TOKEN` mantém o valor de desenvolvimento como default fora de produção (`config.py:134`); em produção a subida é recusada e o Caddy não publica `/metrics` | informativa | aceito |
 | N-07 | Verificações que exigem ambiente real e **não foram feitas**: smoke manual do mapa com `maplibre-gl` 6 no navegador; CSP/nonce e HSTS num navegador com domínio e TLS reais; workflows do GitHub Actions; `docker compose --scale` com storage compartilhado | — | **pendente** (runbook §21–28 e `docs/STATUS.md`) |
 | N-08 | `docs/security-audit/tools/*.py` têm caminhos absolutos (`/tmp/audit-env`, `/home/bruno/...`) e o `gen_inventory.py` carrega veredito estático; não regerar `inventario-rotas.md` sem revisá-lo | informativa | aberto |
-| N-09 | `SECRET_KEY` continua declarada e validada, mas nenhum código a usa; comentário em `config.py:52-53` desatualizado. Remover a variável (e do compose/.env.example) ou usá-la (ex.: assinar algo) | baixa | **aberto** (EST-17 parcial) |
+| N-09 | `SECRET_KEY` continua declarada e validada, mas nenhum código a usa; comentário em `config.py:52-53` desatualizado. Remover a variável (e do compose/.env.example) ou usá-la (ex.: assinar algo) | baixa | **corrigido** no adendo (§7): `SECRET_KEY` removida |
 
 ## 5. Decisões humanas assumidas (confirmar)
 
@@ -143,3 +143,20 @@ O roteiro de correção (seção 7) pedia decisões antes de começar; como a ex
 - Contratos regenerados: `contracts/openapi.json`, `contracts/api-types.d.ts` e `contracts/permissions.json`; testes de contrato os comparam com o código.
 - Migrações `0011`–`0015`: `alembic downgrade` até `0010` e `upgrade head` executados com sucesso em Postgres descartável (R28).
 - `git status --porcelain` ao final desta etapa: somente `docs/security-audit/` (este arquivo e o roteiro).
+
+## 7. Adendo pós-R28 (branch `fix/pendencias-auditoria`)
+
+Fechamento das pendências que não dependiam de decisão de produto nem de ambiente real. Cada item nasceu com teste que falhava antes da correção.
+
+| Item | Causa | Correção | Teste |
+|---|---|---|---|
+| **CI: `ST_Intersects` com HTTP 500** (`test_gis_map_features` e 3 de `test_import_pipeline`) | `restore_backup` usava `pg_restore --clean` sem filtro, que **derruba e recria a extensão PostGIS**. Conexões já abertas (pool do processo) ficam com o cache de tipos/operadores antigo e falham com `no spatial operator found … opfamily`. Local nunca reproduziu porque a máquina não tem `pg_dump`/`pg_restore` (usava o dump binário do psycopg); o runner do GitHub tem. **Vale também para produção**: restaurar com a API no ar deixava o pool quebrado até reiniciar | `backup_restore._write_restore_list` monta o sumário do dump (`pg_restore -l`) sem as entradas da extensão e de `spatial_ref_sys`, e `pg_restore -L` só restaura schema e dados do sistema; `CREATE EXTENSION IF NOT EXISTS postgis` antes, para destino vazio (DR) | `test_backup_security.py::test_pg_restore_keeps_postgis_extension_and_open_connections_working` (pula sem `pg_dump`) |
+| **CI: `test_import_preview_does_not_block_health_probe`** | limite de 0,1 s contra runner lento (0,22 s) | parse simulado de 1,5 s (bloqueado, a sonda esperaria ~1,3 s) e teto de 0,5 s | o próprio teste |
+| N-01 | FK `service_links.customer_id` é `RESTRICT`; só vínculos ativos eram checados | `delete_customer` conta qualquer vínculo e devolve 409 | `test_delete_customer_with_historical_links_is_conflict_not_500` |
+| N-02 / frontend | `cut_fiber_ids` recebe o **UUID da fibra**; o diálogo mandava o número | `listSegmentFibers` paginado (200/página) monta número → `fiber_id`; confirmar/prévia esperam o mapa | `envia o UUID da fibra (fiber_id) em cut_fiber_ids…` |
+| N-04 | teto só no upload | `generate_thumbnail_image` checa `width*height` (só cabeçalho) | `test_generate_thumbnail_image_enforces_pixel_limit_on_its_own` |
+| N-09 / EST-17 | `SECRET_KEY` sem consumidor | removida de `Settings`, validação de produção, compose, `.env.example`, CI, conftest e runbook (§7 da rotação). `.env` antigo com a variável continua funcionando (`extra="ignore"`) | `unit/test_config.py`, `test_compose_secrets_have_no_public_defaults` |
+
+**Continuam abertos (dependem de decisão ou de ambiente real):** PERF-09 (linha única `network_topology_state`; mitigada), EST-14 (storage compartilhado de anexos), N-03 (permissões sem rota), N-05 (rate limit por processo, aceito), N-07 (smoke em navegador/TLS reais e `--scale`), N-08 (ferramentas de auditoria com caminhos absolutos).
+
+Verificação do adendo: backend `ruff check`, `ruff format --check` e `mypy app` limpos; `pytest` completo **530 passed, 1 skipped** com `pg_dump`/`pg_restore` no PATH (o skip é o teste do caminho psycopg, que só roda sem eles e passou na execução anterior); `restore_drill.py` passa; frontend `pnpm lint && pnpm typecheck && pnpm test` — 181 testes. O GitHub Actions ainda não rodou esta branch.

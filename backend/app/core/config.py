@@ -47,14 +47,9 @@ class Settings(BaseSettings):
     ENVIRONMENT: Environment = Environment.DEVELOPMENT
     LOG_LEVEL: str = "INFO"
 
-    # Segurança. Em produção, SECRET_KEY/CSRF_SECRET/METRICS_SECRET_TOKEN não podem ser os padrões
-    # de desenvolvimento nem valores fracos (ver `reject_insecure_production_config`).
-    # SECRET_KEY e CSRF_SECRET ainda não são consumidas: serão usadas na R09 (token CSRF assinado
-    # e sessões); permanecem declaradas para que a validação de produção já as proteja.
-    SECRET_KEY: str = Field(
-        default="dev-insecure-secret-key-replace-in-production-minimum-32-chars-long",
-        min_length=32,
-    )
+    # Segurança. Em produção, CSRF_SECRET/METRICS_SECRET_TOKEN/BACKUP_SIGNING_KEY não podem ser os
+    # padrões de desenvolvimento nem valores fracos (ver `reject_insecure_production_config`).
+    # A sessão é um token opaco guardado no banco: não há chave-mestra da aplicação.
     COOKIE_SECURE: bool = False
     CSRF_SECRET: str = "dev-insecure-csrf-secret-replace-in-production"
 
@@ -163,7 +158,7 @@ class Settings(BaseSettings):
             return self
 
         problems: list[str] = []
-        for name in ("SECRET_KEY", "CSRF_SECRET", "METRICS_SECRET_TOKEN", "BACKUP_SIGNING_KEY"):
+        for name in ("CSRF_SECRET", "METRICS_SECRET_TOKEN", "BACKUP_SIGNING_KEY"):
             if _is_weak_secret(getattr(self, name)):
                 problems.append(
                     f"{name} é um valor padrão/fraco (use `openssl rand -hex 32`, "

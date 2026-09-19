@@ -6,7 +6,6 @@ from fastapi.testclient import TestClient
 
 # Configurar ambiente de teste antes de importar a aplicação
 os.environ["ENVIRONMENT"] = "test"
-os.environ["SECRET_KEY"] = "test-secret-key-that-is-at-least-32-characters-long"
 os.environ["DATABASE_URL"] = os.environ.get(
     "TEST_DATABASE_URL",
     "postgresql+psycopg://ftth_user:ftth_password@127.0.0.1:5432/ftth_manager_test",

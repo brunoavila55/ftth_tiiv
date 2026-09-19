@@ -8,7 +8,6 @@ from app.core.config import Environment, Settings
 
 # Segredos fortes (aleatórios) e banco sem a senha de exemplo — aceitos em produção
 STRONG_SECRETS = {
-    "SECRET_KEY": "9f2c7e41b8d05a36c1e94f7a20b3d68e5c17a9f4e2b08d63",
     "CSRF_SECRET": "3b7d19e5a04c86f2d1e7a9053c4b8e62f1d70a95c3e846b2",
     "METRICS_SECRET_TOKEN": "c81e4a7f20d95b36e1a07c4f9d2b58e3a6f10c74",
     "BACKUP_SIGNING_KEY": "7d3f0a19c6e48b25d1f97a3c5e08b642a1d97f3c0e5b8a24",
@@ -18,9 +17,7 @@ STRONG_SECRETS = {
 
 def test_settings_default_values(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("ENVIRONMENT", raising=False)
-    settings = Settings(
-        SECRET_KEY="a" * 32,
-    )
+    settings = Settings()
     assert settings.APP_NAME == "FTTH Manager"
     assert settings.ENVIRONMENT == Environment.DEVELOPMENT
     assert settings.is_production is False
@@ -29,10 +26,7 @@ def test_settings_default_values(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def test_settings_environment_modes() -> None:
-    test_settings = Settings(
-        ENVIRONMENT=Environment.TEST,
-        SECRET_KEY="b" * 32,
-    )
+    test_settings = Settings(ENVIRONMENT=Environment.TEST)
     assert test_settings.is_test is True
     assert test_settings.is_production is False
 
@@ -50,7 +44,6 @@ def test_production_accepts_strong_secrets() -> None:
 
 def test_production_rejects_all_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
     for name in (
-        "SECRET_KEY",
         "CSRF_SECRET",
         "METRICS_SECRET_TOKEN",
         "BACKUP_SIGNING_KEY",
@@ -61,7 +54,6 @@ def test_production_rejects_all_defaults(monkeypatch: pytest.MonkeyPatch) -> Non
         Settings(ENVIRONMENT=Environment.PRODUCTION)
     message = str(exc.value)
     for name in (
-        "SECRET_KEY",
         "CSRF_SECRET",
         "METRICS_SECRET_TOKEN",
         "BACKUP_SIGNING_KEY",
@@ -70,9 +62,7 @@ def test_production_rejects_all_defaults(monkeypatch: pytest.MonkeyPatch) -> Non
         assert name in message
 
 
-@pytest.mark.parametrize(
-    "field", ["SECRET_KEY", "CSRF_SECRET", "METRICS_SECRET_TOKEN", "BACKUP_SIGNING_KEY"]
-)
+@pytest.mark.parametrize("field", ["CSRF_SECRET", "METRICS_SECRET_TOKEN", "BACKUP_SIGNING_KEY"])
 @pytest.mark.parametrize(
     "weak",
     [
@@ -120,7 +110,7 @@ def test_compose_only_injects_variables_that_settings_reads() -> None:
 
 def test_compose_secrets_have_no_public_defaults() -> None:
     text = (Path(__file__).resolve().parents[3] / "compose.yaml").read_text()
-    for var in ("SECRET_KEY", "CSRF_SECRET", "METRICS_SECRET_TOKEN", "POSTGRES_PASSWORD"):
+    for var in ("CSRF_SECRET", "METRICS_SECRET_TOKEN", "POSTGRES_PASSWORD"):
         assert f"${{{var}:-" not in text, f"{var} não pode ter default no compose"
         assert f"${{{var}:?" in text, f"{var} deve ser obrigatório no compose"
     assert "dev-insecure" not in text and "ftth_password" not in text

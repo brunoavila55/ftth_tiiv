@@ -19,44 +19,27 @@ A auditoria (`docs/security-audit/`) apontou 53 achados (18 de segurança, 21 de
 | Entrada de dados | Tetos de tamanho em todos os schemas; identificadores validados como UUID (422 em vez de 500) |
 | Frontend | Matriz de permissões gerada do backend (`contracts/permissions.json`), menu/rotas/ações escondidos por permissão |
 
-Resultado da re-auditoria: **50 achados corrigidos, 3 parciais, 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 534 testes passando localmente; frontend: 180.
+Resultado: **51 achados corrigidos, 2 parciais (PERF-09, EST-14), 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 531 testes localmente (530 passam com `pg_dump`/`pg_restore` no PATH + 1 que só roda sem eles; 534 antes do adendo, menos 7 casos de `SECRET_KEY` removidos e mais 4 novos); frontend: 181.
 
 ## 2. O que está acontecendo agora
 
-**CI do GitHub Actions na `master` ainda não está verde.** Situação do último PR (#2):
+Branch `fix/pendencias-auditoria` (local, não enviada) com o fechamento das pendências que não dependem de decisão de produto. Detalhe em `docs/security-audit/resolucao.md` §7.
 
-| Job | Situação |
-|---|---|
-| Frontend (lint, typecheck, vitest, build) | verde |
-| Security (pip-audit, pnpm audit, gitleaks) | verde (após dar `pull-requests: read` ao job) |
-| Docker (compose build + Trivy) | verde (após incluir `BACKUP_SIGNING_KEY` no ambiente do job) |
-| Backend (ruff, mypy, migrações, pytest) | **falha em 5 testes no runner** (abaixo) |
-| CodeQL (python e javascript-typescript) | análise roda; o upload do resultado falhava por permissão — foi adicionado `actions: read`; **resultado da correção ainda não verificado** (em repositório privado, o CodeQL pode exigir GitHub Advanced Security) |
+**CI vermelho na `master` — causa encontrada e corrigida na branch.** Os 4 testes espaciais falhavam porque `restore_backup` usava `pg_restore --clean`, que **recria a extensão PostGIS** e deixa as conexões já abertas com o cache de tipos antigo (`no spatial operator found … opfamily`). Só aparecia no GitHub porque a máquina local não tem `pg_dump`/`pg_restore` e caía no dump binário do psycopg. Como afetava também a restauração real com a API no ar, a correção está no código (`_write_restore_list` filtra a extensão do sumário), não só no teste. O teste de tempo do health probe ganhou margem (1,5 s de bloqueio simulado, teto 0,5 s).
 
-Testes do backend que falham só no CI (todos passam localmente, inclusive contra a mesma imagem `postgis/postgis:16-3.4`):
-
-- `test_gis_map_features.py::test_spatial_bbox_query_and_gist_index` e três de `test_import_pipeline.py` (`…resolves_endpoints_by_proximity`, `…match_structures_already_in_the_database`, `…without_resolvable_structures…`): HTTP 500 com `no spatial operator found for 'st_intersects': opfamily … type …` numa consulta `ST_Intersects(sites.location, …)`. Não reproduzido isoladamente; depende de estado acumulado na execução completa (`--cov -v`). Próximo passo: rodar a suíte inteira contra um Postgres idêntico ao do CI e comparar os índices de `sites`.
-- `test_import_export_scale.py::test_import_preview_does_not_block_health_probe`: 0,22 s contra limite de 0,1 s — teste de tempo sensível ao runner lento; folgar o limite ou torná-lo relativo.
-
-A `master` já tinha CI falhando antes das correções (o job de backend parava no `ruff`), então esses testes nunca haviam rodado no GitHub.
-
-Dependabot: as atualizações de versão foram **desligadas** (`open-pull-requests-limit: 0`) para manter só a branch principal. Alertas de segurança seguem nas configurações do repositório.
+**Falta:** abrir o PR, esperar o CI e confirmar o CodeQL (em repositório privado pode exigir GitHub Advanced Security). Dependabot: atualizações de versão desligadas (`open-pull-requests-limit: 0`); alertas de segurança seguem nas configurações do repositório.
 
 ## 3. O que ficou para trás
 
-**Achados parciais**
+**Achados parciais (dependem de decisão)**
 
 - PERF-09 — o `UPDATE network_topology_state` (linha única) ainda serializa escritas de topologia; mitigado (é o último passo antes do commit; `statement_timeout`), sem advisory lock/sequence.
 - EST-14 — escala horizontal: ADR + compose escalável prontos; falta storage compartilhado de anexos (S3/MinIO/NFS) para multi-réplica de verdade.
-- EST-17 — `SECRET_KEY` continua declarada/validada mas sem uso; comentário em `backend/app/core/config.py:52-53` desatualizado. Remover ou usar.
 
-**Bugs e riscos encontrados (fora dos 53)**
+**Riscos conhecidos**
 
-- `DELETE /customers/{id}` responde 500 quando há vínculos históricos (FK não tratada).
-- Diálogo de dividir segmento envia o número da fibra em vez do UUID em `cut_fiber_ids` (agora vira 422).
-- Permissões definidas sem rota que as exija (`cables:*`, `connectivity:*`, `topology:*`, `map:read`) — decisão de produto.
-- `generate_thumbnail_image`/`inspect_file_content` não limitam pixels sozinhas (o limite está no upload).
-- Rate limit em memória por processo (efetivo ×2 com `WEB_CONCURRENCY=2`, zera a cada restart).
+- Permissões definidas sem rota que as exija (`cables:*`, `connectivity:*`, `topology:*`, `map:read`) — decisão de produto (N-03).
+- Rate limit em memória por processo (efetivo ×2 com `WEB_CONCURRENCY=2`, zera a cada restart) — aceito (N-05).
 
 **Verificações que exigem ambiente real (não feitas)**
 

@@ -41,7 +41,6 @@ jobs:
     env:
       ENVIRONMENT: test
       DATABASE_URL: postgresql+psycopg://ftth_user:ftth_password@localhost:5432/ftth_manager_test
-      SECRET_KEY: test-secret-key-for-ci-must-be-long-and-secure-enough
 
     steps:
       - name: Checkout repository
@@ -170,7 +169,6 @@ jobs:
     env:
       COMPOSE_PROJECT_NAME: ftth
       # Valores só para a interpolação do compose durante o build (nada disso vai para a imagem)
-      SECRET_KEY: ci-build-only
       CSRF_SECRET: ci-build-only
       METRICS_SECRET_TOKEN: ci-build-only
       POSTGRES_PASSWORD: ci-build-only

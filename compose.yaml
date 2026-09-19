@@ -39,7 +39,6 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/${POSTGRES_DB:-ftth_manager}
-      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env (openssl rand -hex 32)}
       CSRF_SECRET: ${CSRF_SECRET:?defina CSRF_SECRET no .env (openssl rand -hex 32)}
       API_V1_PREFIX: /api/v1
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
@@ -76,7 +75,6 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/${POSTGRES_DB:-ftth_manager}
-      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env (openssl rand -hex 32)}
       CSRF_SECRET: ${CSRF_SECRET:?defina CSRF_SECRET no .env (openssl rand -hex 32)}
       METRICS_SECRET_TOKEN: ${METRICS_SECRET_TOKEN:?defina METRICS_SECRET_TOKEN no .env (openssl rand -hex 16)}
       BACKUP_SIGNING_KEY: ${BACKUP_SIGNING_KEY:?defina BACKUP_SIGNING_KEY no .env (openssl rand -hex 32)}
@@ -120,7 +118,6 @@ services:
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/${POSTGRES_DB:-ftth_manager}
-      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env (openssl rand -hex 32)}
       CSRF_SECRET: ${CSRF_SECRET:?defina CSRF_SECRET no .env (openssl rand -hex 32)}
       METRICS_SECRET_TOKEN: ${METRICS_SECRET_TOKEN:?defina METRICS_SECRET_TOKEN no .env (openssl rand -hex 16)}
       BACKUP_SIGNING_KEY: ${BACKUP_SIGNING_KEY:?defina BACKUP_SIGNING_KEY no .env (openssl rand -hex 32)}
