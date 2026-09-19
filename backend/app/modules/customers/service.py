@@ -12,6 +12,7 @@ from app.core.errors import (
     NotFoundError,
     UnprocessableEntityError,
 )
+from app.core.search import contains
 from app.modules.audit.service import record_audit_event
 from app.modules.connectivity.models import Connection, Terminal, TerminalReservation
 from app.modules.customers.models import Customer, ServiceLink
@@ -70,8 +71,7 @@ def list_customers(
 ) -> tuple[list[CustomerRead], int]:
     stmt = select(Customer)
     if q and q.strip():
-        search = f"%{q.strip()}%"
-        stmt = stmt.where(Customer.code.ilike(search) | Customer.name.ilike(search))
+        stmt = stmt.where(contains(Customer.code, q) | contains(Customer.name, q))
 
     count_stmt = select(func.count()).select_from(stmt.subquery())
     total = db.scalar(count_stmt) or 0

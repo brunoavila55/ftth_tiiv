@@ -13,6 +13,7 @@ from app.core.errors import (
     TopologyRevisionConflictError,
     UnprocessableEntityError,
 )
+from app.core.search import contains
 from app.modules.cables.models import Cable, CableSegment, Fiber, FiberSegment, Tube
 from app.modules.connectivity.models import Connection, ConnectionEndpoint, InternalEdge, Terminal
 from app.modules.gis.helpers import (
@@ -167,8 +168,7 @@ def list_cables(
     """Lista cabos ópticos com busca textual e paginação."""
     query = select(Cable)
     if q:
-        search_pattern = f"%{q.strip()}%"
-        query = query.where(Cable.code.ilike(search_pattern) | Cable.model.ilike(search_pattern))
+        query = query.where(contains(Cable.code, q) | contains(Cable.model, q))
 
     total = db.execute(select(func.count()).select_from(query.subquery())).scalar_one()
     items = db.execute(query.order_by(Cable.code).limit(limit).offset(offset)).scalars().all()

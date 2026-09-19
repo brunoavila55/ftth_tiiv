@@ -147,10 +147,10 @@ def test_rate_limit_returns_429_with_retry_after(
 
     get_settings.cache_clear()
     reset_rate_limits()
-    codes = [client.get("/api/v1/search?q=ab").status_code for _ in range(5)]
+    codes = [client.get("/api/v1/search?q=abc").status_code for _ in range(5)]
     assert codes[:3] == [200, 200, 200]
     assert codes[3:] == [429, 429]
-    blocked = client.get("/api/v1/search?q=ab")
+    blocked = client.get("/api/v1/search?q=abc")
     assert blocked.status_code == 429
     assert int(blocked.headers["Retry-After"]) >= 1
     assert blocked.headers["content-type"].startswith("application/problem+json")
@@ -176,7 +176,7 @@ def test_rate_limit_is_per_user_and_expires(monkeypatch: pytest.MonkeyPatch) -> 
         ("POST", "/api/v1/topology/impact"),
         ("POST", "/api/v1/optical/budgets"),
         ("POST", "/api/v1/optical/simulations"),
-        ("GET", "/api/v1/search?q=ab"),
+        ("GET", "/api/v1/search?q=abc"),
         ("POST", "/api/v1/attachments"),
         ("POST", "/api/v1/imports/preview"),
         ("POST", "/api/v1/exports"),

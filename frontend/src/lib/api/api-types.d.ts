@@ -6766,7 +6766,7 @@ export interface operations {
     api_v1_search_global_search: {
         parameters: {
             query: {
-                /** @description Termo de pesquisa */
+                /** @description Termo de pesquisa (mínimo de 3 caracteres: os índices trigram só atendem a partir daí) */
                 q: string;
                 /** @description Limite máximo de resultados por grupo */
                 limit?: number;

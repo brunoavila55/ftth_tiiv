@@ -4,6 +4,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.core.permissions import has_permission
+from app.core.search import contains
 from app.modules.cables.models import Cable, CableSegment, Fiber, Tube
 from app.modules.connectivity.models import Connection, Terminal, TerminalReservation
 from app.modules.customers.models import Customer, ServiceLink
@@ -177,7 +178,7 @@ def execute_global_search(
         db.query(Site)
         .filter(
             Site.status != "retired",
-            or_(Site.code.ilike(f"%{clean_q}%"), Site.name.ilike(f"%{clean_q}%")),
+            or_(contains(Site.code, clean_q), contains(Site.name, clean_q)),
         )
         .limit(limit)
         .all()
@@ -201,7 +202,7 @@ def execute_global_search(
         db.query(Structure)
         .filter(
             Structure.status != "retired",
-            Structure.code.ilike(f"%{clean_q}%"),
+            contains(Structure.code, clean_q),
         )
         .limit(limit)
         .all()
@@ -225,7 +226,7 @@ def execute_global_search(
         db.query(Cable)
         .filter(
             Cable.status != "retired",
-            or_(Cable.code.ilike(f"%{clean_q}%"), Cable.model.ilike(f"%{clean_q}%")),
+            or_(contains(Cable.code, clean_q), contains(Cable.model, clean_q)),
         )
         .limit(limit)
         .all()
@@ -250,9 +251,9 @@ def execute_global_search(
         .filter(
             Device.status != "retired",
             or_(
-                Device.code.ilike(f"%{clean_q}%"),
-                Device.model.ilike(f"%{clean_q}%"),
-                Device.serial_number.ilike(f"%{clean_q}%"),
+                contains(Device.code, clean_q),
+                contains(Device.model, clean_q),
+                contains(Device.serial_number, clean_q),
             ),
         )
         .limit(limit)
@@ -285,10 +286,10 @@ def execute_global_search(
             db.query(Customer)
             .filter(
                 or_(
-                    Customer.code.ilike(f"%{clean_q}%"),
-                    Customer.name.ilike(f"%{clean_q}%"),
-                    Customer.phone.ilike(f"%{clean_q}%"),
-                    Customer.email.ilike(f"%{clean_q}%"),
+                    contains(Customer.code, clean_q),
+                    contains(Customer.name, clean_q),
+                    contains(Customer.phone, clean_q),
+                    contains(Customer.email, clean_q),
                 )
             )
             .limit(limit)

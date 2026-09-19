@@ -335,3 +335,12 @@ Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
 - **Importação**: `POST /imports/preview` roda no threadpool (não bloqueia o event loop) e recusa arquivos com mais de `MAX_IMPORT_FEATURES` (200 000) entidades (422). O commit insere sites e estruturas em **lotes de 500** (`INSERT` em lote: ≤ 2 statements por lote com a checagem de cancelamento), sempre numa única transação (all-or-nothing). Medido: 50 000 pontos = 201 statements (antes: 100 001). Cabos continuam sendo criados um a um (geram tubos/fibras/terminais).
 - **Exportação**: os geradores GeoJSON/KML/CSV leem com cursor de servidor (`yield_per=1000`) e escrevem o arquivo de forma incremental; o pico de memória é constante (~4 MB) em vez de proporcional à camada (antes: 40 MB para 5,6 MB de GeoJSON, 30 MB para 1,6 MB de CSV). O GeoJSON passa a ser compacto (sem `indent`).
 - `tests/legacy_exports_service.py` guarda os geradores anteriores só como oráculo dos testes de caracterização (mesmo conteúdo).
+
+---
+
+## 24. Busca e listagens (índices)
+
+- **Busca `ILIKE '%termo%'`**: a migração 0014 habilita `pg_trgm` e cria índices GIN `gin_trgm_ops` em `sites(code,name)`, `structures(code)`, `cables(code,model)`, `devices(code,manufacturer,model,serial_number)`, `customers(code,name,phone,email)`, `users(name,email)` e `ports(notes)`. O termo digitado é **escapado** (`%`, `_`, `\`): buscar `100%` acha o texto literal. A busca global (`GET /search`) exige **mínimo de 3 caracteres** (trigram não ajuda abaixo disso); a UI avisa.
+- **Listagens** (`ORDER BY created_at DESC, id` com `page/page_size`): índices `(created_at DESC, id)` em sites, structures, devices, ports, users e optical_profiles (e `created_at DESC` em connections e attachments). O `OFFSET` continua O(offset), mas sem ordenar a tabela toda. **Paginação por keyset** exigiria mudar o contrato (`page/page_size`) e foi deixada como evolução futura.
+- Medição (100 000 linhas): busca em `sites` 80 ms → 0,4 ms; em `customers` (4 colunas) 134 ms → 3,3 ms; listagem com `OFFSET 90000` 32,8 ms (sort em disco) → 9,3 ms; primeira página 8,5 ms → 0,03 ms.
+- Os índices são criados com `CREATE INDEX CONCURRENTLY`; em bases grandes a migração leva alguns minutos sem bloquear escritas.

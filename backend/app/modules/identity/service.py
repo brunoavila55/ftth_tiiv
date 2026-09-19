@@ -14,6 +14,7 @@ from app.core.errors import (
     UnauthorizedError,
 )
 from app.core.permissions import get_role_permissions
+from app.core.search import contains
 from app.core.security import (
     dummy_verify_password,
     generate_session_token,
@@ -428,8 +429,7 @@ def list_users_paginated(
     count_query = select(func.count(User.id))
 
     if q and q.strip():
-        term = f"%{q.strip()}%"
-        filter_clause = (User.name.ilike(term)) | (User.email.ilike(term))
+        filter_clause = contains(User.name, q) | contains(User.email, q)
         query = query.where(filter_clause)
         count_query = count_query.where(filter_clause)
 

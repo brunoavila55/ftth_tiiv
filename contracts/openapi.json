@@ -10480,14 +10480,14 @@
         "operationId": "api_v1_search_global_search",
         "parameters": [
           {
-            "description": "Termo de pesquisa",
+            "description": "Termo de pesquisa (mínimo de 3 caracteres: os índices trigram só atendem a partir daí)",
             "in": "query",
             "name": "q",
             "required": true,
             "schema": {
-              "description": "Termo de pesquisa",
+              "description": "Termo de pesquisa (mínimo de 3 caracteres: os índices trigram só atendem a partir daí)",
               "maxLength": 100,
-              "minLength": 2,
+              "minLength": 3,
               "title": "Q",
               "type": "string"
             }

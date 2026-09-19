@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.dependencies import get_current_user, require_permission
 from app.core.privacy import mask_pii_changes, user_can
 from app.core.rate_limit import rate_limit
+from app.core.search import MIN_SEARCH_LENGTH
 from app.db.session import get_db
 from app.modules.identity.models import User
 from app.modules.reports.service import (
@@ -47,7 +48,12 @@ def get_dashboard_summary(db: Session = Depends(get_db)) -> DashboardSummaryResp
     dependencies=[Depends(rate_limit("search", "RATE_LIMIT_SEARCH_PER_MINUTE"))],
 )
 def global_search(
-    q: str = Query(..., min_length=2, max_length=100, description="Termo de pesquisa"),
+    q: str = Query(
+        ...,
+        min_length=MIN_SEARCH_LENGTH,
+        max_length=100,
+        description="Termo de pesquisa (mínimo de 3 caracteres: os índices trigram só atendem a partir daí)",
+    ),
     limit: int = Query(
         default=20, ge=1, le=100, description="Limite máximo de resultados por grupo"
     ),

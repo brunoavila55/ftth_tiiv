@@ -92,7 +92,7 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
   // Debounced server search with abort controller
   React.useEffect(() => {
     const trimmed = query.trim();
-    if (trimmed.length < 2) {
+    if (trimmed.length < 3) {
       setServerResults([]);
       setIsSearchingServer(false);
       return;
@@ -281,8 +281,8 @@ export function GlobalSearchDialog({ open, onOpenChange }: GlobalSearchDialogPro
         >
           {combinedItems.length === 0 ? (
             <div className="py-8 text-center text-sm text-muted-foreground">
-              {query.trim().length < 2 ? (
-                "Digite ao menos 2 caracteres para pesquisar na rede..."
+              {query.trim().length < 3 ? (
+                "Digite ao menos 3 caracteres para pesquisar na rede..."
               ) : (
                 <>Nenhum resultado encontrado para &ldquo;{query}&rdquo;</>
               )}
