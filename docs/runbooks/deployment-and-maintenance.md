@@ -147,6 +147,8 @@ docker compose exec -T db ... # ou via script:
 docker compose start backend worker
 ```
 
+> A restauração **preserva a extensão PostGIS** do destino (o sumário do `pg_restore` é filtrado e a extensão é criada se faltar). Recriá-la mudaria os OIDs de tipos e operadores, e qualquer conexão já aberta passaria a falhar em consultas espaciais (`no spatial operator found … opfamily`) até reiniciar. Mesmo assim, o passo 1 (parar `backend` e `worker`) continua obrigatório.
+
 ---
 
 ## 6. Estratégia de Migração: Roll-Forward vs. Downgrade
@@ -161,10 +163,7 @@ docker compose start backend worker
 
 ## 7. Rotação de Segredos Operacionais
 
-1. **SECRET_KEY**:
-   - Atualize `SECRET_KEY` no `.env`.
-   - Reinicie `backend` e `worker`.
-   - *Impacto*: hoje a `SECRET_KEY` é apenas validada (a sessão é um token opaco em banco); ela passará a assinar o CSRF/sessões na etapa R09 da auditoria, quando a rotação invalidará esses tokens.
+1. **SECRET_KEY**: removida (EST-17/N-09). A sessão é um token opaco guardado no banco e o CSRF usa `CSRF_SECRET`; não há segredo-mestra. Se ainda existir `SECRET_KEY` num `.env` antigo, é ignorada e pode ser apagada.
 2. **Senha do Banco (`POSTGRES_PASSWORD`)**:
    - Altere a senha no PostgreSQL: `ALTER USER ftth_user WITH PASSWORD 'nova_senha';`
    - Atualize `POSTGRES_PASSWORD` e `DATABASE_URL` no `.env`.

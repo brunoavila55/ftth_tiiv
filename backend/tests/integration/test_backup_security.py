@@ -4,6 +4,7 @@ manifesto autenticado, snapshot consistente sob escrita concorrente e criptograf
 import io
 import json
 import os
+import shutil
 import subprocess
 import sys
 import tarfile
@@ -434,3 +435,37 @@ def test_prune_keeps_encrypted_and_plain_backups_by_recency(tmp_path: Path) -> N
         os.utime(f, (1_000_000 + i, 1_000_000 + i))
     removed = backup_restore.prune_old_backups(bdir, keep_count=2)
     assert len(removed) == 2 and len(list(bdir.iterdir())) == 2
+
+
+# ---------------------------------------------------------------------------------------------
+# pg_restore não pode recriar a extensão PostGIS (conexões abertas ficariam com cache obsoleto)
+# ---------------------------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(
+    shutil.which("pg_dump") is None or shutil.which("pg_restore") is None,
+    reason="exige pg_dump/pg_restore (caminho pg_dump do backup)",
+)
+def test_pg_restore_keeps_postgis_extension_and_open_connections_working(
+    tmp_path: Path, storage: Path
+) -> None:
+    """`--clean` derrubava e recriava o postgis: o pool do processo passava a falhar em
+    `ST_Intersects` ("no spatial operator found ... opfamily") até reiniciar."""
+    bbox = "ST_Intersects(location, ST_MakeEnvelope(-180, -90, 180, 90, 4326))"
+    with psycopg.connect(source_db_url().replace("+psycopg", ""), autocommit=True) as old_conn:
+        old_conn.execute("SET enable_seqscan = off")
+        ext_oid = old_conn.execute(
+            "SELECT oid FROM pg_extension WHERE extname='postgis'"
+        ).fetchone()
+        old_conn.execute(f"SELECT count(*) FROM sites WHERE {bbox}")  # aquece o cache da conexão
+
+        archive = make_backup(tmp_path, storage)
+        manifest = json.loads(read_tar_bytes(archive)["manifest.json"])
+        assert manifest["database_format"] == "pg_dump"
+        restore_backup(archive, target_storage_path=tmp_path / "restore")
+
+        assert (
+            old_conn.execute("SELECT oid FROM pg_extension WHERE extname='postgis'").fetchone()
+            == ext_oid
+        )
+        old_conn.execute(f"SELECT count(*) FROM sites WHERE {bbox}")  # não pode levantar

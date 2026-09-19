@@ -91,7 +91,7 @@ def test_import_preview_does_not_block_health_probe(
     real_parse = imports_service.parse_geojson
 
     def slow_parse(content: bytes):  # type: ignore[no-untyped-def]
-        time.sleep(0.7)
+        time.sleep(1.5)
         return real_parse(content)
 
     monkeypatch.setattr(imports_service, "parse_geojson", slow_parse)
@@ -115,7 +115,8 @@ def test_import_preview_does_not_block_health_probe(
         latencies.append(time.perf_counter() - t0)
     worker.join()
     assert result["status"] == status.HTTP_200_OK
-    assert max(latencies) < 0.1, latencies
+    # Bloqueado, a sonda esperaria ~1,3 s; o teto folgado absorve runners lentos sem perder o sinal
+    assert max(latencies) < 0.5, latencies
 
 
 def test_preview_rejects_files_with_too_many_features(

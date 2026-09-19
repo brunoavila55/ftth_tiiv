@@ -467,6 +467,27 @@ def create_backup(
     return final_archive_path
 
 
+# Entradas do sumário do pg_restore que pertencem à extensão PostGIS, não aos dados do sistema.
+_EXTENSION_ENTRY = re.compile(
+    r"^\d+;\s+\d+\s+\d+\s+(?:EXTENSION\b|COMMENT\s+-\s+EXTENSION\b|TABLE DATA public spatial_ref_sys\b)"
+)
+
+
+def _write_restore_list(dump_file: Path, list_file: Path, env: dict[str, str]) -> Path:
+    """Sumário do dump sem a extensão PostGIS, para `pg_restore -L`.
+
+    `--clean` derrubaria e recriaria a extensão: os OIDs de tipos e classes de operadores mudam e as
+    conexões já abertas (pool da API e do worker) passam a falhar em `ST_Intersects` até reiniciar.
+    A extensão já existe no destino (migração 0001); só o schema e os dados do sistema são restaurados.
+    """
+    listing = subprocess.run(
+        ["pg_restore", "-l", str(dump_file)], env=env, capture_output=True, text=True, check=True
+    )
+    kept = [line for line in listing.stdout.splitlines() if not _EXTENSION_ENTRY.match(line)]
+    list_file.write_text("\n".join(kept) + "\n")
+    return list_file
+
+
 def restore_backup(
     archive_path: Path | str,
     target_db_url: str | None = None,
@@ -539,6 +560,12 @@ def restore_backup(
         has_pg_restore = shutil.which("pg_restore") is not None
         if manifest.database_format == "pg_dump" and has_pg_restore:
             parsed = urlparse(_raw_url(target_db_url))
+            env = os.environ.copy()
+            if parsed.password:
+                env["PGPASSWORD"] = parsed.password
+            restore_list = _write_restore_list(db_dump_file, tmp_dir / "restore.list", env)
+            with psycopg.connect(_raw_url(target_db_url), autocommit=True) as conn:
+                conn.execute("CREATE EXTENSION IF NOT EXISTS postgis")  # destino vazio (DR)
             cmd = [
                 "pg_restore",
                 "-h",
@@ -553,11 +580,10 @@ def restore_backup(
                 "--if-exists",
                 "--no-owner",
                 "--no-privileges",
+                "-L",
+                str(restore_list),
                 str(db_dump_file),
             ]
-            env = os.environ.copy()
-            if parsed.password:
-                env["PGPASSWORD"] = parsed.password
             res = subprocess.run(cmd, env=env, capture_output=True, text=True)
             if res.returncode != 0 and "errors ignored on restore" not in res.stderr.lower():
                 logger.warning(f"pg_restore avisou: {res.stderr}")
