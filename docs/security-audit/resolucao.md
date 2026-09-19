@@ -1,8 +1,8 @@
 # Resolução da auditoria — re-auditoria final (R28)
 
-> **Confidencial.** Complementa `relatorio-auditoria-seguranca.pdf`, `issues.md` e `roteiro-correcao.md`.
+> **Confidencial.** Complementa `relatorio-auditoria-seguranca.pdf`, e `issues.md`. O roteiro de correção (R01–R28) foi removido após a execução; segue no histórico do git. Visão geral e pendências: `docs/STATUS.md`.
 > Branch: `fix/auditoria-seguranca` (28 commits locais, um por etapa R01–R28; **nada foi enviado/mesclado**).
-> Esta etapa (R28) não alterou código: só este arquivo e o checklist da seção 6 do roteiro.
+> Esta etapa (R28) não alterou código: só este arquivo e o checklist do roteiro (depois removido).
 > `findings.json`, `issues.md`, `inventario-rotas.md`, o PDF e `evidencias/` continuam sendo o **retrato anterior às correções** (o texto estático do `gen_inventory.py` cita achados que já não existem).
 
 ## 1. Resumo
@@ -114,13 +114,13 @@ Legenda de status: **corrigido** · **parcial**. `arquivo:linha` = onde o códig
 | N-04 | `generate_thumbnail_image`/`inspect_file_content` não limitam pixels por conta própria; o teto está em `validate_image_dimensions` (`attachments/service.py:247`), chamado por `save_attachment`. Hoje o único caminho de entrada é o upload, então não há exploração, mas um novo chamador herdaria o risco | baixa | **aberto** (defesa em profundidade) |
 | N-05 | Rate limit em memória por processo (`WEB_CONCURRENCY=2` ⇒ o limite efetivo é ×2 e zera a cada restart). A interface `RateLimiter` (`core/rate_limit.py:27`) permite trocar por Postgres/Redis | baixa | aceito (decisão §5) |
 | N-06 | `METRICS_SECRET_TOKEN` mantém o valor de desenvolvimento como default fora de produção (`config.py:134`); em produção a subida é recusada e o Caddy não publica `/metrics` | informativa | aceito |
-| N-07 | Verificações que exigem ambiente real e **não foram feitas**: smoke manual do mapa com `maplibre-gl` 6 no navegador; CSP/nonce e HSTS num navegador com domínio e TLS reais; workflows do GitHub Actions; `docker compose --scale` com storage compartilhado | — | **pendente** (checklist §6 do roteiro / runbook §21–28) |
+| N-07 | Verificações que exigem ambiente real e **não foram feitas**: smoke manual do mapa com `maplibre-gl` 6 no navegador; CSP/nonce e HSTS num navegador com domínio e TLS reais; workflows do GitHub Actions; `docker compose --scale` com storage compartilhado | — | **pendente** (runbook §21–28 e `docs/STATUS.md`) |
 | N-08 | `docs/security-audit/tools/*.py` têm caminhos absolutos (`/tmp/audit-env`, `/home/bruno/...`) e o `gen_inventory.py` carrega veredito estático; não regerar `inventario-rotas.md` sem revisá-lo | informativa | aberto |
 | N-09 | `SECRET_KEY` continua declarada e validada, mas nenhum código a usa; comentário em `config.py:52-53` desatualizado. Remover a variável (e do compose/.env.example) ou usá-la (ex.: assinar algo) | baixa | **aberto** (EST-17 parcial) |
 
 ## 5. Decisões humanas assumidas (confirmar)
 
-O roteiro (seção 7) pedia decisões antes de começar; como a execução foi sem interrupções, foi usado o padrão sugerido. Cada uma está documentada em `docs/runbooks/deployment-and-maintenance.md` e é reversível.
+O roteiro de correção (seção 7) pedia decisões antes de começar; como a execução foi sem interrupções, foi usado o padrão sugerido. Cada uma está documentada em `docs/runbooks/deployment-and-maintenance.md` e é reversível.
 
 | Etapa | Decisão assumida |
 |---|---|
@@ -142,4 +142,4 @@ O roteiro (seção 7) pedia decisões antes de começar; como a execução foi s
 - Frontend: `pnpm lint && pnpm typecheck && pnpm test` — 180 testes passam; `pnpm build` conclui.
 - Contratos regenerados: `contracts/openapi.json`, `contracts/api-types.d.ts` e `contracts/permissions.json`; testes de contrato os comparam com o código.
 - Migrações `0011`–`0015`: `alembic downgrade` até `0010` e `upgrade head` executados com sucesso em Postgres descartável (R28).
-- `git status --porcelain` ao final desta etapa: somente `docs/security-audit/` (este arquivo e `roteiro-correcao.md`).
+- `git status --porcelain` ao final desta etapa: somente `docs/security-audit/` (este arquivo e o roteiro).
