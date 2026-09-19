@@ -21,32 +21,51 @@ A auditoria (`docs/security-audit/`) apontou 53 achados (18 de segurança, 21 de
 
 Resultado: **51 achados corrigidos, 2 parciais (PERF-09, EST-14), 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 531 testes localmente (530 passam com `pg_dump`/`pg_restore` no PATH + 1 que só roda sem eles; 534 antes do adendo, menos 7 casos de `SECRET_KEY` removidos e mais 4 novos); frontend: 181.
 
-## 2. O que está acontecendo agora
+## 2. Situação do CI (`master`, 19/09/2026)
 
-Fechamento das pendências que não dependiam de decisão de produto, mesclado na `master` em 19/09/2026 (branch `fix/pendencias-auditoria`, fast-forward). Detalhe em `docs/security-audit/resolucao.md` §7.
+| Workflow | Situação |
+|---|---|
+| CI (backend, frontend, security, docker) | **verde** no commit `9d0dd37` |
+| CodeQL (python, javascript-typescript) | **vermelho, mas não é o código**: a análise roda e o upload falha com "Code scanning is not enabled for this repository". Em repositório privado o code scanning exige GitHub Advanced Security. Ver item 1 abaixo |
 
-**CI vermelho na `master` — causa encontrada e corrigida.** Os 4 testes espaciais falhavam porque `restore_backup` usava `pg_restore --clean`, que **recria a extensão PostGIS** e deixa as conexões já abertas com o cache de tipos antigo (`no spatial operator found … opfamily`). Só aparecia no GitHub porque a máquina local não tem `pg_dump`/`pg_restore` e caía no dump binário do psycopg. Como afetava também a restauração real com a API no ar, a correção está no código (`_write_restore_list` filtra a extensão do sumário), não só no teste. O teste de tempo do health probe ganhou margem (1,5 s de bloqueio simulado, teto 0,5 s).
+Nenhum PR aberto. Dependabot: atualizações de versão desligadas (`open-pull-requests-limit: 0`); alertas de segurança seguem nas configurações do repositório.
 
-**Falta:** conferir o resultado do CI desta `master` (ainda não executado no GitHub após a correção) e confirmar o CodeQL (em repositório privado pode exigir GitHub Advanced Security). Dependabot: atualizações de versão desligadas (`open-pull-requests-limit: 0`); alertas de segurança seguem nas configurações do repositório.
+O CI vermelho anterior tinha uma causa real de código: `restore_backup` usava `pg_restore --clean`, que recria a extensão PostGIS e quebra as conexões já abertas (`no spatial operator found … opfamily`). Corrigido (`_write_restore_list`); detalhe em `docs/security-audit/resolucao.md` §7.
 
-## 3. O que ficou para trás
+## 3. O que falta fazer (checklist para retomar)
 
-**Achados parciais (dependem de decisão)**
+### 3.1 Só você consegue (conta, domínio, infraestrutura)
 
-- PERF-09 — o `UPDATE network_topology_state` (linha única) ainda serializa escritas de topologia; mitigado (é o último passo antes do commit; `statement_timeout`), sem advisory lock/sequence.
-- EST-14 — escala horizontal: ADR + compose escalável prontos; falta storage compartilhado de anexos (S3/MinIO/NFS) para multi-réplica de verdade.
+1. **CodeQL vermelho** — escolher uma opção: (a) tornar o repositório público; (b) habilitar GitHub Advanced Security (Settings → Code security); ou (c) remover `.github/workflows/codeql.yml` e ficar com `pip-audit`, `pnpm audit`, gitleaks e Trivy, que já rodam no CI.
+2. **CSP/HSTS com TLS real** — subir com domínio e `SITE_ADDRESS` reais e conferir no navegador: cabeçalho `Content-Security-Policy` com nonce, `Strict-Transport-Security` só em HTTPS, `/metrics` respondendo 404 por fora. Procedimento: `docs/runbooks/deployment-and-maintenance.md`.
+3. **Escolher o storage de anexos para multi-réplica (EST-14)** — S3/MinIO/NFS. Hoje os anexos ficam em disco local (`STORAGE_PATH`), então `docker compose up --scale backend=N` só é seguro com volume compartilhado. ADR: `docs/adr/0007-escala-horizontal.md`. Proposta: abstração de storage + backend S3-compatível por variável de ambiente, disco local como padrão, testado com MinIO.
+4. **Confirmar as decisões assumidas** (seção 4 abaixo).
 
-**Riscos conhecidos**
+### 3.2 Posso fazer numa próxima sessão (sem depender de infraestrutura)
 
-- Permissões definidas sem rota que as exija (`cables:*`, `connectivity:*`, `topology:*`, `map:read`) — decisão de produto (N-03).
-- Rate limit em memória por processo (efetivo ×2 com `WEB_CONCURRENCY=2`, zera a cada restart) — aceito (N-05).
+- **N-03 — permissões sem rota**: `cables:*`, `connectivity:*`, `topology:*` e `map:read` existem no RBAC, mas as rotas exigem `network:*`. Caminho seguro: remover as permissões mortas e regenerar `contracts/` (`scripts/export_permissions.py` + OpenAPI). Muda o retorno de `/auth/me`.
+- **Smoke do mapa com `maplibre-gl` 6** em navegador headless (Playwright) contra o compose local.
+- **PERF-09** — o `UPDATE network_topology_state` (linha única) serializa escritas de topologia. Mitigado (último passo antes do commit + `statement_timeout`). Advisory lock/sequence só se a medição mostrar contenção; não é urgente.
+- **N-05** — rate limit em memória por processo (efetivo ×2 com `WEB_CONCURRENCY=2`, zera a cada restart). Aceito; a interface `RateLimiter` (`core/rate_limit.py`) permite trocar por Postgres/Redis.
+- **N-08** — `docs/security-audit/tools/*.py` têm caminhos absolutos; não regerar `inventario-rotas.md` sem revisar.
+- **Revisão do diff** — `/code-review` e `/security-review` sobre as 28 etapas + adendo, recomendado antes de considerar a auditoria concluída.
 
-**Verificações que exigem ambiente real (não feitas)**
+### 3.3 Como rodar tudo localmente
 
-- Smoke manual do mapa com `maplibre-gl` 6 no navegador.
-- CSP/nonce e HSTS num navegador com domínio e TLS reais.
-- `docker compose --scale` com storage compartilhado.
-- Revisão de código/segurança do diff (`/code-review`, `/security-review`), recomendada antes de considerar concluído.
+```bash
+# Banco descartável (NÃO use o ftth_db de desenvolvimento nos testes)
+docker run -d --name ftth-test-pg -p 127.0.0.1:55433:5432 \
+  -e POSTGRES_USER=ftth_test -e POSTGRES_PASSWORD=ftth_test_pw -e POSTGRES_DB=ftth_manager_test \
+  postgis/postgis:16-3.4
+export TEST_DATABASE_URL=postgresql+psycopg://ftth_test:ftth_test_pw@127.0.0.1:55433/ftth_manager_test
+cd backend && uv sync --extra dev && DATABASE_URL=$TEST_DATABASE_URL uv run alembic upgrade head
+uv run ruff check . && uv run ruff format --check . && uv run mypy app && uv run pytest   # ~10 min
+cd ../frontend && pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test
+```
+
+- **Instale `pg_dump`/`pg_restore` (cliente PostgreSQL 16) na máquina.** Sem eles os testes de backup caem no dump binário do psycopg e **não exercitam o caminho que roda no CI** — foi por isso que o bug do PostGIS não aparecia localmente. Com eles, 530 passam e 1 é pulado (o teste do caminho sem `pg_dump`); sem eles, 531 passam.
+- Sem `TEST_DATABASE_URL` a suíte usa `127.0.0.1:5432/ftth_manager_test` (o mesmo servidor do `ftth_db`).
+- Containers descartáveis desta sessão, se ainda existirem: `docker rm -f ftth-test-pg ftth-audit-pg`.
 
 ## 4. Decisões assumidas (confirmar)
 
@@ -55,7 +74,3 @@ Sem painel/busca públicos; rate limit em memória por processo (interface troc�
 ## 5. Incidente de processo (registrado por transparência)
 
 Durante a R26, um teste meu executou `benchmark_endpoints.py` **antes** de ele ter a guarda de ambiente e ele gravou 1 usuário e 3 sessões no banco de desenvolvimento local (container `ftth_db`, porta 5432). Os registros foram removidos e o banco voltou ao estado anterior (vazio). A guarda atual impede a repetição. Além disso, sem `TEST_DATABASE_URL` a suíte de testes usa `127.0.0.1:5432/ftth_manager_test` por padrão — defina a variável para apontar para um banco descartável.
-
-## 6. Ambiente local
-
-Containers descartáveis ainda ativos na máquina: `ftth-test-pg` (porta 55433, testes) e `ftth-audit-pg` (55432, medições). Podem ser removidos com `docker rm -f`.
