@@ -98,6 +98,7 @@ class Settings(BaseSettings):
     ATTACHMENT_ORPHAN_GRACE_MINUTES: int = Field(default=15, ge=1)
     MAX_IMAGE_PIXELS: int = 25_000_000  # 25 Mpx: acima disso a imagem é rejeitada sem decodificar
     MAX_IMPORT_SIZE_BYTES: int = 20_971_520  # 20 MB (arquivos de importação GeoJSON/KML/CSV)
+    MAX_IMPORT_FEATURES: int = Field(default=200_000, ge=1)  # entidades por arquivo importado
 
     # Rate limit por usuário autenticado (janela de 1 minuto; limitador em memória por processo —
     # com N réplicas/workers o teto efetivo é N × valor; ver docs/runbooks)

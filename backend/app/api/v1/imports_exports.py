@@ -11,7 +11,7 @@ from app.core.errors import ForbiddenError
 from app.core.privacy import user_can
 from app.core.rate_limit import rate_limit
 from app.core.storage import resolve_storage_path
-from app.core.uploads import read_upload_limited
+from app.core.uploads import read_upload_limited_sync
 from app.db.session import get_db
 from app.modules.audit.service import record_audit_event
 from app.modules.exports.service import create_export_request
@@ -50,12 +50,13 @@ imports_exports_router = APIRouter(tags=["Importação, Exportação e Jobs"])
         Depends(rate_limit("upload", "RATE_LIMIT_UPLOAD_PER_MINUTE")),
     ],
 )
-async def preview_import(
+def preview_import(
     file: UploadFile = File(..., description="Arquivo GeoJSON, KML ou CSV"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> ImportPreviewResponse:
-    content = await read_upload_limited(file, get_settings().MAX_IMPORT_SIZE_BYTES)
+    # Handler síncrono (threadpool): o parse/validação de até 20 MB não bloqueia o event loop
+    content = read_upload_limited_sync(file, get_settings().MAX_IMPORT_SIZE_BYTES)
     filename = file.filename or "import.geojson"
     return create_import_preview(
         db=db,

@@ -1,14 +1,14 @@
 import logging
 import threading
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from fastapi import HTTPException, status
 from geoalchemy2.shape import from_shape
 from shapely.geometry import Point
-from sqlalchemy import and_, or_, select, update
+from sqlalchemy import and_, insert, or_, select, update
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -36,6 +36,9 @@ from app.schemas.geojson import LineStringGeometry
 from app.schemas.imports_exports import JobRead, JobStatus, JobType
 
 logger = logging.getLogger("ftth.jobs")
+
+# Linhas por INSERT em lote na importação (1 statement) + 1 refresh de cancelamento por lote
+IMPORT_BATCH_SIZE = 500
 
 
 def get_job_by_id(db: Session, job_id: str) -> JobRead:
@@ -272,6 +275,12 @@ def execute_import_commit(db: Session, job: AsyncJob) -> dict[str, Any]:
     else:
         raise JobValidationError(f"Formato de importação desconhecido: {fmt}")
 
+    max_features = get_settings().MAX_IMPORT_FEATURES
+    if len(parsed_items) > max_features:
+        raise JobValidationError(
+            f"O arquivo contém {len(parsed_items)} entidades; o máximo permitido é {max_features}."
+        )
+
     # Validação All-or-Nothing prévia
     codes = [it["code"] for it in parsed_items if it.get("code")]
     if len(codes) != len(set(codes)):
@@ -279,67 +288,75 @@ def execute_import_commit(db: Session, job: AsyncJob) -> dict[str, Any]:
             "O arquivo contém códigos duplicados entre suas próprias entidades."
         )
 
-    # Iniciar transação atômica
+    # Uma única transação atômica; sites e estruturas entram em LOTES (INSERT em lote), com a
+    # verificação de cancelamento a cada lote — ≤ 2 statements por lote de IMPORT_BATCH_SIZE linhas.
     site_map: dict[str, uuid.UUID] = {}
-    struct_map: dict[str, uuid.UUID] = {}
     created_sites = 0
     created_structs = 0
     created_cables = 0
 
-    # 1. Inserir Sites
-    site_items = [it for it in parsed_items if it["entity_type"] == "site"]
-    for s_it in site_items:
-        # Verificar se já foi cancelado
+    def check_cancelled() -> None:
         db.refresh(job)
         if job.status == "cancelled":
             raise InterruptedError("Job cancelado pelo operador")
 
-        coords = s_it["coords"]
-        lon, lat = coords[0], coords[1]
-        geom_point = from_shape(Point(lon, lat), srid=4326)
-        site = Site(
-            code=s_it["code"],
-            name=s_it["name"],
-            kind=s_it["props"].get("kind") or s_it["props"].get("type") or "pop",
-            status=s_it["props"].get("status", "installed"),
-            location=geom_point,
-        )
-        db.add(site)
-        db.flush()
-        site_map[s_it["code"]] = site.id
-        created_sites += 1
+    def batches(items: list[dict[str, Any]]) -> Iterator[list[dict[str, Any]]]:
+        for start in range(0, len(items), IMPORT_BATCH_SIZE):
+            yield items[start : start + IMPORT_BATCH_SIZE]
 
-    # 2. Inserir Estruturas (Postes, Caixas CEO/CTO)
+    # 1. Sites
+    site_items = [it for it in parsed_items if it["entity_type"] == "site"]
+    for chunk in batches(site_items):
+        check_cancelled()
+        rows = []
+        for s_it in chunk:
+            lon, lat = s_it["coords"][0], s_it["coords"][1]
+            site_id = uuid.uuid4()
+            site_map[s_it["code"]] = site_id
+            rows.append(
+                {
+                    "id": site_id,
+                    "code": s_it["code"],
+                    "name": s_it["name"],
+                    "kind": s_it["props"].get("kind") or s_it["props"].get("type") or "pop",
+                    "status": s_it["props"].get("status", "installed"),
+                    "location": from_shape(Point(lon, lat), srid=4326),
+                    "version": 1,
+                }
+            )
+        db.execute(insert(Site), rows)
+        created_sites += len(rows)
+
+    # 2. Estruturas (Postes, Caixas CEO/CTO)
     struct_items = [
         it for it in parsed_items if it["entity_type"] in ("structure", "pole", "cto", "ceo")
     ]
-    for st_it in struct_items:
-        db.refresh(job)
-        if job.status == "cancelled":
-            raise InterruptedError("Job cancelado pelo operador")
-
-        coords = st_it["coords"]
-        lon, lat = coords[0], coords[1]
-        geom_point = from_shape(Point(lon, lat), srid=4326)
-        st_kind = st_it["props"].get("kind") or st_it["props"].get("type") or st_it["entity_type"]
-        if st_kind not in ("pole", "manhole", "ceo", "cto"):
-            st_kind = "pole"
-
-        site_code = st_it["props"].get("site_code")
-        site_id = site_map.get(site_code) if site_code else None
-
-        struct = Structure(
-            code=st_it["code"],
-            kind=st_kind,
-            status=st_it["props"].get("status", "installed"),
-            condition="ok",
-            location=geom_point,
-            site_id=site_id,
-        )
-        db.add(struct)
-        db.flush()
-        struct_map[st_it["code"]] = struct.id
-        created_structs += 1
+    for chunk in batches(struct_items):
+        check_cancelled()
+        rows = []
+        for st_it in chunk:
+            lon, lat = st_it["coords"][0], st_it["coords"][1]
+            st_kind = (
+                st_it["props"].get("kind") or st_it["props"].get("type") or st_it["entity_type"]
+            )
+            if st_kind not in ("pole", "manhole", "ceo", "cto"):
+                st_kind = "pole"
+            site_code = st_it["props"].get("site_code")
+            rows.append(
+                {
+                    "id": uuid.uuid4(),
+                    "code": st_it["code"],
+                    "kind": st_kind,
+                    "status": st_it["props"].get("status", "installed"),
+                    "condition": "ok",
+                    "capacity": 0,
+                    "location": from_shape(Point(lon, lat), srid=4326),
+                    "site_id": site_map.get(site_code) if site_code else None,
+                    "version": 1,
+                }
+            )
+        db.execute(insert(Structure), rows)
+        created_structs += len(rows)
 
     # 3. Inserir Cabos: cabo + trecho (CableSegment) com a geometria do arquivo, pontas resolvidas
     # por código explícito ou proximidade (as estruturas do arquivo já foram gravadas acima)

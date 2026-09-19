@@ -327,3 +327,11 @@ Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
 - **Limitação**: o rate limit das rotas caras é em memória por processo (teto efetivo = N × limite).
 - **Backup agendado**: `docker compose --profile backup up -d backup` gera um pacote a cada `BACKUP_INTERVAL_SECONDS` (24 h) em `/app/backups` (volume `backups`), mantém os últimos `BACKUP_RETENTION_COUNT` (7) e usa `BACKUP_SIGNING_KEY` (obrigatória) e `BACKUP_ENCRYPTION_KEY` (recomendada). **Copie o volume para fora do servidor** (rsync/rclone/objeto): backup no mesmo disco não protege contra perda do host. Restaure com `python scripts/restore.py <arquivo>` (assinatura verificada antes de extrair).
 - Alternativa sem o serviço: cron no host com `docker compose exec -T backend python scripts/backup.py --target-dir /app/backups`.
+
+---
+
+## 23. Importação e exportação em escala
+
+- **Importação**: `POST /imports/preview` roda no threadpool (não bloqueia o event loop) e recusa arquivos com mais de `MAX_IMPORT_FEATURES` (200 000) entidades (422). O commit insere sites e estruturas em **lotes de 500** (`INSERT` em lote: ≤ 2 statements por lote com a checagem de cancelamento), sempre numa única transação (all-or-nothing). Medido: 50 000 pontos = 201 statements (antes: 100 001). Cabos continuam sendo criados um a um (geram tubos/fibras/terminais).
+- **Exportação**: os geradores GeoJSON/KML/CSV leem com cursor de servidor (`yield_per=1000`) e escrevem o arquivo de forma incremental; o pico de memória é constante (~4 MB) em vez de proporcional à camada (antes: 40 MB para 5,6 MB de GeoJSON, 30 MB para 1,6 MB de CSV). O GeoJSON passa a ser compacto (sem `indent`).
+- `tests/legacy_exports_service.py` guarda os geradores anteriores só como oráculo dos testes de caracterização (mesmo conteúdo).

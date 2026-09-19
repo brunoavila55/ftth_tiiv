@@ -9,7 +9,7 @@ from typing import Any
 
 import defusedxml.ElementTree as ET
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import ARRAY, String, any_, bindparam, func, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
@@ -453,6 +453,12 @@ def parse_csv(
     return parsed_items, preview_items
 
 
+def _code_in(column: Any, codes: list[str]) -> Any:
+    """`coluna = ANY(:array)`: 1 parâmetro só (um IN com dezenas de milhares de códigos estoura o
+    limite de parâmetros do driver)."""
+    return column == any_(bindparam(None, codes, type_=ARRAY(String)))
+
+
 def _structure_point(structure: Structure) -> tuple[float, float]:
     coords = wkb_to_point_geometry(structure.location).coordinates
     return float(coords[0]), float(coords[1])
@@ -632,6 +638,16 @@ def create_import_preview(
             detail="Formato de arquivo não suportado. Utilize .geojson, .kml, .kmz ou .csv.",
         )
 
+    max_features = get_settings().MAX_IMPORT_FEATURES
+    if len(parsed_items) > max_features:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=(
+                f"O arquivo contém {len(parsed_items)} entidades; o máximo permitido por importação "
+                f"é {max_features}. Divida o arquivo."
+            ),
+        )
+
     # Cabos precisam de estruturas nas pontas (explícitas ou por proximidade): senão, erro
     validate_cable_items(db, parsed_items, preview_items)
 
@@ -641,19 +657,19 @@ def create_import_preview(
     ]
 
     existing_site_codes = (
-        set(db.scalars(select(Site.code).where(Site.code.in_(valid_codes))).all())
+        set(db.scalars(select(Site.code).where(_code_in(Site.code, valid_codes))).all())
         if valid_codes
         else set()
     )
 
     existing_struct_codes = (
-        set(db.scalars(select(Structure.code).where(Structure.code.in_(valid_codes))).all())
+        set(db.scalars(select(Structure.code).where(_code_in(Structure.code, valid_codes))).all())
         if valid_codes
         else set()
     )
 
     existing_cable_codes = (
-        set(db.scalars(select(Cable.code).where(Cable.code.in_(valid_codes))).all())
+        set(db.scalars(select(Cable.code).where(_code_in(Cable.code, valid_codes))).all())
         if valid_codes
         else set()
     )
