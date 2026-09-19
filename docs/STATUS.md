@@ -38,8 +38,9 @@ O CI vermelho anterior tinha uma causa real de código: `restore_backup` usava `
 
 ### 3.1 Só você consegue (conta, domínio, infraestrutura)
 
-1. **CSP/HSTS com TLS real** — subir com domínio e `SITE_ADDRESS` reais e conferir no navegador: cabeçalho `Content-Security-Policy` com nonce, `Strict-Transport-Security` só em HTTPS, `/metrics` respondendo 404 por fora. Procedimento: `docs/runbooks/deployment-and-maintenance.md`.
-2. **Confirmar as decisões assumidas** (seção 4 abaixo).
+1. **Confirmar as decisões assumidas** (seção 4 abaixo).
+
+**TLS/domínio — decisão de projeto (não pendência):** projeto open source/self-hosted (`README.md`); cada instalação tem seu próprio domínio, então configurar `SITE_ADDRESS` com o domínio real e verificar CSP/HSTS em produção fica a cargo de quem instala. O Caddy já faz TLS automático (Let's Encrypt) a partir dessa variável, sem código adicional — procedimento documentado em `docs/runbooks/deployment-and-maintenance.md`.
 
 ### 3.2 Posso fazer numa próxima sessão (sem depender de infraestrutura)
 
