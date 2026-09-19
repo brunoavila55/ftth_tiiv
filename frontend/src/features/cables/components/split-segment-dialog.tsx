@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api/types";
 import {
+  listSegmentFibers,
   previewSegmentSplit,
   splitSegment,
   type CableSegmentRead,
@@ -31,6 +32,8 @@ export interface SplitSegmentDialogProps {
   onSuccess: () => void;
 }
 
+const FIBERS_PAGE_SIZE = 200; // máximo aceito pela API
+
 export function SplitSegmentDialog({
   open,
   onOpenChange,
@@ -41,6 +44,8 @@ export function SplitSegmentDialog({
   const [structures, setStructures] = React.useState<StructureRead[]>([]);
   const [selectedStructureId, setSelectedStructureId] = React.useState<string>("");
   const [cutFiberNumbers, setCutFiberNumbers] = React.useState<number[]>([]);
+  // A API identifica as fibras cortadas pelo UUID (fiber_id); a tela as escolhe pelo número.
+  const [fiberIdByNumber, setFiberIdByNumber] = React.useState<Map<number, string> | null>(null);
   const [segment1Slack, setSegment1Slack] = React.useState<string>("10");
   const [segment2Slack, setSegment2Slack] = React.useState<string>("10");
 
@@ -66,9 +71,42 @@ export function SplitSegmentDialog({
     }
   }, [open]);
 
+  // Carrega o mapa número da fibra → fiber_id do trecho (paginado: cabos chegam a 1728 fibras)
+  const segmentId = segment?.id;
+  React.useEffect(() => {
+    if (!open || !segmentId) return;
+    let cancelled = false;
+    setFiberIdByNumber(null);
+
+    (async () => {
+      const map = new Map<number, string>();
+      for (let page = 1; ; page++) {
+        const res = await listSegmentFibers(segmentId, { page, page_size: FIBERS_PAGE_SIZE });
+        res.items.forEach((f) => map.set(f.fiber_number, f.fiber_id));
+        if (res.items.length < FIBERS_PAGE_SIZE || map.size >= res.total) break;
+      }
+      if (!cancelled) setFiberIdByNumber(map);
+    })().catch(() => {
+      if (!cancelled) setErrorMessage("Não foi possível carregar as fibras do trecho.");
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, segmentId]);
+
+  const cutFiberIds = React.useCallback(
+    () =>
+      cutFiberNumbers.flatMap((n) => {
+        const id = fiberIdByNumber?.get(n);
+        return id ? [id] : [];
+      }),
+    [cutFiberNumbers, fiberIdByNumber]
+  );
+
   // Atualiza pré-visualização quando estrutura ou parâmetros mudam
   React.useEffect(() => {
-    if (!segment || !selectedStructureId || !open) return;
+    if (!segment || !selectedStructureId || !open || !fiberIdByNumber) return;
 
     const timer = setTimeout(() => {
       setIsPreviewLoading(true);
@@ -76,7 +114,7 @@ export function SplitSegmentDialog({
 
       previewSegmentSplit(segment.id, {
         access_structure_id: selectedStructureId,
-        cut_fiber_ids: cutFiberNumbers.map((n) => String(n)),
+        cut_fiber_ids: cutFiberIds(),
         segment_1_slack_m: Number(segment1Slack) || 0,
         segment_2_slack_m: Number(segment2Slack) || 0,
       })
@@ -90,7 +128,15 @@ export function SplitSegmentDialog({
     }, 250);
 
     return () => clearTimeout(timer);
-  }, [segment, selectedStructureId, cutFiberNumbers, segment1Slack, segment2Slack, open]);
+  }, [
+    segment,
+    selectedStructureId,
+    fiberIdByNumber,
+    cutFiberIds,
+    segment1Slack,
+    segment2Slack,
+    open,
+  ]);
 
   const toggleFiberCut = (fiberNum: number) => {
     setCutFiberNumbers((prev) =>
@@ -109,7 +155,7 @@ export function SplitSegmentDialog({
   };
 
   const handleConfirmSplit = async () => {
-    if (!segment || !selectedStructureId) return;
+    if (!segment || !selectedStructureId || !fiberIdByNumber) return;
 
     setIsSubmitting(true);
     setErrorMessage(null);
@@ -119,7 +165,7 @@ export function SplitSegmentDialog({
         segment.id,
         {
           access_structure_id: selectedStructureId,
-          cut_fiber_ids: cutFiberNumbers.map((n) => String(n)),
+          cut_fiber_ids: cutFiberIds(),
           segment_1_slack_m: Number(segment1Slack) || 0,
           segment_2_slack_m: Number(segment2Slack) || 0,
         },
@@ -327,7 +373,7 @@ export function SplitSegmentDialog({
           <Button
             type="button"
             onClick={handleConfirmSplit}
-            disabled={isSubmitting || !selectedStructureId}
+            disabled={isSubmitting || !selectedStructureId || !fiberIdByNumber}
             className="gap-1.5"
           >
             {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}

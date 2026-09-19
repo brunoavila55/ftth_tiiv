@@ -153,3 +153,23 @@ def test_health_stays_responsive_during_slow_image_processing(
 
     assert result["status"] == status.HTTP_201_CREATED
     assert max(latencies) < 0.1, latencies
+
+
+def test_generate_thumbnail_image_enforces_pixel_limit_on_its_own(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """N-04: defesa em profundidade — um novo chamador não herda o risco de decodificar uma bomba."""
+    monkeypatch.setenv("MAX_IMAGE_PIXELS", "10000")
+    get_settings.cache_clear()
+    decoded: list[bool] = []
+    real_convert = Image.Image.convert
+
+    def spy_convert(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+        decoded.append(True)
+        return real_convert(self, *args, **kwargs)
+
+    monkeypatch.setattr(Image.Image, "convert", spy_convert)
+
+    assert attachments_service.generate_thumbnail_image(png_bytes(200, 200), "image/png") is None
+    assert decoded == []  # rejeitada pelo cabeçalho, sem decodificar
+    assert attachments_service.generate_thumbnail_image(png_bytes(50, 50), "image/png") is not None

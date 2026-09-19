@@ -409,3 +409,51 @@ def test_cto_occupancy_acceptance_criteria_8_ports_3_connected_1_reserved_4_free
     assert ports_map["Porta 5"]["status"] == "free"
     assert ports_map["Porta 8"]["status"] == "free"
     assert ports_map["Porta 8"]["is_damaged"] is True
+
+
+def test_delete_customer_with_historical_links_is_conflict_not_500(
+    client: TestClient, db_session: Session
+) -> None:
+    """N-01: vínculos desativados mantêm a FK (RESTRICT) — a exclusão deve virar 409, não 500."""
+    user = create_test_user(db_session, "user_del_hist@provedor.com.br")
+    csrf_token = auth_client_login(client, user.email)
+    cto = create_test_cto(db_session, "CTO-HIST-01")
+    port = create_test_ports(db_session, cto, 1)[0]
+    onu = create_test_onu(db_session, "ONU-HIST-01", cto)
+    customer = Customer(code="CLI-HIST-01", name="Cliente Histórico", version=1)
+    db_session.add(customer)
+    db_session.commit()
+    db_session.add(
+        ServiceLink(
+            customer_id=customer.id,
+            onu_device_id=onu.id,
+            port_id=port.id,
+            status="inactive",
+            deactivated_at=datetime.now(UTC),
+            version=1,
+        )
+    )
+    db_session.commit()
+
+    resp = client.delete(
+        f"/api/v1/customers/{customer.id}",
+        headers={"X-CSRF-Token": csrf_token, "If-Match": '"1"'},
+    )
+    assert resp.status_code == status.HTTP_409_CONFLICT, resp.text
+    assert "histór" in resp.json()["detail"]
+    db_session.expire_all()
+    assert db_session.get(Customer, customer.id) is not None
+
+
+def test_delete_customer_without_links_still_works(client: TestClient, db_session: Session) -> None:
+    user = create_test_user(db_session, "user_del_ok@provedor.com.br")
+    csrf_token = auth_client_login(client, user.email)
+    customer = Customer(code="CLI-DEL-OK", name="Sem Vínculos", version=1)
+    db_session.add(customer)
+    db_session.commit()
+
+    resp = client.delete(
+        f"/api/v1/customers/{customer.id}",
+        headers={"X-CSRF-Token": csrf_token, "If-Match": '"1"'},
+    )
+    assert resp.status_code == status.HTTP_204_NO_CONTENT, resp.text

@@ -315,6 +315,43 @@ describe("Cabos, Tubos e Fibras (F09)", () => {
       });
     });
 
+    it("envia o UUID da fibra (fiber_id) em cut_fiber_ids, nunca o número da fibra", async () => {
+      vi.mocked(cablesApi.previewSegmentSplit).mockClear();
+      vi.mocked(cablesApi.splitSegment).mockClear();
+
+      renderWithQueryClient(
+        <SplitSegmentDialog
+          open={true}
+          onOpenChange={vi.fn()}
+          segment={mockSegment}
+          totalFibers={12}
+          onSuccess={vi.fn()}
+        />
+      );
+
+      // Aguarda o mapa número → fiber_id (listSegmentFibers) antes de cortar
+      await waitFor(() => {
+        expect(cablesApi.listSegmentFibers).toHaveBeenCalledWith("seg-1", expect.anything());
+      });
+      fireEvent.click(screen.getByTitle(/Fibra #2: PASSANTE/i));
+
+      await waitFor(() => {
+        expect(cablesApi.previewSegmentSplit).toHaveBeenLastCalledWith(
+          "seg-1",
+          expect.objectContaining({ cut_fiber_ids: ["fib-2"] })
+        );
+      });
+
+      fireEvent.click(screen.getByRole("button", { name: /Confirmar Divisão do Trecho/i }));
+      await waitFor(() => {
+        expect(cablesApi.splitSegment).toHaveBeenCalledWith(
+          "seg-1",
+          expect.objectContaining({ cut_fiber_ids: ["fib-2"] }),
+          mockSegment.version
+        );
+      });
+    });
+
     it("confirma divisão chamando splitSegment na API", async () => {
       const onSuccess = vi.fn();
 

@@ -212,6 +212,21 @@ def delete_customer(
             f"Não é possível excluir o cliente '{customer.name}' pois ele possui {active_links} atendimento(s) óptico(s) ativo(s). Desative os atendimentos primeiro."
         )
 
+    # A FK é RESTRICT: vínculos desativados (histórico) também impedem a exclusão
+    historical_links = (
+        db.scalar(
+            select(func.count())
+            .select_from(ServiceLink)
+            .where(ServiceLink.customer_id == customer_id)
+        )
+        or 0
+    )
+    if historical_links > 0:
+        raise ConflictError(
+            f"Não é possível excluir o cliente '{customer.name}' pois ele possui "
+            f"{historical_links} atendimento(s) no histórico."
+        )
+
     record_audit_event(
         db,
         actor_id=actor_id,

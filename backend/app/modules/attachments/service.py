@@ -157,6 +157,9 @@ def generate_thumbnail_image(content: bytes, mime_type: str) -> bytes | None:
 
     try:
         with Image.open(io.BytesIO(content)) as img:
+            # Defesa em profundidade: o teto também vale aqui, não só no upload (só o cabeçalho é lido)
+            if img.width * img.height > get_settings().MAX_IMAGE_PIXELS:
+                return None
             # Converte modo para RGB caso seja CMYK ou outro incompatível com WebP
             if img.mode in ("RGBA", "LA") or (img.mode == "P" and "transparency" in img.info):
                 thumb_img = img.convert("RGBA")
