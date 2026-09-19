@@ -1,7 +1,7 @@
 # Resolução da auditoria — re-auditoria final (R28)
 
 > **Confidencial.** Complementa `relatorio-auditoria-seguranca.pdf`, `issues.md` e `roteiro-correcao.md`.
-> Branch: `fix/auditoria-seguranca` (27 commits locais, um por etapa R01–R27; **nada foi enviado/mesclado**).
+> Branch: `fix/auditoria-seguranca` (28 commits locais, um por etapa R01–R28; **nada foi enviado/mesclado**).
 > Esta etapa (R28) não alterou código: só este arquivo e o checklist da seção 6 do roteiro.
 > `findings.json`, `issues.md`, `inventario-rotas.md`, o PDF e `evidencias/` continuam sendo o **retrato anterior às correções** (o texto estático do `gen_inventory.py` cita achados que já não existem).
 
@@ -11,7 +11,7 @@
 |---|---|---|
 | Achados (53) | 53 abertos (10 altos) | **50 corrigidos, 3 parciais** (PERF-09, EST-14, EST-17), 0 pendentes |
 | Rotas sem autenticação (110 handlers) | 18 | **8** — todas intencionais: `health/live`×2, `health/ready`×2, `auth/csrf`, `auth/login`, `auth/logout`, `metrics` (token; o Caddy responde 404 externamente) |
-| Rotas com `require_permission` | 92 com auth, 0 nos stubs | 102 com auth; todas as rotas de negócio autenticadas por padrão (`router.py:32`) |
+| Rotas com alguma dependência de autenticação | 92 | 102; todas as rotas de negócio autenticadas por padrão (`router.py:32`) |
 | `pip-audit` (backend, 56 pacotes) | 0 | 0 |
 | `pnpm audit` (frontend) | 7 (1 crítica, 2 altas, 4 moderadas) | **0** |
 | Trivy (imagens, HIGH/CRITICAL) | — | 0 |
@@ -141,5 +141,5 @@ O roteiro (seção 7) pedia decisões antes de começar; como a execução foi s
 - Backend: `uv run ruff check . && uv run ruff format --check . && uv run mypy app && uv run pytest` (Postgres/PostGIS descartável em `127.0.0.1:55433`) — **534 passed** (9 min 55 s), `ruff check`, `ruff format --check` (203 arquivos) e `mypy app` (113 arquivos) limpos.
 - Frontend: `pnpm lint && pnpm typecheck && pnpm test` — 180 testes passam; `pnpm build` conclui.
 - Contratos regenerados: `contracts/openapi.json`, `contracts/api-types.d.ts` e `contracts/permissions.json`; testes de contrato os comparam com o código.
-- Migrações `0011`–`0015` com `downgrade` funcional.
+- Migrações `0011`–`0015`: `alembic downgrade` até `0010` e `upgrade head` executados com sucesso em Postgres descartável (R28).
 - `git status --porcelain` ao final desta etapa: somente `docs/security-audit/` (este arquivo e `roteiro-correcao.md`).
