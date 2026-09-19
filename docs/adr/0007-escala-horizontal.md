@@ -29,13 +29,13 @@
 | Fila de jobs | `SKIP LOCKED` + lease: vários workers já são seguros | Ok (R12) |
 | Limpeza periódica | cada worker executa; idempotente | Ok |
 | Migrações | serviço `migrate` (one-shot) antes do backend | Ok; em rolling deploy execute-as antes de subir a nova versão |
-| Storage de anexos/exportações/importações | volume local: só funciona com réplicas **no mesmo host** | **Pendente** (limite real da escala multi-host) |
+| Storage de anexos/exportações/importações | `StorageBackend` (`backend/app/core/storage_backend.py`): `LocalStorage` (padrão, sem mudança de comportamento) ou `S3Storage` (MinIO/S3, `STORAGE_BACKEND=s3`) | **Feito** — ver item 1 do épico abaixo |
 | Banco único | ponto único de falha | **Pendente** (HA fora do escopo do produto) |
 
 ## Decisão
 
 1. **Curto prazo (feito)**: permitir `docker compose up -d --scale backend=N --scale worker=M` num único host — sem `container_name` fixo, Caddy balanceando entre réplicas, healthcheck do worker, métricas agregadas, pool dimensionado por processo, agendamento de backup opt-in (`--profile backup`). Testado com `--scale backend=2` (ambas saudáveis, readiness 200 via Caddy, `/metrics` externo 404, `ftth_processes` por papel).
-2. **Multi-host**: exige storage compartilhado. Recomendação: **abstrair o storage (interface `StorageBackend`) e oferecer S3/MinIO**, mantendo o volume local como padrão. NFS funciona, mas herda problemas de lock/latência e não elimina o ponto único de falha; só é aceitável como ponte.
+2. **Multi-host**: exige storage compartilhado. **Feito**: interface `StorageBackend` com `S3Storage` (MinIO/S3) opt-in (`STORAGE_BACKEND=s3`), volume local como padrão. NFS funciona, mas herda problemas de lock/latência e não elimina o ponto único de falha; só seria aceitável como ponte.
 3. **Rate limit distribuído**: implementar um `RateLimiter` em Postgres (tabela + `INSERT … ON CONFLICT`) só quando houver >1 réplica em produção; Redis apenas se já existir na infraestrutura (nova dependência).
 4. **HA do banco**: fora do escopo do aplicativo; recomendar PostgreSQL gerenciado ou Patroni/streaming replication, com backup assinado e restore testado (drill no CI).
 
@@ -45,21 +45,21 @@
 |---|---|---|
 | Mais workers uvicorn (`WEB_CONCURRENCY`) | CPU do host | Nenhum; ajustar pool (conexões = workers × 10) |
 | Réplicas no mesmo host (`--scale`) | Isolamento de falha, rolling restart | Baixo (já feito) |
-| S3/MinIO para anexos/exportações | Multi-host, durabilidade | Médio: interface + migração de caminhos + reconciliador por prefixo; MinIO é 1 container extra |
+| S3/MinIO para anexos/exportações | Multi-host, durabilidade | **Feito.** MinIO é 1 container extra (`compose.s3.yaml`, opt-in) |
 | NFS | Multi-host sem código | Baixo em código, alto operacional (latência, locks, SPOF) |
 | Rate limit em Postgres | Teto global correto | Baixo/médio: 1 tabela + índice, ~1 query por requisição limitada |
 | HA do banco | Disponibilidade | Alto (operação), independente do app |
 
 ## Épico pendente — tarefas para priorizar
 
-1. `StorageBackend` (interface: `put/get/delete/exists/stream`, chaves relativas) + implementação `LocalStorage` (padrão) sem mudança de comportamento.
-2. `S3Storage` (boto3/MinIO), configuração por `STORAGE_BACKEND=s3`, URLs pré-assinadas para download opcional.
-3. Migrar anexos/exportações/importações para a interface (hoje: `attachments/service.py`, `exports/service.py`, `imports/service.py`, `core/storage.py`).
-4. Reconciliador e retenção operando por prefixo/idade no backend escolhido; backup incluir o bucket (ou exigir versionamento/replicação do bucket).
+1. ~~`StorageBackend` (interface: `put/get/delete/exists/stream`, chaves relativas) + implementação `LocalStorage` (padrão) sem mudança de comportamento.~~ **Feito.** `backend/app/core/storage_backend.py`: `StorageBackend` (Protocol) com `save`/`save_stream`/`read`/`open_read`/`exists`/`delete`/`stat`/`list`/`local_path`; `LocalStorage` reproduz exatamente o comportamento anterior (`core/storage.py`, removido); `S3Storage` (boto3, S3-compatível/MinIO) atrás de `STORAGE_BACKEND=s3`, com criação automática do bucket. `attachments/service.py`, `exports/service.py`, `imports/service.py` e `jobs/service.py` migrados; endpoints de download usam `FileResponse` quando o backend é local (`local_path()` não-nulo, sem regressão de performance) ou `StreamingResponse` quando é S3. Testado com `moto` (CI) e manualmente contra um MinIO real (`quay.io/minio/minio` — a imagem `minio/minio` saiu do Docker Hub em 2025): upload, hash, miniatura, delete e `save_stream` de exportação, todos OK. Serviço `minio` local em `compose.s3.yaml` (arquivo separado — ver ADR: default `docker compose up` não pode exigir `MINIO_ROOT_USER`/`PASSWORD` de quem não usa S3).
+2. `S3Storage`: URLs pré-assinadas para download direto do bucket (hoje o backend sempre faz proxy do stream; evita carga no backend em arquivos grandes).
+3. Reconciliador e retenção já operam pela interface (`backend.list()`/`backend.exists()`/`backend.delete()`), independente do backend escolhido.
+4. Backup incluir o bucket S3 (hoje `scripts/backup.py`/`restore.py` só cobrem o volume local `STORAGE_PATH`) — necessário antes de usar `STORAGE_BACKEND=s3` em produção sem depender só da durabilidade própria do MinIO/S3.
 5. `PostgresRateLimiter` atrás da interface `RateLimiter`.
 6. Guia de HA do PostgreSQL e teste de failover no runbook.
 
 ## Consequências
 
-- Escalar no mesmo host já é suportado e testado; escalar entre hosts depende do épico de storage.
-- O modo padrão (1 host, volume local) continua simples e sem novas dependências.
+- Escalar no mesmo host já é suportado e testado; escalar entre hosts com storage S3/MinIO também (item 1). Falta o backup do bucket (item 4) antes de considerar `STORAGE_BACKEND=s3` pronto para produção sem risco de perda de anexos.
+- O modo padrão (1 host, volume local) continua simples e sem novas dependências — `STORAGE_BACKEND=s3` é opt-in.

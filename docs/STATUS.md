@@ -19,7 +19,9 @@ A auditoria (`docs/security-audit/`) apontou 53 achados (18 de segurança, 21 de
 | Entrada de dados | Tetos de tamanho em todos os schemas; identificadores validados como UUID (422 em vez de 500) |
 | Frontend | Matriz de permissões gerada do backend (`contracts/permissions.json`), menu/rotas/ações escondidos por permissão |
 
-Resultado: **51 achados corrigidos, 2 parciais (PERF-09, EST-14), 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 531 testes localmente (530 passam com `pg_dump`/`pg_restore` no PATH + 1 que só roda sem eles; 534 antes do adendo, menos 7 casos de `SECRET_KEY` removidos e mais 4 novos); frontend: 181.
+Resultado: **52 achados corrigidos, 1 parcial (PERF-09), 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 554 testes localmente (553 passam sem `pg_dump`/`pg_restore` no PATH + 1 pulado; 531 antes desta sessão + 23 novos de `StorageBackend`/S3); frontend: 181.
+
+**Sessão de 19/09/2026 (depois do adendo acima): EST-14 resolvido.** Storage de anexos/importações/exportações abstraído em `StorageBackend` (`backend/app/core/storage_backend.py`): `LocalStorage` (padrão, disco/volume, sem mudança de comportamento) e `S3Storage` (boto3, S3-compatível — MinIO escolhido pelo operador). `attachments/service.py`, `exports/service.py`, `imports/service.py`, `jobs/service.py` e os endpoints de download migrados; `core/storage.py` removido. Testado com `moto` (21 testes novos, rodam no CI) e manualmente contra um MinIO real (upload, hash, miniatura, delete, exportação em fluxo — todos OK; imagem `quay.io/minio/minio`, pois `minio/minio` saiu do Docker Hub em 2025). MinIO local em `compose.s3.yaml`, arquivo **separado** de propósito: `docker compose up` (só `compose.yaml`) não pode passar a exigir `MINIO_ROOT_USER`/`PASSWORD` de quem nunca vai usar S3 (testado: `docker compose config` falha na interpolação de variáveis mesmo com o serviço atrás de `profiles`, porque o compose valida o arquivo inteiro antes de aplicar o profile). Detalhe: `docs/adr/0007-escala-horizontal.md`.
 
 ## 2. Situação do CI (`master`, 19/09/2026)
 
@@ -37,11 +39,12 @@ O CI vermelho anterior tinha uma causa real de código: `restore_backup` usava `
 ### 3.1 Só você consegue (conta, domínio, infraestrutura)
 
 1. **CSP/HSTS com TLS real** — subir com domínio e `SITE_ADDRESS` reais e conferir no navegador: cabeçalho `Content-Security-Policy` com nonce, `Strict-Transport-Security` só em HTTPS, `/metrics` respondendo 404 por fora. Procedimento: `docs/runbooks/deployment-and-maintenance.md`.
-2. **Escolher o storage de anexos para multi-réplica (EST-14)** — S3/MinIO/NFS. Hoje os anexos ficam em disco local (`STORAGE_PATH`), então `docker compose up --scale backend=N` só é seguro com volume compartilhado. ADR: `docs/adr/0007-escala-horizontal.md`. Proposta: abstração de storage + backend S3-compatível por variável de ambiente, disco local como padrão, testado com MinIO.
-3. **Confirmar as decisões assumidas** (seção 4 abaixo).
+2. **Confirmar as decisões assumidas** (seção 4 abaixo).
 
 ### 3.2 Posso fazer numa próxima sessão (sem depender de infraestrutura)
 
+- **Backup do bucket S3/MinIO** — `scripts/backup.py`/`restore.py` só cobrem o volume local (`STORAGE_PATH`); quem ligar `STORAGE_BACKEND=s3` em produção depende só da durabilidade própria do MinIO/S3 (versionamento/replicação do bucket) até isso ser feito. Ver item 4 do épico em `docs/adr/0007-escala-horizontal.md`.
+- **URLs pré-assinadas do S3** — hoje todo download com `STORAGE_BACKEND=s3` passa pelo backend (`StreamingResponse`); pré-assinar a URL evitaria essa carga em arquivos grandes. Item 2 do mesmo épico.
 - **N-03 — permissões sem rota**: `cables:*`, `connectivity:*`, `topology:*` e `map:read` existem no RBAC, mas as rotas exigem `network:*`. Caminho seguro: remover as permissões mortas e regenerar `contracts/` (`scripts/export_permissions.py` + OpenAPI). Muda o retorno de `/auth/me`.
 - **Smoke do mapa com `maplibre-gl` 6** em navegador headless (Playwright) contra o compose local.
 - **PERF-09** — o `UPDATE network_topology_state` (linha única) serializa escritas de topologia. Mitigado (último passo antes do commit + `statement_timeout`). Advisory lock/sequence só se a medição mostrar contenção; não é urgente.
@@ -62,7 +65,7 @@ uv run ruff check . && uv run ruff format --check . && uv run mypy app && uv run
 cd ../frontend && pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck && pnpm test
 ```
 
-- **Instale `pg_dump`/`pg_restore` (cliente PostgreSQL 16) na máquina.** Sem eles os testes de backup caem no dump binário do psycopg e **não exercitam o caminho que roda no CI** — foi por isso que o bug do PostGIS não aparecia localmente. Com eles, 530 passam e 1 é pulado (o teste do caminho sem `pg_dump`); sem eles, 531 passam.
+- **Instale `pg_dump`/`pg_restore` (cliente PostgreSQL 16) na máquina.** Sem eles os testes de backup caem no dump binário do psycopg e **não exercitam o caminho que roda no CI** — foi por isso que o bug do PostGIS não aparecia localmente. `test_backup_security.py` tem dois testes mutuamente exclusivos por `pg_dump`/`pg_restore` (um só roda com eles, outro só sem); nas duas situações: 553 passam e 1 é pulado (verificado nesta sessão sem `pg_dump`/`pg_restore` no PATH).
 - Sem `TEST_DATABASE_URL` a suíte usa `127.0.0.1:5432/ftth_manager_test` (o mesmo servidor do `ftth_db`).
 - Containers descartáveis desta sessão, se ainda existirem: `docker rm -f ftth-test-pg ftth-audit-pg`.
 

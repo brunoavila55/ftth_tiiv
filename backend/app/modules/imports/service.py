@@ -1,7 +1,6 @@
 import csv
 import io
 import json
-import os
 import uuid
 import zipfile
 from datetime import UTC, datetime, timedelta
@@ -14,7 +13,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.storage import ensure_storage_dir
+from app.core.storage_backend import get_storage_backend
 from app.modules.cables.models import Cable
 from app.modules.gis.helpers import haversine_distance_m, wkb_to_point_geometry
 from app.modules.identity.models import User
@@ -29,11 +28,6 @@ from app.schemas.imports_exports import (
 )
 
 FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
-
-
-def get_storage_path() -> str:
-    """Diretório efetivo de importações: `<STORAGE_PATH>/imports`."""
-    return str(ensure_storage_dir("imports"))
 
 
 def sanitize_coord(val: Any) -> float:
@@ -694,11 +688,9 @@ def create_import_preview(
 
     # Salvar arquivo no armazenamento temporário de importações
     # Nome derivado só do hash (sem o nome enviado pelo cliente); caminho gravado RELATIVO ao storage
-    storage_dir = get_storage_path()
     storage_filename = f"{file_hash}.{fmt.value}"
-    with open(os.path.join(storage_dir, storage_filename), "wb") as f:
-        f.write(content)
     file_storage_path = f"imports/{storage_filename}"
+    get_storage_backend().save(file_storage_path, content)
 
     # Metadados e rascunho com retenção de 24 horas
     preview = ImportPreview(

@@ -13,6 +13,7 @@ from PIL import Image, ImageFile
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.storage_backend import get_storage_backend
 from app.modules.attachments import service as attachments_service
 from app.modules.inventory.models import Site
 from tests.conftest import create_test_user, login_test_client
@@ -22,6 +23,7 @@ from tests.conftest import create_test_user, login_test_client
 def storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("STORAGE_PATH", str(tmp_path))
     get_settings.cache_clear()
+    get_storage_backend.cache_clear()
     return tmp_path
 
 

@@ -21,7 +21,8 @@ from PIL import Image
 from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
-from app.modules.attachments.service import get_storage_directories, sanitize_filename
+from app.core.storage_backend import get_storage_backend
+from app.modules.attachments.service import sanitize_filename
 from app.modules.audit.models import AuditEvent
 from app.modules.audit.service import record_audit_event
 from app.modules.gis.helpers import point_geometry_to_wkb
@@ -359,8 +360,10 @@ def test_orphan_reconciliation(client: TestClient, db_session: Session) -> None:
     )
 
     # 2. Cria manualmente um arquivo órfão no diretório de originais
-    originals_dir, _ = get_storage_directories()
-    orphan_file = originals_dir / f"orphan_{uuid.uuid4().hex}.png"
+    orphan_key = f"attachments/originals/orphan_{uuid.uuid4().hex}.png"
+    orphan_file = get_storage_backend().local_path(orphan_key)
+    assert orphan_file is not None
+    orphan_file.parent.mkdir(parents=True, exist_ok=True)
     orphan_file.write_bytes(b"orphan_data_content")
     assert orphan_file.exists()
     # Envelhece além da carência do reconciliador (arquivos recentes podem ser de um upload em curso)

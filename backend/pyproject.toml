@@ -21,6 +21,7 @@ dependencies = [
     "pillow>=12.3.0",
     "defusedxml>=0.7.1",
     "cryptography>=50.0.1",
+    "boto3>=1.35.0",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +30,7 @@ dev = [
     "pytest-cov>=6.0.0",
     "ruff>=0.9.6",
     "mypy>=1.14.1",
+    "moto[s3]>=5.0.0",
 ]
 
 [build-system]
@@ -75,6 +77,8 @@ module = [
     "defusedxml.*",
     "shapely.*",
     "geoalchemy2.*",
+    "boto3.*",
+    "botocore.*",
 ]
 ignore_missing_imports = true
 

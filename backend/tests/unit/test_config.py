@@ -123,3 +123,25 @@ def test_production_rejects_invalid_backup_encryption_key() -> None:
     assert "BACKUP_ENCRYPTION_KEY" in str(exc.value)
     ok = {**STRONG_SECRETS, "BACKUP_ENCRYPTION_KEY": "ab" * 32}
     assert Settings(ENVIRONMENT=Environment.PRODUCTION, **ok).is_production
+
+
+def test_s3_backend_requires_endpoint_and_credentials() -> None:
+    """EST-14: STORAGE_BACKEND=s3 sem config não sobe (independe do ENVIRONMENT)."""
+    with pytest.raises(pydantic.ValidationError) as exc:
+        Settings(STORAGE_BACKEND="s3")
+    message = str(exc.value)
+    assert "S3_ENDPOINT_URL" in message
+    assert "S3_ACCESS_KEY" in message
+    assert "S3_SECRET_KEY" in message
+
+    ok = Settings(
+        STORAGE_BACKEND="s3",
+        S3_ENDPOINT_URL="http://minio:9000",
+        S3_ACCESS_KEY="minio",
+        S3_SECRET_KEY="minio-secret",
+    )
+    assert ok.STORAGE_BACKEND == "s3"
+
+
+def test_local_backend_ignores_missing_s3_config() -> None:
+    assert Settings(STORAGE_BACKEND="local").STORAGE_BACKEND == "local"

@@ -15,3 +15,12 @@ services:
   frontend:
     ports:
       - "127.0.0.1:3000:3000"
+
+  # Só relevante subindo também o compose.s3.yaml (MinIO, EST-14):
+  #   docker compose -f compose.yaml -f compose.override.yaml -f compose.s3.yaml up -d
+  # Expõe a API S3 e o console web do MinIO no host para inspecionar objetos em
+  # http://localhost:9001.
+  minio:
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"

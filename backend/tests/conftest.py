@@ -15,6 +15,7 @@ from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.storage_backend import get_storage_backend
 from app.db.session import get_session_factory
 from app.main import create_app
 from app.modules.identity.models import User  # noqa: E402
@@ -23,8 +24,10 @@ from app.modules.identity.models import User  # noqa: E402
 @pytest.fixture(autouse=True)
 def clear_settings_cache() -> Generator[None, None, None]:
     get_settings.cache_clear()
+    get_storage_backend.cache_clear()
     yield
     get_settings.cache_clear()
+    get_storage_backend.cache_clear()
 
 
 @pytest.fixture(autouse=True)

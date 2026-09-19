@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Response, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -10,7 +10,7 @@ from app.core.dependencies import get_current_user, require_permission, validate
 from app.core.errors import ForbiddenError
 from app.core.privacy import user_can
 from app.core.rate_limit import rate_limit
-from app.core.storage import resolve_storage_path
+from app.core.storage_backend import get_storage_backend, stream_chunks
 from app.core.uploads import read_upload_limited_sync
 from app.db.session import get_db
 from app.modules.audit.service import record_audit_event
@@ -186,8 +186,8 @@ def download_export(
     expired = job.finished_at is not None and job.finished_at < datetime.now(UTC) - timedelta(
         days=get_settings().EXPORT_TTL_DAYS
     )
-    export_file = resolve_storage_path(job.result_path)
-    if expired or not export_file.exists():
+    backend = get_storage_backend()
+    if expired or not backend.exists(job.result_path):
         raise HTTPException(
             status_code=status.HTTP_410_GONE,
             detail="O arquivo exportado expirou ou foi removido do servidor.",
@@ -204,7 +204,7 @@ def download_export(
     )
     db.commit()
 
-    filename = export_file.name
+    filename = job.result_path.rsplit("/", 1)[-1]
     content_type = "application/octet-stream"
     if filename.endswith(".geojson") or filename.endswith(".json"):
         content_type = "application/geo+json"
@@ -213,10 +213,13 @@ def download_export(
     elif filename.endswith(".csv"):
         content_type = "text/csv; charset=utf-8"
 
-    return FileResponse(
-        path=str(export_file),
+    local = backend.local_path(job.result_path)
+    if local is not None:
+        return FileResponse(path=str(local), media_type=content_type, filename=filename)
+    return StreamingResponse(
+        stream_chunks(backend.open_read(job.result_path)),
         media_type=content_type,
-        filename=filename,
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
 
 

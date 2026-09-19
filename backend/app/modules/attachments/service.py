@@ -1,7 +1,6 @@
 import contextlib
 import hashlib
 import io
-import os
 import re
 import time
 import uuid
@@ -15,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.core.privacy import CUSTOMER_PII_ENTITY_TYPES
+from app.core.storage_backend import get_storage_backend
 from app.modules.attachments.models import Attachment
 from app.modules.audit.service import record_audit_event, record_contextual_event
 from app.modules.cables.models import Cable
@@ -97,17 +97,14 @@ def inspect_file_content(content: bytes) -> tuple[str, str]:
     )
 
 
-def get_storage_directories() -> tuple[Path, Path]:
-    """Obtém e assegura a existência dos diretórios físicos de originais e miniaturas."""
-    settings = get_settings()
-    base_dir = Path(settings.STORAGE_PATH).resolve() / "attachments"
-    originals_dir = base_dir / "originals"
-    thumbnails_dir = base_dir / "thumbnails"
+# Anexos vivem sob este prefixo no storage compartilhado (disco: `<STORAGE_PATH>/attachments/…`;
+# S3: mesmo prefixo de chave). As colunas `storage_path`/`thumbnail_path` gravam o caminho SEM esse
+# prefixo (compatibilidade com dados de antes desta abstração) — ele é aplicado só aqui.
+_ATTACHMENTS_PREFIX = "attachments/"
 
-    originals_dir.mkdir(parents=True, exist_ok=True)
-    thumbnails_dir.mkdir(parents=True, exist_ok=True)
 
-    return originals_dir, thumbnails_dir
+def _storage_key(relative_path: str) -> str:
+    return f"{_ATTACHMENTS_PREFIX}{relative_path}"
 
 
 # entity_id fixo dos eventos de manutenção do armazenamento (não há linha por trás)
@@ -256,9 +253,8 @@ def save_attachment(
     # 4. Gerar UUID para isolamento de arquivos no disco (anti path traversal)
     file_id = uuid.uuid4()
     storage_filename = f"{file_id.hex}{ext}"
-    originals_dir, thumbnails_dir = get_storage_directories()
 
-    # 5. Gerar miniatura (em memória) antes de gravar qualquer arquivo em disco
+    # 5. Gerar miniatura (em memória) antes de gravar qualquer arquivo no storage
     thumb_bytes = generate_thumbnail_image(raw_content, mime_type)
     if mime_type in IMAGE_MIME_TYPES and thumb_bytes is None:
         raise HTTPException(
@@ -266,29 +262,21 @@ def save_attachment(
             detail="Imagem inválida ou corrompida: não foi possível gerar a miniatura.",
         )
 
-    original_target_path = originals_dir / storage_filename
+    original_rel_path = f"originals/{storage_filename}"
     thumb_filename = f"{file_id.hex}.webp"
-    thumb_target_path = thumbnails_dir / thumb_filename
     thumbnail_rel_path = f"thumbnails/{thumb_filename}" if thumb_bytes else None
 
-    # Consistência banco × disco (EST-09). Ordem:
-    #   1) grava em arquivos temporários (`*.uploading`, invisíveis para o reconciliador recente);
-    #   2) monta a linha + auditoria na sessão (nada visível ainda);
-    #   3) promove os temporários ao caminho final com os.replace (atômico);
-    #   4) commit. Se QUALQUER passo falhar, remove temporários e finais e reverte a sessão.
-    # Escolha (justificada): promover ANTES do commit e compensar na falha. O pior caso (queda do
-    # processo entre 3 e 4) deixa um arquivo órfão, que o reconciliador com carência por idade
+    # Consistência banco × storage (EST-09). Ordem:
+    #   1) monta a linha + auditoria na sessão (nada visível ainda no storage);
+    #   2) grava original e miniatura no backend (`save` é atômico por chave: o objeto/arquivo só
+    #      fica visível completo — local via arquivo temporário + os.replace, S3 via put_object);
+    #   3) commit. Se QUALQUER passo falhar, remove o que já foi gravado e reverte a sessão.
+    # Escolha (justificada): gravar ANTES do commit e compensar na falha. O pior caso (queda do
+    # processo entre 2 e 3) deixa um arquivo órfão, que o reconciliador com carência por idade
     # remove — nunca um registro apontando para arquivo inexistente (esse seria visível ao usuário).
-    staged: list[Path] = []
-    promoted: list[Path] = []
+    backend = get_storage_backend()
+    saved_keys: list[str] = []
     try:
-        staged_original = _stage_file(original_target_path, raw_content)
-        staged.append(staged_original)
-        staged_thumb: Path | None = None
-        if thumb_bytes:
-            staged_thumb = _stage_file(thumb_target_path, thumb_bytes)
-            staged.append(staged_thumb)
-
         # 6. Gravar metadados no banco
         attachment = Attachment(
             id=file_id,
@@ -297,7 +285,7 @@ def save_attachment(
             file_name=safe_name,
             content_type=mime_type,
             file_size_bytes=len(raw_content),
-            storage_path=f"originals/{storage_filename}",
+            storage_path=original_rel_path,
             thumbnail_path=thumbnail_rel_path,
             checksum_sha256=sha256_hash,
             caption=caption.strip() if caption else None,
@@ -325,33 +313,24 @@ def save_attachment(
             request_id=request_id,
         )
 
-        # 8. Promove os temporários e confirma
-        os.replace(staged_original, original_target_path)
-        staged.remove(staged_original)
-        promoted.append(original_target_path)
-        if staged_thumb is not None:
-            os.replace(staged_thumb, thumb_target_path)
-            staged.remove(staged_thumb)
-            promoted.append(thumb_target_path)
+        # 8. Grava no backend e confirma
+        backend.save(_storage_key(original_rel_path), raw_content)
+        saved_keys.append(original_rel_path)
+        if thumb_bytes is not None and thumbnail_rel_path is not None:
+            backend.save(_storage_key(thumbnail_rel_path), thumb_bytes)
+            saved_keys.append(thumbnail_rel_path)
 
         db.commit()
     except BaseException:
         db.rollback()
-        for leftover in (*staged, *promoted):
-            with contextlib.suppress(OSError):
-                leftover.unlink()
+        for key in saved_keys:
+            with contextlib.suppress(Exception):
+                backend.delete(_storage_key(key))
         raise
 
     db.refresh(attachment)
 
     return build_attachment_read(attachment)
-
-
-def _stage_file(target: Path, data: bytes) -> Path:
-    """Grava `data` em um arquivo temporário ao lado de `target` (promovido depois com os.replace)."""
-    staged = target.with_name(f"{target.name}.{uuid.uuid4().hex[:8]}.uploading")
-    staged.write_bytes(data)
-    return staged
 
 
 def get_attachment_by_id(db: Session, attachment_id: uuid.UUID) -> Attachment:
@@ -365,11 +344,12 @@ def get_attachment_by_id(db: Session, attachment_id: uuid.UUID) -> Attachment:
     return attachment
 
 
-def resolve_attachment_file_path(attachment: Attachment, is_thumbnail: bool = False) -> Path:
-    """Resolve e valida caminho absoluto do arquivo no disco com proteção de path traversal."""
-    settings = get_settings()
-    base_dir = Path(settings.STORAGE_PATH).resolve() / "attachments"
+def resolve_attachment_storage_key(attachment: Attachment, is_thumbnail: bool = False) -> str:
+    """Valida e resolve a chave de storage (original ou miniatura) de um anexo.
 
+    A proteção contra path traversal é do `LocalStorage` (a chave nunca sai da raiz do backend);
+    aqui só valida presença/existência do arquivo/objeto.
+    """
     rel_path = attachment.thumbnail_path if is_thumbnail else attachment.storage_path
     if not rel_path:
         raise HTTPException(
@@ -377,22 +357,14 @@ def resolve_attachment_file_path(attachment: Attachment, is_thumbnail: bool = Fa
             detail="Arquivo ou miniatura não disponível para este anexo",
         )
 
-    file_path = (base_dir / rel_path).resolve()
-
-    # Prevenção estrita de path traversal: deve estar dentro de base_dir
-    if not str(file_path).startswith(str(base_dir)):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Acesso a caminho de arquivo não autorizado",
-        )
-
-    if not file_path.exists() or not file_path.is_file():
+    key = _storage_key(rel_path)
+    if not get_storage_backend().exists(key):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Arquivo físico persistente não encontrado no armazenamento",
         )
 
-    return file_path
+    return key
 
 
 def list_attachments_paginated(
@@ -447,13 +419,9 @@ def delete_attachment(
             detail=f"Conflito de versão: o anexo está na versão {attachment.version}, esperado {expected_version}",
         )
 
-    # Identificar caminhos físicos antes de remover do banco
-    settings = get_settings()
-    base_dir = Path(settings.STORAGE_PATH).resolve() / "attachments"
-    orig_path = (base_dir / attachment.storage_path).resolve()
-    thumb_path = (
-        (base_dir / attachment.thumbnail_path).resolve() if attachment.thumbnail_path else None
-    )
+    # Identificar chaves de storage antes de remover do banco
+    orig_key = _storage_key(attachment.storage_path)
+    thumb_key = _storage_key(attachment.thumbnail_path) if attachment.thumbnail_path else None
 
     entity_id = attachment.entity_id
     entity_type = attachment.entity_type
@@ -479,23 +447,21 @@ def delete_attachment(
     db.delete(attachment)
     db.commit()
 
-    # Remover arquivos físicos do disco
-    if orig_path.exists() and orig_path.is_file():
-        with contextlib.suppress(OSError):
-            orig_path.unlink()
-
-    if thumb_path and thumb_path.exists() and thumb_path.is_file():
-        with contextlib.suppress(OSError):
-            thumb_path.unlink()
+    # Remover do storage (idempotente: `delete` não falha se o arquivo/objeto já não existir)
+    backend = get_storage_backend()
+    with contextlib.suppress(Exception):
+        backend.delete(orig_key)
+    if thumb_key:
+        with contextlib.suppress(Exception):
+            backend.delete(thumb_key)
 
 
 def reconcile_storage_orphans(
     db: Session, dry_run: bool = False
 ) -> AttachmentReconciliationResponse:
-    """Reconcilia arquivos órfãos no disco e registros sem arquivo físico sem excluir anexos válidos."""
-    originals_dir, thumbnails_dir = get_storage_directories()
+    """Reconcilia arquivos órfãos no storage e registros sem arquivo físico sem excluir anexos válidos."""
+    backend = get_storage_backend()
     settings = get_settings()
-    base_dir = Path(settings.STORAGE_PATH).resolve() / "attachments"
 
     # Buscar todos os caminhos cadastrados no banco
     db_attachments = db.scalars(select(Attachment)).all()
@@ -507,15 +473,10 @@ def reconcile_storage_orphans(
 
     total_db_records = len(db_attachments)
 
-    # Varrer arquivos físicos em disco
-    disk_files: list[Path] = []
-    for directory in (originals_dir, thumbnails_dir):
-        if directory.exists():
-            for entry in directory.iterdir():
-                if entry.is_file():
-                    disk_files.append(entry)
+    # Varrer o storage sob o prefixo de anexos
+    storage_entries = list(backend.list(_ATTACHMENTS_PREFIX))
 
-    total_disk_files = len(disk_files)
+    total_disk_files = len(storage_entries)
     orphans_removed: list[str] = []
     missing_disk_files: list[str] = []
 
@@ -523,30 +484,22 @@ def reconcile_storage_orphans(
     grace_seconds = settings.ATTACHMENT_ORPHAN_GRACE_MINUTES * 60
     now = time.time()
 
-    # Detectar órfãos (arquivos em disco não cadastrados no banco e mais antigos que a carência)
-    for f in disk_files:
-        try:
-            rel = str(f.relative_to(base_dir))
-        except ValueError:
-            continue
+    # Detectar órfãos (arquivos no storage não cadastrados no banco e mais antigos que a carência)
+    for entry in storage_entries:
+        rel = entry.key.removeprefix(_ATTACHMENTS_PREFIX)
 
-        try:
-            too_recent = now - f.stat().st_mtime < grace_seconds
-        except OSError:
-            continue
-        if too_recent:
+        if now - entry.mtime < grace_seconds:
             continue
 
         if rel not in known_relative_paths:
             orphans_removed.append(rel)
             if not dry_run:
-                with contextlib.suppress(OSError):
-                    f.unlink()
+                with contextlib.suppress(Exception):
+                    backend.delete(entry.key)
 
-    # Detectar registros cujos arquivos sumiram do disco
+    # Detectar registros cujos arquivos sumiram do storage
     for a in db_attachments:
-        orig_file = base_dir / a.storage_path
-        if not orig_file.exists():
+        if not backend.exists(_storage_key(a.storage_path)):
             missing_disk_files.append(f"{a.id}: {a.storage_path}")
 
     if not dry_run:

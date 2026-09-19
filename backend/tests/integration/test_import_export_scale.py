@@ -18,7 +18,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.storage import resolve_storage_path
+from app.core.storage_backend import get_storage_backend
 from app.modules.exports import service as exports_service
 from app.modules.imports import service as imports_service
 from app.modules.imports.models import AsyncJob
@@ -36,7 +36,14 @@ BATCH = 500
 def storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("STORAGE_PATH", str(tmp_path))
     get_settings.cache_clear()
+    get_storage_backend.cache_clear()
     return tmp_path
+
+
+def resolve_storage_path(key: str) -> Path:
+    path = get_storage_backend().local_path(key)
+    assert path is not None
+    return path
 
 
 def point_features(n: int, prefix: str = "PT") -> list[dict[str, Any]]:

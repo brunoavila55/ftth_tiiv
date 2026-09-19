@@ -1,9 +1,8 @@
 import csv
 import json
-import os
 import uuid
 from collections.abc import Iterator
-from typing import Any, TextIO
+from typing import Any, TextIO, cast
 from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import HTTPException, status
@@ -12,7 +11,7 @@ from shapely import to_geojson
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.storage import ensure_storage_dir
+from app.core.storage_backend import get_storage_backend
 from app.modules.audit.service import record_audit_event
 from app.modules.cables.models import CableSegment
 from app.modules.customers.models import Customer
@@ -23,11 +22,6 @@ from app.modules.jobs.errors import JobValidationError
 from app.schemas.imports_exports import ExportRequest, ExportResponse
 
 FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
-
-
-def get_export_storage_path() -> str:
-    """Diretório absoluto/efetivo de exportações: `<STORAGE_PATH>/exports`."""
-    return str(ensure_storage_dir("exports"))
 
 
 def is_formula_injection(val: str) -> bool:
@@ -324,10 +318,8 @@ def execute_export_job(db: Session, job: AsyncJob) -> str:
     fmt_str = payload.get("format", "geojson")
     layers = payload.get("layers", ["sites", "structures", "cables"])
 
-    storage_dir = get_export_storage_path()
     ext = fmt_str.lower()
     stored_path = f"exports/{job.id}.{ext}"  # gravado relativo à raiz do storage
-    file_path = os.path.join(storage_dir, f"{job.id}.{ext}")
 
     writers = {
         "geojson": write_geojson_export,
@@ -338,7 +330,7 @@ def execute_export_job(db: Session, job: AsyncJob) -> str:
     if writer is None:
         raise JobValidationError(f"Formato de exportação desconhecido: {fmt_str}")
     # Escrita incremental (memória limitada); só o arquivo final concluído é referenciado pelo job
-    with open(file_path, "w", encoding="utf-8", newline="") as out:
-        writer(db, layers, out)
+    with get_storage_backend().save_stream(stored_path, mode="w", newline="") as out:
+        writer(db, layers, cast(TextIO, out))
 
     return stored_path

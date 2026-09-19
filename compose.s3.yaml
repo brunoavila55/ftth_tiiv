@@ -1,0 +1,34 @@
+# Storage S3-compatível (opt-in, EST-14) — MinIO local para desenvolvimento/homologação.
+#
+# Arquivo SEPARADO de propósito: o `docker compose up` padrão (só `compose.yaml`) nunca lê este
+# arquivo, então quem não usa S3/MinIO não precisa definir MINIO_ROOT_USER/MINIO_ROOT_PASSWORD.
+#
+# Uso: docker compose -f compose.yaml -f compose.s3.yaml up -d
+# (além de MINIO_ROOT_USER/MINIO_ROOT_PASSWORD no .env, defina STORAGE_BACKEND=s3 e os demais
+# S3_* apontando para http://minio:9000 — ver .env.example.)
+#
+# Em produção com S3 gerenciado (não MinIO), não inclua este arquivo: aponte S3_ENDPOINT_URL/
+# S3_ACCESS_KEY/S3_SECRET_KEY para o provedor real.
+services:
+  minio:
+    # A MinIO descontinuou a imagem no Docker Hub (minio/minio); a comunidade (AGPLv3) só publica
+    # em quay.io a partir de meados de 2025.
+    image: quay.io/minio/minio:RELEASE.2025-04-08T15-41-24Z
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?defina MINIO_ROOT_USER no .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?defina MINIO_ROOT_PASSWORD no .env (mínimo 8 caracteres)}
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    networks:
+      - internal
+    restart: unless-stopped
+
+volumes:
+  minio_data:

@@ -16,7 +16,7 @@ from shapely import to_geojson
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.storage import ensure_storage_dir
+from app.core.config import get_settings
 from app.modules.audit.service import record_audit_event
 from app.modules.cables.models import CableSegment
 from app.modules.customers.models import Customer
@@ -30,8 +30,16 @@ FORMULA_PREFIXES = ("=", "+", "-", "@", "\t", "\r")
 
 
 def get_export_storage_path() -> str:
-    """Diretório absoluto/efetivo de exportações: `<STORAGE_PATH>/exports`."""
-    return str(ensure_storage_dir("exports"))
+    """Diretório absoluto/efetivo de exportações: `<STORAGE_PATH>/exports`.
+
+    Cópia independente do `core.storage_backend` de produção — este arquivo é um oráculo
+    (comportamento antigo, pré-streaming) e não deve depender da implementação atual.
+    """
+    from pathlib import Path
+
+    path = Path(get_settings().STORAGE_PATH) / "exports"
+    path.mkdir(parents=True, exist_ok=True)
+    return str(path)
 
 
 def is_formula_injection(val: str) -> bool:

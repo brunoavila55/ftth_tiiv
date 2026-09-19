@@ -1,6 +1,7 @@
 import ipaddress
 from enum import StrEnum
 from functools import lru_cache
+from typing import Literal
 from urllib.parse import urlsplit
 
 from pydantic import Field, field_validator, model_validator
@@ -86,6 +87,15 @@ class Settings(BaseSettings):
     # Armazenamento
     STORAGE_PATH: str = "./storage"
     MAX_UPLOAD_SIZE_BYTES: int = 10_485_760  # 10 MB (anexos)
+    # Backend de armazenamento de anexos/importações/exportações: "local" (padrão, disco/volume —
+    # só funciona com réplicas no mesmo host) ou "s3" (S3/MinIO — necessário para multi-host, EST-14)
+    STORAGE_BACKEND: Literal["local", "s3"] = "local"
+    S3_ENDPOINT_URL: str = ""
+    S3_BUCKET: str = "ftth-attachments"
+    S3_ACCESS_KEY: str = ""
+    S3_SECRET_KEY: str = ""
+    S3_REGION: str = "us-east-1"
+    S3_USE_PATH_STYLE: bool = True  # MinIO exige addressing por path, não por subdomínio
     # Jobs assíncronos: lease do worker (renovada por heartbeat a cada lease/3 enquanto o job roda)
     JOB_LEASE_SECONDS: float = Field(default=60.0, gt=0)
     EXPORT_TTL_DAYS: int = Field(default=7, ge=1)  # arquivos de exportação vencem após N dias
@@ -150,6 +160,22 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return Environment(v.lower())
         return v
+
+    @model_validator(mode="after")
+    def require_s3_config_when_selected(self) -> "Settings":
+        """STORAGE_BACKEND=s3 sem endpoint/credenciais não tem como funcionar: falha na subida."""
+        if self.STORAGE_BACKEND != "s3":
+            return self
+        missing = [
+            name
+            for name in ("S3_ENDPOINT_URL", "S3_ACCESS_KEY", "S3_SECRET_KEY")
+            if not getattr(self, name)
+        ]
+        if missing:
+            raise ValueError(
+                "STORAGE_BACKEND=s3 exige " + ", ".join(missing) + " (ver .env.example)"
+            )
+        return self
 
     @model_validator(mode="after")
     def reject_insecure_production_config(self) -> "Settings":

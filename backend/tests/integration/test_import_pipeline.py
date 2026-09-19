@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
+from app.core.storage_backend import LocalStorage, get_storage_backend
 from app.db.session import get_session_factory
 from app.modules.cables.models import Cable, CableSegment, Fiber
 from app.modules.identity.models import User
@@ -34,6 +35,7 @@ PT_B = [-46.6340, -23.5510]
 def storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("STORAGE_PATH", str(tmp_path))
     get_settings.cache_clear()
+    get_storage_backend.cache_clear()
     return tmp_path
 
 
@@ -346,6 +348,7 @@ def test_long_job_keeps_its_lease_and_runs_once_with_two_workers(
     monkeypatch.setenv("JOB_LEASE_SECONDS", "1.2")
     monkeypatch.setenv("STORAGE_PATH", str(tmp_path))
     get_settings.cache_clear()
+    get_storage_backend.cache_clear()
     job = _export_job(db_session)
     runs: list[str] = []
 
@@ -406,6 +409,7 @@ def test_result_is_not_written_when_the_lease_was_lost(
 ) -> None:
     monkeypatch.setenv("STORAGE_PATH", str(tmp_path))
     get_settings.cache_clear()
+    get_storage_backend.cache_clear()
     job = _export_job(db_session)
 
     def steal_lease(db: Session, j: AsyncJob) -> str:
@@ -471,14 +475,15 @@ def test_import_and_export_use_storage_path_with_relative_paths(
 def test_legacy_cwd_relative_paths_still_resolve(
     storage: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from app.core.storage import resolve_storage_path
+    backend = get_storage_backend()
+    assert isinstance(backend, LocalStorage)
 
     legacy_dir = Path("storage") / "imports"
     legacy_dir.mkdir(parents=True, exist_ok=True)
     legacy = legacy_dir / "legado-r12.csv"
     legacy.write_text("x")
     try:
-        assert resolve_storage_path("storage/imports/legado-r12.csv") == legacy
-        assert resolve_storage_path("imports/novo.csv") == storage / "imports" / "novo.csv"
+        assert backend.local_path("storage/imports/legado-r12.csv") == legacy
+        assert backend.local_path("imports/novo.csv") == storage / "imports" / "novo.csv"
     finally:
         legacy.unlink()

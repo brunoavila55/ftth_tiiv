@@ -15,7 +15,7 @@ from app.core.config import get_settings
 from app.core.errors import AppException
 from app.core.logging import job_id_ctx
 from app.core.metrics import metrics_collector
-from app.core.storage import resolve_storage_path
+from app.core.storage_backend import get_storage_backend
 from app.db.session import get_session_factory
 from app.modules.audit.service import record_audit_event
 from app.modules.cables.service import create_cable, create_cable_segment
@@ -257,14 +257,13 @@ def execute_import_commit(db: Session, job: AsyncJob) -> dict[str, Any]:
     file_path = payload.get("file_storage_path")
     fmt = payload.get("format")
 
-    resolved_path = resolve_storage_path(file_path) if file_path else None
-    if resolved_path is None or not resolved_path.exists():
+    backend = get_storage_backend()
+    if not file_path or not backend.exists(file_path):
         raise JobValidationError(
             "O arquivo de importação não está mais disponível no servidor. Gere uma nova prévia."
         )
 
-    with open(resolved_path, "rb") as f:
-        content = f.read()
+    content = backend.read(file_path)
 
     if fmt == "geojson":
         parsed_items, _ = parse_geojson(content)
@@ -462,9 +461,10 @@ def process_claimed_job(
                     stored_path = execute_export_job(db, job)
                     assert_lease_owner(db, job_id, worker_id)
                     job.result_path = stored_path
+                    stat = get_storage_backend().stat(stored_path)
                     job.result = {
                         "download_url": f"/api/v1/exports/{job.id}/download",
-                        "file_size_bytes": resolve_storage_path(stored_path).stat().st_size,
+                        "file_size_bytes": stat.size_bytes if stat else 0,
                         "generated_at": datetime.now(UTC).isoformat(),
                     }
                     job.progress_percentage = 100
@@ -534,16 +534,13 @@ def clean_expired_previews_and_exports(db: Session) -> dict[str, int]:
     """
     now = datetime.now(UTC)
     expired_previews = db.scalars(select(ImportPreview).where(ImportPreview.expires_at < now)).all()
+    backend = get_storage_backend()
 
     removed_files = 0
     for p in expired_previews:
-        preview_file = resolve_storage_path(p.file_storage_path) if p.file_storage_path else None
-        if preview_file is not None and preview_file.exists():
-            try:
-                preview_file.unlink()
-                removed_files += 1
-            except OSError:
-                pass
+        if p.file_storage_path and backend.exists(p.file_storage_path):
+            backend.delete(p.file_storage_path)
+            removed_files += 1
         db.delete(p)
 
     export_cutoff = now - timedelta(days=get_settings().EXPORT_TTL_DAYS)
@@ -557,13 +554,8 @@ def clean_expired_previews_and_exports(db: Session) -> dict[str, int]:
         )
     ).all()
     for job in export_jobs:
-        export_file = resolve_storage_path(job.result_path) if job.result_path else None
-        if export_file is not None and export_file.exists():
-            try:
-                export_file.unlink()
-            except OSError:
-                logger.warning("Não foi possível remover a exportação vencida do job '%s'.", job.id)
-                continue
+        if job.result_path and backend.exists(job.result_path):
+            backend.delete(job.result_path)
             expired_exports += 1
 
     db.commit()

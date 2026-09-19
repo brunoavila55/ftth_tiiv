@@ -12,7 +12,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.concurrency import parse_if_match
@@ -20,6 +20,7 @@ from app.core.config import get_settings
 from app.core.dependencies import require_permission, validate_csrf
 from app.core.privacy import require_customer_access, user_can
 from app.core.rate_limit import rate_limit
+from app.core.storage_backend import get_storage_backend, stream_chunks
 from app.core.uploads import read_upload_limited_sync
 from app.db.session import get_db
 from app.modules.attachments.service import (
@@ -27,7 +28,7 @@ from app.modules.attachments.service import (
     get_attachment_by_id,
     list_attachments_paginated,
     reconcile_storage_orphans,
-    resolve_attachment_file_path,
+    resolve_attachment_storage_key,
     save_attachment,
 )
 from app.modules.attachments.service import (
@@ -185,13 +186,21 @@ def download_attachment(
 
     attachment = get_attachment_by_id(db, att_uuid)
     require_customer_access(current_user, attachment.entity_type)
-    file_path = resolve_attachment_file_path(attachment, is_thumbnail=False)
+    key = resolve_attachment_storage_key(attachment, is_thumbnail=False)
 
-    return FileResponse(
-        path=str(file_path),
+    backend = get_storage_backend()
+    local = backend.local_path(key)
+    if local is not None:
+        return FileResponse(
+            path=str(local),
+            media_type=attachment.content_type,
+            filename=attachment.file_name,
+            content_disposition_type="attachment",
+        )
+    return StreamingResponse(
+        stream_chunks(backend.open_read(key)),
         media_type=attachment.content_type,
-        filename=attachment.file_name,
-        content_disposition_type="attachment",
+        headers={"Content-Disposition": f'attachment; filename="{attachment.file_name}"'},
     )
 
 
@@ -215,12 +224,13 @@ def get_attachment_thumbnail(
 
     attachment = get_attachment_by_id(db, att_uuid)
     require_customer_access(current_user, attachment.entity_type)
-    file_path = resolve_attachment_file_path(attachment, is_thumbnail=True)
+    key = resolve_attachment_storage_key(attachment, is_thumbnail=True)
 
-    return FileResponse(
-        path=str(file_path),
-        media_type="image/webp",
-    )
+    backend = get_storage_backend()
+    local = backend.local_path(key)
+    if local is not None:
+        return FileResponse(path=str(local), media_type="image/webp")
+    return StreamingResponse(stream_chunks(backend.open_read(key)), media_type="image/webp")
 
 
 @attachments_router.delete(

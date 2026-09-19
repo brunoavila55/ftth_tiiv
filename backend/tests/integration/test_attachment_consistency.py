@@ -12,7 +12,9 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
+from app.core import storage_backend
 from app.core.config import get_settings
+from app.core.storage_backend import get_storage_backend
 from app.modules.attachments import service as attachments_service
 from app.modules.attachments.models import Attachment
 from app.modules.attachments.service import reconcile_storage_orphans, save_attachment
@@ -23,6 +25,7 @@ from app.modules.inventory.models import Site
 def storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     monkeypatch.setenv("STORAGE_PATH", str(tmp_path))
     get_settings.cache_clear()
+    get_storage_backend.cache_clear()
     return tmp_path
 
 
@@ -124,7 +127,7 @@ def test_no_file_is_visible_at_its_final_path_before_it_is_complete(
         replaced.append((str(src), str(dst)))
         real_replace(src, dst)
 
-    monkeypatch.setattr(attachments_service.os, "replace", spy)
+    monkeypatch.setattr(storage_backend.os, "replace", spy)
     upload(db_session, site)
     assert len(replaced) == 2  # original + miniatura
     assert all(src != dst and src.endswith(".uploading") for src, dst in replaced)

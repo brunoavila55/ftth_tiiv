@@ -13,7 +13,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
-from app.core.storage import resolve_storage_path
+from app.core.storage_backend import get_storage_backend
 from app.modules.audit.models import AuditEvent
 from app.modules.customers.models import Customer
 from app.modules.imports.models import AsyncJob
@@ -111,8 +111,8 @@ def test_expired_export_files_are_removed_and_download_returns_410(
     assert process_next_job(db_session) is True
     job = db_session.get(AsyncJob, uuid.UUID(job_id))
     assert job is not None and job.result_path
-    file_path = resolve_storage_path(job.result_path)
-    assert file_path.exists()
+    backend = get_storage_backend()
+    assert backend.exists(job.result_path)
 
     ttl_days = get_settings().EXPORT_TTL_DAYS
     assert ttl_days == 7  # padrão confirmado com o operador (sugestão do roteiro)
@@ -121,16 +121,16 @@ def test_expired_export_files_are_removed_and_download_returns_410(
     job.finished_at = datetime.now(UTC) - timedelta(days=ttl_days - 1)
     db_session.commit()
     assert clean_expired_previews_and_exports(db_session)["expired_exports"] == 0
-    assert file_path.exists()
+    assert backend.exists(job.result_path)
 
     # vencido: o download já responde 410 mesmo antes do worker limpar...
     job.finished_at = datetime.now(UTC) - timedelta(days=ttl_days + 1)
     db_session.commit()
     assert client.get(f"/api/v1/exports/{job_id}/download").status_code == status.HTTP_410_GONE
-    assert file_path.exists()
+    assert backend.exists(job.result_path)
     # ...e o worker remove o arquivo
     assert clean_expired_previews_and_exports(db_session)["expired_exports"] == 1
-    assert not file_path.exists()
+    assert not backend.exists(job.result_path)
     assert client.get(f"/api/v1/exports/{job_id}/download").status_code == status.HTTP_410_GONE
     # idempotente
     assert clean_expired_previews_and_exports(db_session)["expired_exports"] == 0
