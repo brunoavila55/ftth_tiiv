@@ -1,3 +1,6 @@
+# Atualizações de versão DESLIGADAS (open-pull-requests-limit: 0): o repositório mantém só a branch
+# principal, sem branches/PRs automáticos. Para voltar a receber PRs semanais, suba o limite (ex.: 5).
+# Alertas e correções de segurança do Dependabot são controlados à parte, nas configurações do repositório.
 version: 2
 updates:
   # Backend Python (uv.lock)
@@ -5,7 +8,7 @@ updates:
     directory: "/backend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       python-minor-patch:
         update-types: ["minor", "patch"]
@@ -15,7 +18,7 @@ updates:
     directory: "/frontend"
     schedule:
       interval: "weekly"
-    open-pull-requests-limit: 5
+    open-pull-requests-limit: 0
     groups:
       npm-minor-patch:
         update-types: ["minor", "patch"]
@@ -25,13 +28,16 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
 
   # Imagens base dos Dockerfiles e do compose
   - package-ecosystem: "docker"
     directory: "/backend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
   - package-ecosystem: "docker"
     directory: "/frontend"
     schedule:
       interval: "weekly"
+    open-pull-requests-limit: 0
