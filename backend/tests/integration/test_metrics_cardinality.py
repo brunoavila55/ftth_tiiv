@@ -192,3 +192,22 @@ def test_single_process_mode_when_metrics_dir_is_not_configured() -> None:
     assert get_settings().METRICS_DIR == ""
     assert get_metrics_store() is None
     publish_metrics(metrics_collector, force=True)  # no-op, sem erro
+
+
+def test_heartbeat_keeps_an_idle_process_fresh_and_dead_ones_expire(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from app.core.metrics_store import start_metrics_heartbeat, stop_metrics_heartbeats
+
+    monkeypatch.setenv("METRICS_DIR", str(tmp_path))
+    monkeypatch.setenv("METRICS_PUBLISH_INTERVAL_SECONDS", "0.1")
+    get_settings.cache_clear()
+    assert get_settings().METRICS_SNAPSHOT_TTL_SECONDS == 60
+    start_metrics_heartbeat(metrics_collector, role="api")
+    try:
+        file = next(tmp_path.glob("api-*.json"))
+        first = json.loads(file.read_text())["updated_at"]
+        time.sleep(0.5)
+        assert json.loads(file.read_text())["updated_at"] > first  # ocioso, mas vivo
+    finally:
+        stop_metrics_heartbeats()

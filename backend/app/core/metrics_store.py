@@ -10,6 +10,7 @@ de 1 h são apagados.
 import contextlib
 import json
 import os
+import threading
 import time
 import uuid
 from pathlib import Path
@@ -106,3 +107,38 @@ def publish_metrics(collector: "MetricsCollector", role: str = "api", force: boo
         return
     with contextlib.suppress(OSError):  # métricas nunca podem derrubar a requisição/worker
         store.publish(collector, force=force)
+
+
+_heartbeats: dict[tuple[str, str], threading.Event] = {}
+
+
+def start_metrics_heartbeat(collector: "MetricsCollector", role: str = "api") -> None:
+    """Publica o snapshot a cada METRICS_PUBLISH_INTERVAL_SECONDS numa thread daemon.
+
+    Mantém `updated_at` fresco mesmo com o processo ocioso; assim o TTL pode ser curto e um
+    processo morto some rápido do somatório (sem inflar `ftth_processes` após um deploy).
+    """
+    store = get_metrics_store(role)
+    if store is None:
+        return
+    key = (str(store.directory), role)
+    if key in _heartbeats:
+        return
+    stop = threading.Event()
+    _heartbeats[key] = stop
+    interval = get_settings().METRICS_PUBLISH_INTERVAL_SECONDS
+
+    def loop() -> None:
+        while not stop.wait(interval):
+            with contextlib.suppress(OSError):
+                store.publish(collector, force=True)
+
+    threading.Thread(target=loop, name=f"metrics-heartbeat-{role}", daemon=True).start()
+    with contextlib.suppress(OSError):
+        store.publish(collector, force=True)
+
+
+def stop_metrics_heartbeats() -> None:
+    for stop in _heartbeats.values():
+        stop.set()
+    _heartbeats.clear()

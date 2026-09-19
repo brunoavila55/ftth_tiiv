@@ -278,7 +278,7 @@ Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
 
 - **Cardinalidade limitada**: requisições sem rota resolvida (404/405) usam o rótulo fixo `path="__unmatched__"` — nunca o caminho bruto — e há um teto de 1000 combinações de rótulos por processo (`__overflow__` além disso). Scans/bots não crescem a memória nem as séries.
 - **Agregação entre processos**: com `METRICS_DIR` definido (o compose usa `/app/storage/metrics`, volume compartilhado entre `backend` e `worker`) cada processo — workers da API e o worker de jobs — publica um snapshot JSON (a cada ≥ 5 s, escrita atômica) e o scrape soma tudo: contadores, histogramas e `background_jobs` do worker aparecem em qualquer resposta. `ftth_processes{role="api|worker"}` mostra quantos processos estão publicando.
-- Snapshots parados há mais de `METRICS_SNAPSHOT_TTL_SECONDS` (300) deixam de contar (processo morto → seus contadores "resetam", como um restart no Prometheus) e arquivos com mais de 1 h são apagados. Sem `METRICS_DIR`, o modo é processo único (métricas em memória).
+- Cada processo republica o snapshot a cada `METRICS_PUBLISH_INTERVAL_SECONDS` (10 s, thread de heartbeat — inclusive ocioso); snapshots parados há mais de `METRICS_SNAPSHOT_TTL_SECONDS` (60) deixam de contar (processo morto → seus contadores "resetam", como um restart no Prometheus) e arquivos com mais de 1 h são apagados. Sem `METRICS_DIR`, o modo é processo único (métricas em memória).
 - O endpoint segue restrito (`X-Metrics-Token` ou sessão admin; `METRICS_ENABLED=false` → 404) e **não** é publicado pelo Caddy (ver R17).
 
 ---
@@ -318,3 +318,12 @@ Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
 - O upload grava em arquivos temporários (`*.uploading`), monta a linha e a auditoria na sessão, **promove** os arquivos ao caminho final com `os.replace` e só então faz o `commit`. Qualquer falha (miniatura, auditoria, commit, queda de conexão) remove temporários e finais e reverte a sessão: nenhum arquivo órfão fica em `originals/` ou `thumbnails/`.
 - Escolha: promover antes do commit e compensar na falha. O pior caso (queda do processo entre os dois passos) deixa um arquivo órfão, que o reconciliador remove — nunca um registro apontando para arquivo inexistente.
 - `POST /attachments/reconcile-orphans` só remove arquivos sem registro **mais antigos que `ATTACHMENT_ORPHAN_GRACE_MINUTES` (padrão 15)**; arquivos recentes podem ser de um upload em andamento. Restos `*.uploading` antigos também são limpos. `?dry_run=true` lista sem apagar.
+
+---
+
+## 22. Escala horizontal e backup agendado
+
+- **Réplicas no mesmo host**: `docker compose up -d --scale backend=2 --scale worker=2`. O Caddy balanceia entre as réplicas (`dynamic a`, `least_conn`, DNS a cada 5 s); o pool de conexões é por processo (ver seção 16). Cada réplica do worker consome a fila com segurança (`SKIP LOCKED` + lease). O storage é o volume local compartilhado — por isso **todas as réplicas devem estar no mesmo host** (multi-host exige storage compartilhado: ver `docs/adr/0007-escala-horizontal.md`).
+- **Limitação**: o rate limit das rotas caras é em memória por processo (teto efetivo = N × limite).
+- **Backup agendado**: `docker compose --profile backup up -d backup` gera um pacote a cada `BACKUP_INTERVAL_SECONDS` (24 h) em `/app/backups` (volume `backups`), mantém os últimos `BACKUP_RETENTION_COUNT` (7) e usa `BACKUP_SIGNING_KEY` (obrigatória) e `BACKUP_ENCRYPTION_KEY` (recomendada). **Copie o volume para fora do servidor** (rsync/rclone/objeto): backup no mesmo disco não protege contra perda do host. Restaure com `python scripts/restore.py <arquivo>` (assinatura verificada antes de extrair).
+- Alternativa sem o serviço: cron no host com `docker compose exec -T backend python scripts/backup.py --target-dir /app/backups`.

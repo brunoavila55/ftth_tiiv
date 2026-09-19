@@ -121,7 +121,8 @@ class Settings(BaseSettings):
     # Diretório compartilhado (API × workers × worker de jobs) para agregar métricas entre processos;
     # vazio = modo processo único (métricas só em memória).
     METRICS_DIR: str = ""
-    METRICS_SNAPSHOT_TTL_SECONDS: int = Field(default=300, ge=10)
+    METRICS_SNAPSHOT_TTL_SECONDS: int = Field(default=60, ge=10)
+    METRICS_PUBLISH_INTERVAL_SECONDS: float = Field(default=10.0, gt=0)
     METRICS_SECRET_TOKEN: str = "dev-metrics-token-change-in-production"
     # Teto de saltos do rastreio óptico: ainda não aplicado; será usado na R14
     MAX_TRACE_HOPS: int = 300

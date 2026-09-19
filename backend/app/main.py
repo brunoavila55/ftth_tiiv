@@ -10,6 +10,8 @@ from app.api.v1.router import api_v1_router
 from app.core.config import get_settings
 from app.core.errors import register_exception_handlers
 from app.core.logging import get_logger, setup_logging
+from app.core.metrics import metrics_collector
+from app.core.metrics_store import start_metrics_heartbeat, stop_metrics_heartbeats
 from app.core.middleware import RequestIDMiddleware, TrustedProxyMiddleware
 from app.modules.audit.hooks import register_audit_listeners
 
@@ -24,7 +26,10 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
         f"Iniciando {settings.APP_NAME} em ambiente [{settings.ENVIRONMENT}]",
         extra={"environment": settings.ENVIRONMENT},
     )
+    # Modo multiprocesso de métricas: heartbeat periódico do snapshot deste processo (idle inclusive)
+    start_metrics_heartbeat(metrics_collector, role="api")
     yield
+    stop_metrics_heartbeats()
     logger.info(f"Encerrando {settings.APP_NAME}")
 
 

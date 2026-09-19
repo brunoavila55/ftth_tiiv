@@ -179,6 +179,13 @@ jobs:
       - name: docker compose build
         run: docker compose build backend frontend
 
+      # O worker roda `python scripts/run_worker.py` (sys.path[0]=/app/scripts): garante que o pacote
+      # `app` é importável dentro da imagem (regressão: ModuleNotFoundError e worker em loop de restart)
+      - name: Smoke — worker importa dentro da imagem
+        run: |
+          docker run --rm --entrypoint python ftth-backend \
+            -c "import runpy; runpy.run_path('scripts/run_worker.py', run_name='smoke')"
+
       - name: Trivy — imagem do backend
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:

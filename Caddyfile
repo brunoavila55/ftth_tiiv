@@ -5,6 +5,20 @@
     # puro — para desenvolvimento local ou quando um balanceador externo termina o TLS.
 }
 
+# Upstream do backend com balanceamento entre TODAS as réplicas (docker compose --scale backend=N):
+# `dynamic a` reconsulta o DNS do serviço a cada 5 s (um hostname estático só resolveria no
+# início do processo). least_conn distribui pelas conexões abertas.
+(backend_proxy) {
+    reverse_proxy {
+        dynamic a {
+            name backend
+            port 8000
+            refresh 5s
+        }
+        lb_policy least_conn
+    }
+}
+
 # SITE_ADDRESS: domínio público (ex.: ftth.exemplo.com.br) para TLS no Caddy; padrão ":80".
 {$SITE_ADDRESS::80} {
     encode gzip zstd
@@ -43,7 +57,7 @@
             max_size 25MB
         }
         header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
-        reverse_proxy backend:8000
+        import backend_proxy
     }
 
     # API Backend (FastAPI): corpos JSON legítimos são pequenos (maior caso: 10 000 pontos de
@@ -54,11 +68,11 @@
             max_size 2MB
         }
         header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
-        reverse_proxy backend:8000
+        import backend_proxy
     }
 
     handle /health/* {
-        reverse_proxy backend:8000
+        import backend_proxy
     }
 
     # Frontend Web (Next.js) — envia o próprio Content-Security-Policy com nonce

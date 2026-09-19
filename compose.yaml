@@ -36,7 +36,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ftth_backend
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/${POSTGRES_DB:-ftth_manager}
@@ -73,7 +72,6 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: ftth_worker
     command: ["python", "scripts/run_worker.py"]
     environment:
       ENVIRONMENT: ${ENVIRONMENT:-production}
@@ -102,11 +100,48 @@ services:
       - internal
     restart: unless-stopped
 
+  # Backup agendado (opt-in): docker compose --profile backup up -d backup
+  # Gera um pacote assinado (e criptografado, se BACKUP_ENCRYPTION_KEY estiver definida) a cada
+  # BACKUP_INTERVAL_SECONDS (padrão 24 h) no volume `backups` e mantém os últimos N. Copie o volume
+  # para fora do servidor (rsync/rclone) — um backup no mesmo disco não protege contra perda do host.
+  backup:
+    profiles: ["backup"]
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    command:
+      - sh
+      - -c
+      - >-
+        while true; do
+        python scripts/backup.py --target-dir /app/backups --retention-count "$${BACKUP_RETENTION_COUNT:-7}";
+        sleep "$${BACKUP_INTERVAL_SECONDS:-86400}";
+        done
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-ftth_user}:${POSTGRES_PASSWORD:?defina POSTGRES_PASSWORD no .env}@db:5432/${POSTGRES_DB:-ftth_manager}
+      SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env (openssl rand -hex 32)}
+      CSRF_SECRET: ${CSRF_SECRET:?defina CSRF_SECRET no .env (openssl rand -hex 32)}
+      METRICS_SECRET_TOKEN: ${METRICS_SECRET_TOKEN:?defina METRICS_SECRET_TOKEN no .env (openssl rand -hex 16)}
+      BACKUP_SIGNING_KEY: ${BACKUP_SIGNING_KEY:?defina BACKUP_SIGNING_KEY no .env (openssl rand -hex 32)}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
+      BACKUP_RETENTION_COUNT: ${BACKUP_RETENTION_COUNT:-7}
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      STORAGE_PATH: /app/storage
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - backend_storage:/app/storage:ro
+      - backups:/app/backups
+    networks:
+      - internal
+    restart: unless-stopped
+
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: ftth_frontend
     environment:
       NEXT_PUBLIC_API_BASE_URL: /api/v1
       BACKEND_INTERNAL_URL: http://backend:8000
@@ -146,5 +181,6 @@ networks:
 volumes:
   pgdata:
   backend_storage:
+  backups:
   caddy_data:
   caddy_config:

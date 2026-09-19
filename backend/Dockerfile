@@ -48,11 +48,14 @@ COPY --chown=ftthuser:ftthuser migrations ./migrations
 COPY --chown=ftthuser:ftthuser scripts ./scripts
 
 # Criar diretório de storage persistente
-RUN mkdir -p /app/storage && chown -R ftthuser:ftthuser /app/storage
+RUN mkdir -p /app/storage /app/backups && chown -R ftthuser:ftthuser /app/storage /app/backups
 
 USER ftthuser
 
 ENV PATH="/app/.venv/bin:$PATH"
+# `python scripts/*.py` (worker, backup, healthcheck) roda com sys.path[0]=/app/scripts: sem isto o
+# pacote `app` não é importável e o worker morre com ModuleNotFoundError
+ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 ENV PYTHONDONTWRITEBYTECODE=1
 

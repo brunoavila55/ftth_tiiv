@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.core.config import get_settings
 from app.core.logging import job_id_ctx, setup_logging
 from app.core.metrics import metrics_collector
-from app.core.metrics_store import publish_metrics
+from app.core.metrics_store import publish_metrics, start_metrics_heartbeat
 from app.db.session import build_engine, get_session_factory, set_engine_and_factory
 from app.modules.jobs.service import (
     claim_next_job,
@@ -115,6 +115,7 @@ def main() -> int:
 
     # Worker: teto de statement maior/separado da API (importações longas)
     set_engine_and_factory(build_engine(settings.DB_WORKER_STATEMENT_TIMEOUT_MS))
+    start_metrics_heartbeat(metrics_collector, role="worker")  # snapshot fresco mesmo ocioso
     factory = get_session_factory()
     heartbeat_file = Path(settings.WORKER_HEARTBEAT_FILE)
     cleanup_state: dict[str, float] = {"last": 0.0}
