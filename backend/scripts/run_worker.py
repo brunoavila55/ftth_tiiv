@@ -28,6 +28,7 @@ from app.modules.jobs.service import (
     clean_expired_previews_and_exports,
     process_claimed_job,
 )
+from app.modules.retention.service import run_retention
 
 logger = logging.getLogger("ftth.worker")
 
@@ -97,6 +98,13 @@ def run_iteration(
             if clean_res.get("cleaned_previews", 0) > 0:
                 logger.info("Limpeza de retenção: %s", clean_res)
             cleanup_state["last"] = now
+
+        # Retenção de dados operacionais (login_attempts, sessões inválidas): a cada RETENTION_INTERVAL
+        if now - cleanup_state.get("retention", 0.0) > get_settings().RETENTION_INTERVAL_SECONDS:
+            retention = run_retention(db)
+            if any(retention.values()):
+                logger.info("Retenção de dados: %s", retention)
+            cleanup_state["retention"] = now
 
     publish_metrics(metrics_collector, role="worker")  # throttle interno; mantém o snapshot fresco
     return "idle"

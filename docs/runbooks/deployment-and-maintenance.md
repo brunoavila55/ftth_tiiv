@@ -344,3 +344,19 @@ Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
 - **Listagens** (`ORDER BY created_at DESC, id` com `page/page_size`): índices `(created_at DESC, id)` em sites, structures, devices, ports, users e optical_profiles (e `created_at DESC` em connections e attachments). O `OFFSET` continua O(offset), mas sem ordenar a tabela toda. **Paginação por keyset** exigiria mudar o contrato (`page/page_size`) e foi deixada como evolução futura.
 - Medição (100 000 linhas): busca em `sites` 80 ms → 0,4 ms; em `customers` (4 colunas) 134 ms → 3,3 ms; listagem com `OFFSET 90000` 32,8 ms (sort em disco) → 9,3 ms; primeira página 8,5 ms → 0,03 ms.
 - Os índices são criados com `CREATE INDEX CONCURRENTLY`; em bases grandes a migração leva alguns minutos sem bloquear escritas.
+
+---
+
+## 25. Retenção de dados
+
+Rotina idempotente executada pelo worker a cada `RETENTION_INTERVAL_SECONDS` (3600), em lotes de `RETENTION_BATCH_SIZE` (5000; commits curtos, sem lock longo):
+
+| Dado | Regra (padrão) | Variável |
+|---|---|---|
+| `login_attempts` | remove tentativas com mais de **30 dias** | `LOGIN_ATTEMPTS_RETENTION_DAYS` |
+| `user_sessions` | remove sessões **expiradas ou revogadas** há mais de **7 dias** (ativas nunca) | `SESSIONS_RETENTION_DAYS` |
+| Exportações | remove arquivos vencidos (`EXPORT_TTL_DAYS`, 7) e prévias de importação expiradas | — |
+| `audit_events` | **nunca** (append-only; sem retenção) | — |
+
+- Índices: `login_attempts(email, attempted_at)` e `(ip_address, attempted_at)` (rate limit de login; substituem os índices simples redundantes) e `user_sessions(expires_at)`/`(last_activity_at)` (a varredura da retenção).
+- Prazos adotados: 30 dias para tentativas de login (cobre a investigação de ataques lentos) e 7 dias para sessões inválidas (mesmo teto de vida absoluto da sessão). Ajuste por variável de ambiente conforme a política interna/LGPD.

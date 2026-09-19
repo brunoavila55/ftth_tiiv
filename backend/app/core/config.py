@@ -117,6 +117,13 @@ class Settings(BaseSettings):
     BACKUP_SIGNING_KEY: str = ""
     BACKUP_ENCRYPTION_KEY: str = ""
 
+    # Retenção de dados operacionais (o worker executa a rotina a cada RETENTION_INTERVAL_SECONDS).
+    # audit_events NÃO tem retenção (append-only).
+    LOGIN_ATTEMPTS_RETENTION_DAYS: int = Field(default=30, ge=1)
+    SESSIONS_RETENTION_DAYS: int = Field(default=7, ge=1)  # sessões expiradas/revogadas
+    RETENTION_INTERVAL_SECONDS: int = Field(default=3600, ge=60)
+    RETENTION_BATCH_SIZE: int = Field(default=5000, ge=10)
+
     # Desempenho e Observabilidade (B16)
     METRICS_ENABLED: bool = True  # False → /metrics responde 404
     # Diretório compartilhado (API × workers × worker de jobs) para agregar métricas entre processos;
