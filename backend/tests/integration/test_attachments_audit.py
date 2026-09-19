@@ -11,6 +11,8 @@ Cobre:
 """
 
 import io
+import os
+import time
 import uuid
 
 from fastapi import status
@@ -361,6 +363,9 @@ def test_orphan_reconciliation(client: TestClient, db_session: Session) -> None:
     orphan_file = originals_dir / f"orphan_{uuid.uuid4().hex}.png"
     orphan_file.write_bytes(b"orphan_data_content")
     assert orphan_file.exists()
+    # Envelhece além da carência do reconciliador (arquivos recentes podem ser de um upload em curso)
+    aged = time.time() - 3600
+    os.utime(orphan_file, (aged, aged))
 
     # 3. Executa a reconciliação de órfãos via endpoint
     rec_resp = client.post(

@@ -94,6 +94,8 @@ class Settings(BaseSettings):
     # Jobs assíncronos: lease do worker (renovada por heartbeat a cada lease/3 enquanto o job roda)
     JOB_LEASE_SECONDS: float = Field(default=60.0, gt=0)
     EXPORT_TTL_DAYS: int = Field(default=7, ge=1)  # arquivos de exportação vencem após N dias
+    # Reconciliador de anexos: arquivos mais novos que isso NÃO são removidos (upload em andamento)
+    ATTACHMENT_ORPHAN_GRACE_MINUTES: int = Field(default=15, ge=1)
     MAX_IMAGE_PIXELS: int = 25_000_000  # 25 Mpx: acima disso a imagem é rejeitada sem decodificar
     MAX_IMPORT_SIZE_BYTES: int = 20_971_520  # 20 MB (arquivos de importação GeoJSON/KML/CSV)
 

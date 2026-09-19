@@ -1,7 +1,9 @@
 import contextlib
 import hashlib
 import io
+import os
 import re
+import time
 import uuid
 from pathlib import Path
 from typing import Any
@@ -262,55 +264,91 @@ def save_attachment(
         )
 
     original_target_path = originals_dir / storage_filename
-    original_target_path.write_bytes(raw_content)
+    thumb_filename = f"{file_id.hex}.webp"
+    thumb_target_path = thumbnails_dir / thumb_filename
+    thumbnail_rel_path = f"thumbnails/{thumb_filename}" if thumb_bytes else None
 
-    thumbnail_rel_path: str | None = None
-    if thumb_bytes:
-        thumb_filename = f"{file_id.hex}.webp"
-        thumb_target_path = thumbnails_dir / thumb_filename
-        thumb_target_path.write_bytes(thumb_bytes)
-        thumbnail_rel_path = f"thumbnails/{thumb_filename}"
+    # Consistência banco × disco (EST-09). Ordem:
+    #   1) grava em arquivos temporários (`*.uploading`, invisíveis para o reconciliador recente);
+    #   2) monta a linha + auditoria na sessão (nada visível ainda);
+    #   3) promove os temporários ao caminho final com os.replace (atômico);
+    #   4) commit. Se QUALQUER passo falhar, remove temporários e finais e reverte a sessão.
+    # Escolha (justificada): promover ANTES do commit e compensar na falha. O pior caso (queda do
+    # processo entre 3 e 4) deixa um arquivo órfão, que o reconciliador com carência por idade
+    # remove — nunca um registro apontando para arquivo inexistente (esse seria visível ao usuário).
+    staged: list[Path] = []
+    promoted: list[Path] = []
+    try:
+        staged_original = _stage_file(original_target_path, raw_content)
+        staged.append(staged_original)
+        staged_thumb: Path | None = None
+        if thumb_bytes:
+            staged_thumb = _stage_file(thumb_target_path, thumb_bytes)
+            staged.append(staged_thumb)
 
-    # 6. Gravar metadados no banco
-    attachment = Attachment(
-        id=file_id,
-        entity_id=entity_id,
-        entity_type=entity_type.lower().strip(),
-        file_name=safe_name,
-        content_type=mime_type,
-        file_size_bytes=len(raw_content),
-        storage_path=f"originals/{storage_filename}",
-        thumbnail_path=thumbnail_rel_path,
-        checksum_sha256=sha256_hash,
-        caption=caption.strip() if caption else None,
-        user_id=user_id,
-    )
-    db.add(attachment)
+        # 6. Gravar metadados no banco
+        attachment = Attachment(
+            id=file_id,
+            entity_id=entity_id,
+            entity_type=entity_type.lower().strip(),
+            file_name=safe_name,
+            content_type=mime_type,
+            file_size_bytes=len(raw_content),
+            storage_path=f"originals/{storage_filename}",
+            thumbnail_path=thumbnail_rel_path,
+            checksum_sha256=sha256_hash,
+            caption=caption.strip() if caption else None,
+            user_id=user_id,
+        )
+        db.add(attachment)
 
-    # 7. Registrar evento de auditoria append-only na mesma transação
-    record_audit_event(
-        db,
-        actor_id=user_id,
-        actor_name=user_name,
-        action="ATTACHMENT_UPLOAD",
-        entity_type=entity_type,
-        entity_id=entity_id,
-        changes={
-            "attachment_id": str(file_id),
-            "file_name": safe_name,
-            "content_type": mime_type,
-            "file_size_bytes": len(raw_content),
-            "checksum_sha256": sha256_hash,
-            "caption": caption,
-        },
-        reason="Upload de anexo/foto documental",
-        request_id=request_id,
-    )
+        # 7. Registrar evento de auditoria append-only na mesma transação
+        record_audit_event(
+            db,
+            actor_id=user_id,
+            actor_name=user_name,
+            action="ATTACHMENT_UPLOAD",
+            entity_type=entity_type,
+            entity_id=entity_id,
+            changes={
+                "attachment_id": str(file_id),
+                "file_name": safe_name,
+                "content_type": mime_type,
+                "file_size_bytes": len(raw_content),
+                "checksum_sha256": sha256_hash,
+                "caption": caption,
+            },
+            reason="Upload de anexo/foto documental",
+            request_id=request_id,
+        )
 
-    db.commit()
+        # 8. Promove os temporários e confirma
+        os.replace(staged_original, original_target_path)
+        staged.remove(staged_original)
+        promoted.append(original_target_path)
+        if staged_thumb is not None:
+            os.replace(staged_thumb, thumb_target_path)
+            staged.remove(staged_thumb)
+            promoted.append(thumb_target_path)
+
+        db.commit()
+    except BaseException:
+        db.rollback()
+        for leftover in (*staged, *promoted):
+            with contextlib.suppress(OSError):
+                leftover.unlink()
+        raise
+
     db.refresh(attachment)
 
     return build_attachment_read(attachment)
+
+
+def _stage_file(target: Path, data: bytes) -> Path:
+    """Grava `data` em um arquivo temporário ao lado de `target` (promovido depois com os.replace)."""
+    staged = target.with_name(f"{target.name}.{uuid.uuid4().hex[:8]}.uploading")
+    staged.write_bytes(data)
+    return staged
 
 
 def get_attachment_by_id(db: Session, attachment_id: uuid.UUID) -> Attachment:
@@ -478,11 +516,22 @@ def reconcile_storage_orphans(
     orphans_removed: list[str] = []
     missing_disk_files: list[str] = []
 
-    # Detectar órfãos (arquivos em disco não cadastrados no banco)
+    # Carência: arquivo recente pode ser de um upload ainda não commitado (EST-09)
+    grace_seconds = settings.ATTACHMENT_ORPHAN_GRACE_MINUTES * 60
+    now = time.time()
+
+    # Detectar órfãos (arquivos em disco não cadastrados no banco e mais antigos que a carência)
     for f in disk_files:
         try:
             rel = str(f.relative_to(base_dir))
         except ValueError:
+            continue
+
+        try:
+            too_recent = now - f.stat().st_mtime < grace_seconds
+        except OSError:
+            continue
+        if too_recent:
             continue
 
         if rel not in known_relative_paths:

@@ -310,3 +310,11 @@ Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
 - **Consistência**: o dump usa **um snapshot** (`pg_dump -Fc`, ou COPY binário em transação `REPEATABLE READ` somente leitura) — escritas durante o backup não geram filhos sem pai. A restauração carrega tudo numa transação e **revalida todas as chaves estrangeiras antes do commit**; qualquer violação reverte a carga.
 - **Criptografia escolhida**: biblioteca Python (`cryptography`, AES-256-GCM em fluxo) em vez de `age`/`gpg`, para não depender de binário externo na imagem. Se preferir `age`, criptografe o `.tar.gz` gerado e mantenha `BACKUP_SIGNING_KEY`.
 - **Drill**: `python scripts/restore_drill.py` (roda no CI) exercita backup → restore isolado → verificação; rode-o também com `BACKUP_ENCRYPTION_KEY` definida.
+
+---
+
+## 21. Consistência dos anexos (banco × disco)
+
+- O upload grava em arquivos temporários (`*.uploading`), monta a linha e a auditoria na sessão, **promove** os arquivos ao caminho final com `os.replace` e só então faz o `commit`. Qualquer falha (miniatura, auditoria, commit, queda de conexão) remove temporários e finais e reverte a sessão: nenhum arquivo órfão fica em `originals/` ou `thumbnails/`.
+- Escolha: promover antes do commit e compensar na falha. O pior caso (queda do processo entre os dois passos) deixa um arquivo órfão, que o reconciliador remove — nunca um registro apontando para arquivo inexistente.
+- `POST /attachments/reconcile-orphans` só remove arquivos sem registro **mais antigos que `ATTACHMENT_ORPHAN_GRACE_MINUTES` (padrão 15)**; arquivos recentes podem ser de um upload em andamento. Restos `*.uploading` antigos também são limpos. `?dry_run=true` lista sem apagar.
