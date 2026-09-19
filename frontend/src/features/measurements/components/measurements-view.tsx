@@ -11,6 +11,7 @@ import { formatDateTime, formatExcessLossDb, formatPowerDbm, getOriginLabel } fr
 import { NewMeasurementDialog } from "./new-measurement-dialog";
 import { MeasurementComparisonModal } from "./measurement-comparison-modal";
 import type { MeasurementRead } from "../types";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 export function MeasurementsView() {
   const [measurements, setMeasurements] = useState<MeasurementRead[]>([]);
@@ -77,10 +78,12 @@ export function MeasurementsView() {
             <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Atualizar
           </Button>
-          <Button size="sm" onClick={() => setNewDialogOpen(true)}>
-            <Plus className="h-4 w-4 mr-2" />
-            Nova Medição
-          </Button>
+          <PermissionGate permission="measurements:write">
+            <Button size="sm" onClick={() => setNewDialogOpen(true)}>
+              <Plus className="h-4 w-4 mr-2" />
+              Nova Medição
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -217,15 +220,17 @@ export function MeasurementsView() {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              title="Excluir Medição"
-                              onClick={() => handleDelete(m)}
-                              className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <PermissionGate permission="measurements:write">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                title="Excluir Medição"
+                                onClick={() => handleDelete(m)}
+                                className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </PermissionGate>
                           </div>
                         </td>
                       </tr>

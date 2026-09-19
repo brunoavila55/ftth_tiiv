@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { listCustomers } from "../api";
 import { CustomerFormDialog } from "./customer-form-dialog";
 import type { CustomerRead } from "../types";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 export function CustomersTable() {
   const [searchQuery, setSearchQuery] = React.useState("");
@@ -52,15 +53,17 @@ export function CustomersTable() {
           />
         </div>
 
-        <Button
-          type="button"
-          size="sm"
-          onClick={handleCreateCustomer}
-          className="text-xs gap-1.5 bg-primary"
-        >
-          <Plus className="h-4 w-4" />
-          <span>Novo Assinante</span>
-        </Button>
+        <PermissionGate permission="customers:write">
+          <Button
+            type="button"
+            size="sm"
+            onClick={handleCreateCustomer}
+            className="text-xs gap-1.5 bg-primary"
+          >
+            <Plus className="h-4 w-4" />
+            <span>Novo Assinante</span>
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Tabela de Assinantes */}

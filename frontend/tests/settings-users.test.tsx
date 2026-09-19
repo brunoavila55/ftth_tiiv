@@ -8,6 +8,8 @@ import * as usersApi from "@/features/users/api";
 import type { UserRead, PaginatedResult } from "@/features/users/types";
 import { ApiError } from "@/lib/api/types";
 
+vi.mock("@/features/auth/auth-context", () => import("./support/auth-context-mock"));
+
 // Mock do next/navigation
 const mockPush = vi.fn();
 vi.mock("next/navigation", () => ({

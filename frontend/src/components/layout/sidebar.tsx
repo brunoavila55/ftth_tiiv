@@ -12,7 +12,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { useAuth } from "@/features/auth/auth-context";
-import { NAVIGATION_GROUPS, type NavItem } from "@/lib/navigation";
+import { visibleNavigationGroups, type NavItem } from "@/lib/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -33,7 +33,11 @@ export function Sidebar({
   className,
 }: SidebarProps) {
   const pathname = usePathname() || "/";
-  const { user, logout } = useAuth();
+  const { user, logout, hasPermission } = useAuth();
+  const navigationGroups = React.useMemo(
+    () => visibleNavigationGroups(hasPermission),
+    [hasPermission]
+  );
 
   // Fecha mobile drawer ao mudar de rota
   React.useEffect(() => {
@@ -186,7 +190,7 @@ export function Sidebar({
             isCollapsed ? "max-h-[calc(100vh-8rem)]" : "max-h-[calc(100vh-8.5rem)]"
           )}
         >
-          {NAVIGATION_GROUPS.map((group) =>
+          {navigationGroups.map((group) =>
             renderNavGroup(group.title, group.items, isCollapsed, isMobileView)
           )}
         </div>

@@ -8,6 +8,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { type Attachment } from "../types";
 import { deleteAttachment, downloadAttachmentBlob, formatFileSize } from "../api";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 interface AttachmentCardProps {
   attachment: Attachment;
@@ -145,17 +146,19 @@ export function AttachmentCard({
           </Button>
 
           {canDelete && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setConfirmDeleteOpen(true)}
-              disabled={downloading || deleting}
-              className="h-8 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
-              title="Excluir anexo"
-            >
-              <Trash2 className="h-3.5 w-3.5 mr-1" />
-              Excluir
-            </Button>
+            <PermissionGate permission="attachments:write">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setConfirmDeleteOpen(true)}
+                disabled={downloading || deleting}
+                className="h-8 px-2 text-xs text-destructive hover:text-destructive hover:bg-destructive/10"
+                title="Excluir anexo"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" />
+                Excluir
+              </Button>
+            </PermissionGate>
           )}
         </CardFooter>
       </Card>

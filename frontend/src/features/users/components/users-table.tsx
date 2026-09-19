@@ -27,6 +27,7 @@ import { LoadingState, EmptyState, ErrorState } from "@/components/ui/state-disp
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { UserFormDialog } from "./user-form-dialog";
 import { ApiError } from "@/lib/api/types";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 export function UsersTable() {
   const queryClient = useQueryClient();
@@ -203,14 +204,16 @@ export function UsersTable() {
           )}
         </form>
 
-        <Button
-          onClick={handleOpenCreate}
-          size="sm"
-          className="h-9 text-xs gap-1.5 w-full sm:w-auto"
-        >
-          <UserPlus className="h-4 w-4" />
-          <span>Novo Usuário</span>
-        </Button>
+        <PermissionGate permission="users:write">
+          <Button
+            onClick={handleOpenCreate}
+            size="sm"
+            className="h-9 text-xs gap-1.5 w-full sm:w-auto"
+          >
+            <UserPlus className="h-4 w-4" />
+            <span>Novo Usuário</span>
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Tabela de Usuários */}
@@ -282,39 +285,43 @@ export function UsersTable() {
                     </td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleOpenEdit(user)}
-                          className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
-                          title="Editar usuário"
-                        >
-                          <Edit2 className="h-3 w-3" />
-                          <span>Editar</span>
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => setDeactivateUser(user)}
-                          className={`h-7 text-xs px-2 gap-1 ${
-                            user.is_active
-                              ? "text-destructive hover:bg-destructive/10"
-                              : "text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
-                          }`}
-                          title={user.is_active ? "Desativar operador" : "Reativar operador"}
-                        >
-                          {user.is_active ? (
-                            <>
-                              <UserX className="h-3 w-3" />
-                              <span>Desativar</span>
-                            </>
-                          ) : (
-                            <>
-                              <UserCheck className="h-3 w-3" />
-                              <span>Reativar</span>
-                            </>
-                          )}
-                        </Button>
+                        <PermissionGate permission="users:write">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => handleOpenEdit(user)}
+                            className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
+                            title="Editar usuário"
+                          >
+                            <Edit2 className="h-3 w-3" />
+                            <span>Editar</span>
+                          </Button>
+                        </PermissionGate>
+                        <PermissionGate permission="users:write">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setDeactivateUser(user)}
+                            className={`h-7 text-xs px-2 gap-1 ${
+                              user.is_active
+                                ? "text-destructive hover:bg-destructive/10"
+                                : "text-emerald-600 hover:bg-emerald-500/10 dark:text-emerald-400"
+                            }`}
+                            title={user.is_active ? "Desativar operador" : "Reativar operador"}
+                          >
+                            {user.is_active ? (
+                              <>
+                                <UserX className="h-3 w-3" />
+                                <span>Desativar</span>
+                              </>
+                            ) : (
+                              <>
+                                <UserCheck className="h-3 w-3" />
+                                <span>Reativar</span>
+                              </>
+                            )}
+                          </Button>
+                        </PermissionGate>
                       </div>
                     </td>
                   </tr>

@@ -116,7 +116,8 @@ describe("Matriz Granular de Acesso RBAC (frontend.md)", () => {
 
   it("valida permissões para o papel technician (medições e fotos, sem topologia)", () => {
     expect(hasPermission("technician", "network:read")).toBe(true);
-    expect(hasPermission("technician", "telemetry:write")).toBe(true);
+    expect(hasPermission("technician", "measurements:write")).toBe(true);
+    expect(hasPermission("technician", "telemetry:write")).toBe(false); // só existia no front (EST-20)
     expect(hasPermission("technician", "network:write")).toBe(false);
     expect(canWriteNetwork("technician")).toBe(false);
     expect(canManageUsers("technician")).toBe(false);

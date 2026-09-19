@@ -16,6 +16,7 @@ import { formatPtBrNumber } from "@/lib/format/numbers";
 import { StructureFormDialog } from "@/features/inventory/components/structure-form-dialog";
 import { Plus, Eye, Map, Edit } from "lucide-react";
 import Link from "next/link";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 const STRUCTURE_KIND_LABELS: Record<string, string> = {
   pole: "Poste",
@@ -189,18 +190,20 @@ export function StructuresTable({ fixedKind, title }: StructuresTableProps) {
                   </Link>
                 </Button>
               )}
-              <Button
-                variant="ghost"
-                size="sm"
-                className="h-7 px-2 text-xs text-muted-foreground"
-                onClick={() => {
-                  setEditingStructure(row.original);
-                  setFormDialogOpen(true);
-                }}
-              >
-                <Edit className="h-3.5 w-3.5" />
-                <span className="sr-only">Editar</span>
-              </Button>
+              <PermissionGate permission="network:write">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
+                  onClick={() => {
+                    setEditingStructure(row.original);
+                    setFormDialogOpen(true);
+                  }}
+                >
+                  <Edit className="h-3.5 w-3.5" />
+                  <span className="sr-only">Editar</span>
+                </Button>
+              </PermissionGate>
             </div>
           );
         },
@@ -257,17 +260,19 @@ export function StructuresTable({ fixedKind, title }: StructuresTableProps) {
           )}
         </DataTableFilterBar>
 
-        <Button
-          size="sm"
-          className="gap-1.5 flex-shrink-0"
-          onClick={() => {
-            setEditingStructure(null);
-            setFormDialogOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          <span>Nova {fixedKind ? STRUCTURE_KIND_LABELS[fixedKind] : "Estrutura"}</span>
-        </Button>
+        <PermissionGate permission="network:write">
+          <Button
+            size="sm"
+            className="gap-1.5 flex-shrink-0"
+            onClick={() => {
+              setEditingStructure(null);
+              setFormDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Nova {fixedKind ? STRUCTURE_KIND_LABELS[fixedKind] : "Estrutura"}</span>
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Tabela de Dados */}

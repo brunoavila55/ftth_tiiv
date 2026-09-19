@@ -15,6 +15,7 @@ vi.mock("@/features/auth/auth-context", () => ({
   useAuth: () => ({
     user: { id: "u-1", name: "Operador de Campo", role: "technician" },
     logout: vi.fn(),
+    hasPermission: () => true,
   }),
 }));
 

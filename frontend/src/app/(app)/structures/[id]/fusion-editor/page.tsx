@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { LoadingState, ErrorState } from "@/components/ui/state-displays";
 import { ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { AuthGuard } from "@/components/auth/auth-guard";
 
 export default function StructureFusionEditorPage() {
   const params = useParams<{ id: string }>();
@@ -41,6 +42,7 @@ export default function StructureFusionEditorPage() {
   }
 
   return (
+    <AuthGuard requiredPermission="network:write">
     <div className="space-y-4">
       {/* Botão de Retorno */}
       <div className="flex items-center gap-2">
@@ -58,5 +60,6 @@ export default function StructureFusionEditorPage() {
         structureKind={structure.kind}
       />
     </div>
+    </AuthGuard>
   );
 }

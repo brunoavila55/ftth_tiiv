@@ -377,3 +377,13 @@ Todo identificador de entrada (`*_id` em caminho, query, formulário ou corpo JS
 - o host do banco não é local (`localhost`, `127.0.0.0/8`, `::1`, socket) e a flag `--i-know-this-is-not-prod` não foi passada (banco de homologação remoto: passe a flag conscientemente).
 
 A checagem de produção usa a variável `ENVIRONMENT` lida diretamente (antes das `Settings`) e, no benchmark, **antes** de o script forçar `ENVIRONMENT=test` para si. O admin do seed (`admin@provedor.com.br`) recebe senha **aleatória** (`secrets.token_urlsafe(16)`) impressa uma única vez — não há mais senha fixa no repositório, e a tela de login não exibe mais "credenciais de demonstração". Guarda: `app/core/script_safety.py`; testes: `tests/unit/test_script_safety.py` e `frontend/tests/login-no-demo-credentials.test.ts`.
+
+---
+
+## 28. Permissões: fonte única backend → frontend
+
+A matriz de permissões vive **só** em `backend/app/core/permissions.py`. `uv run python scripts/export_permissions.py` (no backend) gera `contracts/permissions.json` e `frontend/src/lib/permissions/rbac.generated.ts` (tipos `Permission`/`UserRole` e a matriz); `frontend/src/lib/permissions/rbac.ts` apenas reexporta. Rode o script depois de mudar a matriz — `backend/tests/contract/test_permissions_contract.py` (arquivos versionados = matriz atual) e `frontend/tests/permissions-parity.test.ts` (UI = contrato) falham em caso de divergência. O `telemetry:write`, que existia só no frontend, foi removido (nenhuma rota o exigia).
+
+Na UI, `useAuth().hasPermission` obedece à lista `permissions` de `/auth/me` (a matriz gerada é só o *fallback* de respostas antigas). Cada item de `NAVIGATION_GROUPS` declara a `permission` exigida; a barra lateral e a busca global escondem o que o usuário não acessa, `RoutePermissionGuard` (layout `(app)`) mostra 403 na rota e as ações de escrita (novo/editar/desativar/excluir, upload, fusões, barra de desenho do mapa) ficam atrás de `PermissionGate`. **Isso é conveniência de UX**: o servidor continua recusando toda ação sem permissão.
+
+Permissões definidas mas sem rota que as exija (`cables:*`, `connectivity:*`, `topology:*`, `map:read`): as rotas correspondentes usam `network:*`; a UI segue o que o servidor realmente exige. Remover/afinar esses nomes é decisão de produto (mudaria o `/auth/me`).

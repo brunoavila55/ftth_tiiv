@@ -17,6 +17,7 @@ import type { SiteRead } from "@/lib/api/types";
 import { Plus, Eye, Edit } from "lucide-react";
 import Link from "next/link";
 import { SiteFormDialog } from "@/features/inventory/components/site-form-dialog";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 const SITE_KIND_LABELS: Record<string, string> = {
   pop: "POP de Telecom",
@@ -148,18 +149,20 @@ export function SitesTable() {
                 <span className="hidden sm:inline">Detalhes</span>
               </Link>
             </Button>
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs text-muted-foreground"
-              onClick={() => {
-                setEditingSite(row.original);
-                setFormDialogOpen(true);
-              }}
-            >
-              <Edit className="h-3.5 w-3.5" />
-              <span className="sr-only">Editar</span>
-            </Button>
+            <PermissionGate permission="network:write">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 px-2 text-xs text-muted-foreground"
+                onClick={() => {
+                  setEditingSite(row.original);
+                  setFormDialogOpen(true);
+                }}
+              >
+                <Edit className="h-3.5 w-3.5" />
+                <span className="sr-only">Editar</span>
+              </Button>
+            </PermissionGate>
           </div>
         ),
       },
@@ -209,17 +212,19 @@ export function SitesTable() {
           </select>
         </DataTableFilterBar>
 
-        <Button
-          size="sm"
-          className="gap-1.5 flex-shrink-0"
-          onClick={() => {
-            setEditingSite(null);
-            setFormDialogOpen(true);
-          }}
-        >
-          <Plus className="h-4 w-4" />
-          <span>Novo Site</span>
-        </Button>
+        <PermissionGate permission="network:write">
+          <Button
+            size="sm"
+            className="gap-1.5 flex-shrink-0"
+            onClick={() => {
+              setEditingSite(null);
+              setFormDialogOpen(true);
+            }}
+          >
+            <Plus className="h-4 w-4" />
+            <span>Novo Site</span>
+          </Button>
+        </PermissionGate>
       </div>
 
       {/* Tabela de Dados Paginada no Servidor */}

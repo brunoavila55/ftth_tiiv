@@ -30,6 +30,7 @@ import {
 } from "lucide-react";
 import { CopyableCoordinates } from "@/components/ui/copyable-coordinates";
 import Link from "next/link";
+import { PermissionGate } from "@/components/auth/permission-gate";
 
 export interface SiteDetailViewProps {
   siteId: string;
@@ -147,25 +148,29 @@ export function SiteDetailView({ siteId }: SiteDetailViewProps) {
             </Button>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-xs"
-            onClick={() => setEditDialogOpen(true)}
-          >
-            <Edit className="h-3.5 w-3.5" />
-            <span>Editar</span>
-          </Button>
+          <PermissionGate permission="network:write">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-xs"
+              onClick={() => setEditDialogOpen(true)}
+            >
+              <Edit className="h-3.5 w-3.5" />
+              <span>Editar</span>
+            </Button>
+          </PermissionGate>
 
-          <Button
-            variant="ghost"
-            size="sm"
-            className="gap-1.5 text-xs text-destructive hover:bg-destructive/10"
-            onClick={() => setDeactivateDialogOpen(true)}
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            <span>Desativar</span>
-          </Button>
+          <PermissionGate permission="network:write">
+            <Button
+              variant="ghost"
+              size="sm"
+              className="gap-1.5 text-xs text-destructive hover:bg-destructive/10"
+              onClick={() => setDeactivateDialogOpen(true)}
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+              <span>Desativar</span>
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 

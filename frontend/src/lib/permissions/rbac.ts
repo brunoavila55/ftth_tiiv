@@ -1,117 +1,15 @@
-export type UserRole = "admin" | "engineer" | "technician" | "viewer";
+import { PERMISSIONS, ROLE_PERMISSIONS as GENERATED_ROLE_PERMISSIONS } from "./rbac.generated";
 
-export type Permission =
-  | "network:read"
-  | "network:write"
-  | "optical:read"
-  | "optical:write"
-  | "reports:read"
-  | "map:read"
-  | "measurements:read"
-  | "measurements:write"
-  | "telemetry:write"
-  | "attachments:read"
-  | "attachments:write"
-  | "customers:read"
-  | "customers:write"
-  | "cables:read"
-  | "cables:write"
-  | "splitters:read"
-  | "splitters:write"
-  | "connectivity:read"
-  | "connectivity:write"
-  | "topology:read"
-  | "topology:write"
-  | "imports:read"
-  | "imports:write"
-  | "exports:read"
-  | "exports:write"
-  | "audit:read"
-  | "users:read"
-  | "users:write"
-  | "settings:read"
-  | "settings:write";
+// A matriz é GERADA do backend (backend/scripts/export_permissions.py → rbac.generated.ts): o
+// servidor é a autoridade e a UI apenas esconde/desabilita o que ele recusaria. Não há mais
+// matriz mantida à mão aqui (evita divergências como o antigo `telemetry:write`).
+export { PERMISSIONS };
 
-export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
-  viewer: [
-    "network:read",
-    "optical:read",
-    "reports:read",
-    "map:read",
-  ],
-  technician: [
-    "network:read",
-    "optical:read",
-    "reports:read",
-    "map:read",
-    "measurements:read",
-    "measurements:write",
-    "telemetry:write",
-    "attachments:read",
-    "attachments:write",
-    "audit:read",
-  ],
-  engineer: [
-    "network:read",
-    "network:write",
-    "optical:read",
-    "optical:write",
-    "reports:read",
-    "map:read",
-    "measurements:read",
-    "measurements:write",
-    "telemetry:write",
-    "attachments:read",
-    "attachments:write",
-    "customers:read",
-    "customers:write",
-    "cables:read",
-    "cables:write",
-    "splitters:read",
-    "splitters:write",
-    "connectivity:read",
-    "connectivity:write",
-    "topology:read",
-    "topology:write",
-    "imports:read",
-    "imports:write",
-    "exports:read",
-    "exports:write",
-    "audit:read",
-  ],
-  admin: [
-    "network:read",
-    "network:write",
-    "optical:read",
-    "optical:write",
-    "reports:read",
-    "map:read",
-    "measurements:read",
-    "measurements:write",
-    "telemetry:write",
-    "attachments:read",
-    "attachments:write",
-    "customers:read",
-    "customers:write",
-    "cables:read",
-    "cables:write",
-    "splitters:read",
-    "splitters:write",
-    "connectivity:read",
-    "connectivity:write",
-    "topology:read",
-    "topology:write",
-    "imports:read",
-    "imports:write",
-    "exports:read",
-    "exports:write",
-    "audit:read",
-    "users:read",
-    "users:write",
-    "settings:read",
-    "settings:write",
-  ],
-};
+export type UserRole = keyof typeof GENERATED_ROLE_PERMISSIONS;
+
+export type Permission = (typeof PERMISSIONS)[number];
+
+export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = GENERATED_ROLE_PERMISSIONS;
 
 export function hasPermission(
   role: UserRole | string | null | undefined,
