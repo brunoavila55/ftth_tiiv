@@ -25,8 +25,8 @@ Resultado: **51 achados corrigidos, 2 parciais (PERF-09, EST-14), 0 pendentes**;
 
 | Workflow | Situação |
 |---|---|
-| CI (backend, frontend, security, docker) | **verde** no commit `9d0dd37` |
-| CodeQL (python, javascript-typescript) | **vermelho, mas não é o código**: a análise roda e o upload falha com "Code scanning is not enabled for this repository". Em repositório privado o code scanning exige GitHub Advanced Security. Ver item 1 abaixo |
+| CI (backend, frontend, security, docker) | **verde** |
+| CodeQL | **removido** (`.github/workflows/codeql.yml`) — repositório privado sem GitHub Advanced Security, então o upload do SARIF sempre falhava ("Code scanning is not enabled for this repository"), mesmo com a análise em si não encontrando problema. `pip-audit`, `pnpm audit`, gitleaks e Trivy continuam rodando no CI |
 
 Nenhum PR aberto. Dependabot: atualizações de versão desligadas (`open-pull-requests-limit: 0`); alertas de segurança seguem nas configurações do repositório.
 
@@ -36,10 +36,9 @@ O CI vermelho anterior tinha uma causa real de código: `restore_backup` usava `
 
 ### 3.1 Só você consegue (conta, domínio, infraestrutura)
 
-1. **CodeQL vermelho** — escolher uma opção: (a) tornar o repositório público; (b) habilitar GitHub Advanced Security (Settings → Code security); ou (c) remover `.github/workflows/codeql.yml` e ficar com `pip-audit`, `pnpm audit`, gitleaks e Trivy, que já rodam no CI.
-2. **CSP/HSTS com TLS real** — subir com domínio e `SITE_ADDRESS` reais e conferir no navegador: cabeçalho `Content-Security-Policy` com nonce, `Strict-Transport-Security` só em HTTPS, `/metrics` respondendo 404 por fora. Procedimento: `docs/runbooks/deployment-and-maintenance.md`.
-3. **Escolher o storage de anexos para multi-réplica (EST-14)** — S3/MinIO/NFS. Hoje os anexos ficam em disco local (`STORAGE_PATH`), então `docker compose up --scale backend=N` só é seguro com volume compartilhado. ADR: `docs/adr/0007-escala-horizontal.md`. Proposta: abstração de storage + backend S3-compatível por variável de ambiente, disco local como padrão, testado com MinIO.
-4. **Confirmar as decisões assumidas** (seção 4 abaixo).
+1. **CSP/HSTS com TLS real** — subir com domínio e `SITE_ADDRESS` reais e conferir no navegador: cabeçalho `Content-Security-Policy` com nonce, `Strict-Transport-Security` só em HTTPS, `/metrics` respondendo 404 por fora. Procedimento: `docs/runbooks/deployment-and-maintenance.md`.
+2. **Escolher o storage de anexos para multi-réplica (EST-14)** — S3/MinIO/NFS. Hoje os anexos ficam em disco local (`STORAGE_PATH`), então `docker compose up --scale backend=N` só é seguro com volume compartilhado. ADR: `docs/adr/0007-escala-horizontal.md`. Proposta: abstração de storage + backend S3-compatível por variável de ambiente, disco local como padrão, testado com MinIO.
+3. **Confirmar as decisões assumidas** (seção 4 abaixo).
 
 ### 3.2 Posso fazer numa próxima sessão (sem depender de infraestrutura)
 
