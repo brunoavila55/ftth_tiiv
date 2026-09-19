@@ -109,6 +109,11 @@ class Settings(BaseSettings):
     MAP_MAX_FEATURES: int = 500
     ROUTE_ENDPOINT_TOLERANCE_M: float = 5.0
 
+    # Backup: chave de assinatura do manifesto (HMAC; obrigatória em produção) e chave opcional de
+    # criptografia do pacote (AES-256-GCM; 32 bytes em hex/base64). Guarde-as FORA do servidor de backup.
+    BACKUP_SIGNING_KEY: str = ""
+    BACKUP_ENCRYPTION_KEY: str = ""
+
     # Desempenho e Observabilidade (B16)
     METRICS_ENABLED: bool = True  # False → /metrics responde 404
     # Diretório compartilhado (API × workers × worker de jobs) para agregar métricas entre processos;
@@ -147,12 +152,19 @@ class Settings(BaseSettings):
             return self
 
         problems: list[str] = []
-        for name in ("SECRET_KEY", "CSRF_SECRET", "METRICS_SECRET_TOKEN"):
+        for name in ("SECRET_KEY", "CSRF_SECRET", "METRICS_SECRET_TOKEN", "BACKUP_SIGNING_KEY"):
             if _is_weak_secret(getattr(self, name)):
                 problems.append(
                     f"{name} é um valor padrão/fraco (use `openssl rand -hex 32`, "
                     f"mínimo {MIN_SECRET_LENGTH} caracteres)"
                 )
+        if self.BACKUP_ENCRYPTION_KEY:
+            from app.core.backup_crypto import BackupCryptoError, parse_key
+
+            try:
+                parse_key(self.BACKUP_ENCRYPTION_KEY)
+            except BackupCryptoError as err:
+                problems.append(str(err))
         db_password = urlsplit(self.DATABASE_URL).password
         if not db_password or any(m in db_password.lower() for m in _INSECURE_MARKERS):
             problems.append("DATABASE_URL usa senha ausente ou de exemplo")

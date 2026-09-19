@@ -11,6 +11,7 @@ STRONG_SECRETS = {
     "SECRET_KEY": "9f2c7e41b8d05a36c1e94f7a20b3d68e5c17a9f4e2b08d63",
     "CSRF_SECRET": "3b7d19e5a04c86f2d1e7a9053c4b8e62f1d70a95c3e846b2",
     "METRICS_SECRET_TOKEN": "c81e4a7f20d95b36e1a07c4f9d2b58e3a6f10c74",
+    "BACKUP_SIGNING_KEY": "7d3f0a19c6e48b25d1f97a3c5e08b642a1d97f3c0e5b8a24",
     "DATABASE_URL": "postgresql+psycopg://ftth_user:Zk3vQ9tLw2xB7nRp@db:5432/ftth_manager",
 }
 
@@ -48,16 +49,30 @@ def test_production_accepts_strong_secrets() -> None:
 
 
 def test_production_rejects_all_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
-    for name in ("SECRET_KEY", "CSRF_SECRET", "METRICS_SECRET_TOKEN", "DATABASE_URL"):
+    for name in (
+        "SECRET_KEY",
+        "CSRF_SECRET",
+        "METRICS_SECRET_TOKEN",
+        "BACKUP_SIGNING_KEY",
+        "DATABASE_URL",
+    ):
         monkeypatch.delenv(name, raising=False)
     with pytest.raises(pydantic.ValidationError) as exc:
         Settings(ENVIRONMENT=Environment.PRODUCTION)
     message = str(exc.value)
-    for name in ("SECRET_KEY", "CSRF_SECRET", "METRICS_SECRET_TOKEN", "DATABASE_URL"):
+    for name in (
+        "SECRET_KEY",
+        "CSRF_SECRET",
+        "METRICS_SECRET_TOKEN",
+        "BACKUP_SIGNING_KEY",
+        "DATABASE_URL",
+    ):
         assert name in message
 
 
-@pytest.mark.parametrize("field", ["SECRET_KEY", "CSRF_SECRET", "METRICS_SECRET_TOKEN"])
+@pytest.mark.parametrize(
+    "field", ["SECRET_KEY", "CSRF_SECRET", "METRICS_SECRET_TOKEN", "BACKUP_SIGNING_KEY"]
+)
 @pytest.mark.parametrize(
     "weak",
     [
@@ -109,3 +124,12 @@ def test_compose_secrets_have_no_public_defaults() -> None:
         assert f"${{{var}:-" not in text, f"{var} não pode ter default no compose"
         assert f"${{{var}:?" in text, f"{var} deve ser obrigatório no compose"
     assert "dev-insecure" not in text and "ftth_password" not in text
+
+
+def test_production_rejects_invalid_backup_encryption_key() -> None:
+    kwargs = {**STRONG_SECRETS, "BACKUP_ENCRYPTION_KEY": "curta"}
+    with pytest.raises(pydantic.ValidationError) as exc:
+        Settings(ENVIRONMENT=Environment.PRODUCTION, **kwargs)
+    assert "BACKUP_ENCRYPTION_KEY" in str(exc.value)
+    ok = {**STRONG_SECRETS, "BACKUP_ENCRYPTION_KEY": "ab" * 32}
+    assert Settings(ENVIRONMENT=Environment.PRODUCTION, **ok).is_production

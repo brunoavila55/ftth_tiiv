@@ -298,3 +298,15 @@ Valores adotados (decisão de capacidade; ajuste por variável de ambiente):
 - **CI** (`.github/workflows/ci.yml`): `permissions: contents: read`; actions fixadas por SHA (comentário com a versão; o Dependabot atualiza); jobs: backend (ruff/mypy/contrato/migrações/pytest/restore drill), frontend (lint/typecheck/vitest/build), **security** (pip-audit, `pnpm audit --audit-level high`, gitleaks) e **docker-build** (`docker compose build` + Trivy CRITICAL/HIGH nas imagens). CodeQL roda em `codeql.yml` (python e javascript-typescript, semanalmente também).
 - **Imagens**: o build aplica os patches da distro (`apt-get upgrade`/`apk upgrade`) e a imagem do frontend não leva npm/corepack. Reexecute `docker compose build` + Trivy ao atualizar a imagem base.
 - **Smoke manual pendente**: o upgrade major do MapLibre foi validado por typecheck, testes e build, mas não por navegador; abra o mapa (arrastar, camadas, desenho de rota) antes de publicar.
+
+---
+
+## 20. Backup e restore seguros
+
+- **Chaves** (guarde-as **fora** do servidor de backup; sem elas o pacote não é restaurável):
+  - `BACKUP_SIGNING_KEY` (obrigatória em produção, `openssl rand -hex 32`): assina o `manifest.json` com HMAC-SHA256. O restore verifica a assinatura **antes de extrair qualquer arquivo**; pacote adulterado, sem assinatura ou de outra instalação é recusado. Rotacionar a chave invalida os backups antigos (restaure-os com a chave da época).
+  - `BACKUP_ENCRYPTION_KEY` (opcional, **recomendada**; 32 bytes em hex/base64): criptografa o pacote com AES-256-GCM em blocos autenticados (`ftth_backup_*.tar.gz.enc`); o texto claro não permanece em disco. Chave errada, bit adulterado ou pacote truncado falham na autenticação. Se ela ficar de fora, o backup segue sem criptografia (com aviso).
+- **Arquivos** gerados com permissão `0600`. Restauração ignora/recusa entradas de tar com `..`, caminho absoluto, links ou devices (`filter="data"`), e nomes de tabela fora de `^[a-z_][a-z0-9_]*\.bin$` ou inexistentes no schema (allowlist via `information_schema`); os nomes nunca são interpolados em SQL (`psycopg.sql.Identifier`).
+- **Consistência**: o dump usa **um snapshot** (`pg_dump -Fc`, ou COPY binário em transação `REPEATABLE READ` somente leitura) — escritas durante o backup não geram filhos sem pai. A restauração carrega tudo numa transação e **revalida todas as chaves estrangeiras antes do commit**; qualquer violação reverte a carga.
+- **Criptografia escolhida**: biblioteca Python (`cryptography`, AES-256-GCM em fluxo) em vez de `age`/`gpg`, para não depender de binário externo na imagem. Se preferir `age`, criptografe o `.tar.gz` gerado e mantenha `BACKUP_SIGNING_KEY`.
+- **Drill**: `python scripts/restore_drill.py` (roda no CI) exercita backup → restore isolado → verificação; rode-o também com `BACKUP_ENCRYPTION_KEY` definida.

@@ -47,6 +47,8 @@ services:
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000","http://127.0.0.1:3000"]}
       METRICS_SECRET_TOKEN: ${METRICS_SECRET_TOKEN:?defina METRICS_SECRET_TOKEN no .env (openssl rand -hex 16)}
+      BACKUP_SIGNING_KEY: ${BACKUP_SIGNING_KEY:?defina BACKUP_SIGNING_KEY no .env (openssl rand -hex 32)}
+      BACKUP_ENCRYPTION_KEY: ${BACKUP_ENCRYPTION_KEY:-}
       # Só pares nestas redes (Caddy no docker network) têm X-Forwarded-For/-Proto respeitados
       TRUSTED_PROXIES: ${TRUSTED_PROXIES:-["172.16.0.0/12","10.0.0.0/8","192.168.0.0/16"]}
       STORAGE_PATH: /app/storage
@@ -79,6 +81,7 @@ services:
       SECRET_KEY: ${SECRET_KEY:?defina SECRET_KEY no .env (openssl rand -hex 32)}
       CSRF_SECRET: ${CSRF_SECRET:?defina CSRF_SECRET no .env (openssl rand -hex 32)}
       METRICS_SECRET_TOKEN: ${METRICS_SECRET_TOKEN:?defina METRICS_SECRET_TOKEN no .env (openssl rand -hex 16)}
+      BACKUP_SIGNING_KEY: ${BACKUP_SIGNING_KEY:?defina BACKUP_SIGNING_KEY no .env (openssl rand -hex 32)}
       STORAGE_PATH: /app/storage
       METRICS_DIR: /app/storage/metrics
       LOG_LEVEL: ${LOG_LEVEL:-INFO}
