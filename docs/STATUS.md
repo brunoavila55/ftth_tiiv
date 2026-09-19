@@ -23,11 +23,11 @@ Resultado: **51 achados corrigidos, 2 parciais (PERF-09, EST-14), 0 pendentes**;
 
 ## 2. O que está acontecendo agora
 
-Branch `fix/pendencias-auditoria` (local, não enviada) com o fechamento das pendências que não dependem de decisão de produto. Detalhe em `docs/security-audit/resolucao.md` §7.
+Fechamento das pendências que não dependiam de decisão de produto, mesclado na `master` em 19/09/2026 (branch `fix/pendencias-auditoria`, fast-forward). Detalhe em `docs/security-audit/resolucao.md` §7.
 
-**CI vermelho na `master` — causa encontrada e corrigida na branch.** Os 4 testes espaciais falhavam porque `restore_backup` usava `pg_restore --clean`, que **recria a extensão PostGIS** e deixa as conexões já abertas com o cache de tipos antigo (`no spatial operator found … opfamily`). Só aparecia no GitHub porque a máquina local não tem `pg_dump`/`pg_restore` e caía no dump binário do psycopg. Como afetava também a restauração real com a API no ar, a correção está no código (`_write_restore_list` filtra a extensão do sumário), não só no teste. O teste de tempo do health probe ganhou margem (1,5 s de bloqueio simulado, teto 0,5 s).
+**CI vermelho na `master` — causa encontrada e corrigida.** Os 4 testes espaciais falhavam porque `restore_backup` usava `pg_restore --clean`, que **recria a extensão PostGIS** e deixa as conexões já abertas com o cache de tipos antigo (`no spatial operator found … opfamily`). Só aparecia no GitHub porque a máquina local não tem `pg_dump`/`pg_restore` e caía no dump binário do psycopg. Como afetava também a restauração real com a API no ar, a correção está no código (`_write_restore_list` filtra a extensão do sumário), não só no teste. O teste de tempo do health probe ganhou margem (1,5 s de bloqueio simulado, teto 0,5 s).
 
-**Falta:** abrir o PR, esperar o CI e confirmar o CodeQL (em repositório privado pode exigir GitHub Advanced Security). Dependabot: atualizações de versão desligadas (`open-pull-requests-limit: 0`); alertas de segurança seguem nas configurações do repositório.
+**Falta:** conferir o resultado do CI desta `master` (ainda não executado no GitHub após a correção) e confirmar o CodeQL (em repositório privado pode exigir GitHub Advanced Security). Dependabot: atualizações de versão desligadas (`open-pull-requests-limit: 0`); alertas de segurança seguem nas configurações do repositório.
 
 ## 3. O que ficou para trás
 
