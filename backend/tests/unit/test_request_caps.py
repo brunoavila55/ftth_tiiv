@@ -64,7 +64,7 @@ def _violations(model: str, prop: str, spec: dict[str, Any]) -> list[str]:
     kind = spec.get("type")
     label = f"{model}.{prop}"
     if kind == "string" and "maxLength" not in spec and "contentMediaType" not in spec:
-        if spec.get("format") not in EXEMPT_FORMATS and not _is_id_field(prop):
+        if spec.get("format") not in EXEMPT_FORMATS:
             found.append(f"{label}: string sem maxLength")
     elif kind == "array":
         if "maxItems" not in spec:

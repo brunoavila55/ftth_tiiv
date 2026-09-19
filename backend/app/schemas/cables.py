@@ -3,7 +3,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common import AdministrativeStatus, OccupancyStatus
+from app.schemas.common import AdministrativeStatus, OccupancyStatus, UuidStr
 from app.schemas.geojson import LineStringGeometry
 
 
@@ -50,11 +50,11 @@ class CableRead(BaseModel):
 
 
 class CableSegmentCreate(BaseModel):
-    cable_id: str = Field(..., description="UUID do cabo ao qual o trecho pertence")
-    origin_structure_id: str = Field(
+    cable_id: UuidStr = Field(..., description="UUID do cabo ao qual o trecho pertence")
+    origin_structure_id: UuidStr = Field(
         ..., description="UUID da estrutura inicial de acesso (poste, CEO, CTO)"
     )
-    destination_structure_id: str = Field(..., description="UUID da estrutura final de acesso")
+    destination_structure_id: UuidStr = Field(..., description="UUID da estrutura final de acesso")
     geometry: LineStringGeometry = Field(..., description="Linha geográfica do trecho do cabo")
     measured_length_m: float | None = Field(
         default=None,
@@ -130,7 +130,7 @@ class FiberSegmentRead(BaseModel):
 
 
 class SegmentSplitRequest(BaseModel):
-    access_structure_id: str = Field(
+    access_structure_id: UuidStr = Field(
         ...,
         description="UUID da estrutura física onde o cabo é aberto/dividido (ex: CEO ou CTO)",
     )
@@ -138,7 +138,7 @@ class SegmentSplitRequest(BaseModel):
         default=None,
         description="Coordenadas geodésicas opcionais do ponto de divisão (se omitido, usa as da estrutura de acesso)",
     )
-    cut_fiber_ids: list[str] = Field(
+    cut_fiber_ids: list[UuidStr] = Field(
         default_factory=list,
         description="Lista de UUIDs das fibras cortadas nesta caixa. Fibras não listadas permanecem passantes (continuidade interna)",
         max_length=1728,

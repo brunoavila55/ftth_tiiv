@@ -8,7 +8,7 @@ from app.core.dependencies import require_permission, validate_csrf
 from app.db.session import get_db
 from app.modules.connectivity import service
 from app.modules.identity.models import User
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 from app.schemas.connectivity import (
     ConnectionBatchRequest,
     ConnectionBatchResponse,
@@ -24,7 +24,7 @@ connectivity_router = APIRouter(prefix="/connections", tags=["Conectividade e Fu
 )
 def list_connections(
     pagination: PaginationParams = Depends(),
-    structure_id: str | None = Query(
+    structure_id: UuidStr | None = Query(
         default=None, description="Filtrar por estrutura física (CEO/CTO)"
     ),
     is_active: bool | None = Query(
@@ -76,7 +76,7 @@ def create_connection(
     "/{connection_id}", response_model=ConnectionRead, summary="Detalhes da conexão óptica"
 )
 def get_connection(
-    connection_id: str,
+    connection_id: UuidStr,
     current_user: User = Depends(require_permission("network:read")),
     db: Session = Depends(get_db),
 ) -> Any:
@@ -90,7 +90,7 @@ def get_connection(
     dependencies=[Depends(validate_csrf)],
 )
 def delete_connection(
-    connection_id: str,
+    connection_id: UuidStr,
     request: Request,
     if_match: str | None = Header(default=None, description="Versão atual do recurso (If-Match)"),
     current_user: User = Depends(require_permission("network:write")),

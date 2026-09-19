@@ -19,7 +19,7 @@ from app.schemas.cables import (
     SegmentSplitRequest,
     SegmentSplitResponse,
 )
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 
 cables_router = APIRouter(tags=["Cabos e Fibras"])
 
@@ -70,7 +70,7 @@ def create_cable(
     summary="Detalhes do cabo óptico",
 )
 def get_cable(
-    cable_id: str,
+    cable_id: UuidStr,
     current_user: User = Depends(require_permission("network:read")),
     db: Session = Depends(get_db),
 ) -> Any:
@@ -85,7 +85,7 @@ def get_cable(
     dependencies=[Depends(validate_csrf)],
 )
 def update_cable(
-    cable_id: str,
+    cable_id: UuidStr,
     payload: CableUpdate,
     if_match: str | None = Header(default=None, description="Versão atual do recurso (If-Match)"),
     current_user: User = Depends(require_permission("network:write")),
@@ -102,7 +102,7 @@ def update_cable(
     dependencies=[Depends(validate_csrf)],
 )
 def delete_cable(
-    cable_id: str,
+    cable_id: UuidStr,
     if_match: str | None = Header(default=None, description="Versão atual do recurso (If-Match)"),
     current_user: User = Depends(require_permission("network:write")),
     db: Session = Depends(get_db),
@@ -120,7 +120,7 @@ def delete_cable(
 )
 def list_cable_segments(
     pagination: PaginationParams = Depends(),
-    cable_id: str | None = Query(default=None, description="Filtrar por UUID do cabo"),
+    cable_id: UuidStr | None = Query(default=None, description="Filtrar por UUID do cabo"),
     current_user: User = Depends(require_permission("network:read")),
     db: Session = Depends(get_db),
 ) -> Any:
@@ -158,7 +158,7 @@ def create_cable_segment(
     summary="Detalhes do trecho de cabo",
 )
 def get_cable_segment(
-    segment_id: str,
+    segment_id: UuidStr,
     current_user: User = Depends(require_permission("network:read")),
     db: Session = Depends(get_db),
 ) -> Any:
@@ -173,7 +173,7 @@ def get_cable_segment(
     dependencies=[Depends(validate_csrf)],
 )
 def update_cable_segment(
-    segment_id: str,
+    segment_id: UuidStr,
     payload: CableSegmentUpdate,
     if_match: str | None = Header(default=None, description="Versão atual do recurso (If-Match)"),
     current_user: User = Depends(require_permission("network:write")),
@@ -192,7 +192,7 @@ def update_cable_segment(
     dependencies=[Depends(validate_csrf)],
 )
 def delete_cable_segment(
-    segment_id: str,
+    segment_id: UuidStr,
     if_match: str | None = Header(default=None, description="Versão atual do recurso (If-Match)"),
     current_user: User = Depends(require_permission("network:write")),
     db: Session = Depends(get_db),
@@ -206,7 +206,7 @@ def delete_cable_segment(
     summary="Listar fibras de um trecho",
 )
 def list_segment_fibers(
-    segment_id: str,
+    segment_id: UuidStr,
     pagination: PaginationParams = Depends(),
     current_user: User = Depends(require_permission("network:read")),
     db: Session = Depends(get_db),
@@ -229,7 +229,7 @@ def list_segment_fibers(
     summary="Pré-visualizar divisão de trecho de cabo",
 )
 def preview_segment_split(
-    segment_id: str,
+    segment_id: UuidStr,
     payload: SegmentSplitRequest,
     current_user: User = Depends(require_permission("network:read")),
     db: Session = Depends(get_db),
@@ -244,7 +244,7 @@ def preview_segment_split(
     dependencies=[Depends(validate_csrf)],
 )
 def split_segment(
-    segment_id: str,
+    segment_id: UuidStr,
     payload: SegmentSplitRequest,
     if_match: str | None = Header(
         default=None,

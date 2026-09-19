@@ -13,7 +13,7 @@ from app.modules.measurements.service import (
     measurement_to_read,
     update_measurement,
 )
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 from app.schemas.measurements import (
     MeasurementComparisonResponse,
     MeasurementCreate,
@@ -32,10 +32,10 @@ measurements_router = APIRouter(prefix="/measurements", tags=["Medições de Pot
 )
 def list_measurements_endpoint(
     pagination: PaginationParams = Depends(),
-    service_link_id: str | None = Query(
+    service_link_id: UuidStr | None = Query(
         default=None, description="Filtrar por atendimento de cliente"
     ),
-    terminal_id: str | None = Query(default=None, description="Filtrar por terminal óptico"),
+    terminal_id: UuidStr | None = Query(default=None, description="Filtrar por terminal óptico"),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[MeasurementRead]:
     items, total = list_measurements_paginated(
@@ -78,7 +78,7 @@ def create_measurement_endpoint(
     dependencies=[Depends(require_permission("measurements:read"))],
 )
 def get_measurement_endpoint(
-    measurement_id: str,
+    measurement_id: UuidStr,
     response: Response,
     db: Session = Depends(get_db),
 ) -> MeasurementRead:
@@ -94,7 +94,7 @@ def get_measurement_endpoint(
     dependencies=[Depends(require_permission("measurements:write")), Depends(validate_csrf)],
 )
 def update_measurement_endpoint(
-    measurement_id: str,
+    measurement_id: UuidStr,
     payload: MeasurementUpdate,
     response: Response,
     if_match: str | None = Header(default=None, description="Versão atual do recurso (If-Match)"),
@@ -114,7 +114,7 @@ def update_measurement_endpoint(
     dependencies=[Depends(require_permission("measurements:write")), Depends(validate_csrf)],
 )
 def delete_measurement_endpoint(
-    measurement_id: str,
+    measurement_id: UuidStr,
     if_match: str | None = Header(default=None, description="Versão atual do recurso (If-Match)"),
     db: Session = Depends(get_db),
 ) -> None:
@@ -129,7 +129,7 @@ def delete_measurement_endpoint(
     dependencies=[Depends(require_permission("measurements:read"))],
 )
 def compare_measurement_endpoint(
-    measurement_id: str,
+    measurement_id: UuidStr,
     tolerance_db: float = Query(
         default=2.0, ge=0.0, description="Tolerância de atenuação excessiva aceitável em dB"
     ),

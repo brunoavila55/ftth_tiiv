@@ -3,6 +3,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from app.schemas.common import UuidStr
+
 
 class ServiceLinkStatus(StrEnum):
     ACTIVE = "active"
@@ -45,9 +47,9 @@ class CustomerRead(BaseModel):
 
 
 class ServiceLinkCreate(BaseModel):
-    customer_id: str = Field(..., description="UUID do cliente atendido")
-    onu_device_id: str = Field(..., description="UUID do equipamento ONU instalado no cliente")
-    port_id: str = Field(..., description="UUID da porta da CTO que atende esta ativação")
+    customer_id: UuidStr = Field(..., description="UUID do cliente atendido")
+    onu_device_id: UuidStr = Field(..., description="UUID do equipamento ONU instalado no cliente")
+    port_id: UuidStr = Field(..., description="UUID da porta da CTO que atende esta ativação")
     notes: str | None = Field(default=None, max_length=5000)
 
 

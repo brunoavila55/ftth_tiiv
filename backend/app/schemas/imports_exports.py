@@ -4,6 +4,8 @@ from typing import Annotated
 
 from pydantic import BaseModel, Field
 
+from app.schemas.common import UuidStr
+
 
 class JobStatus(StrEnum):
     QUEUED = "queued"
@@ -60,7 +62,7 @@ class ImportPreviewResponse(BaseModel):
 
 
 class ImportCommitRequest(BaseModel):
-    import_id: str = Field(..., description="UUID do preview aprovado pelo operador")
+    import_id: UuidStr = Field(..., description="UUID do preview aprovado pelo operador")
     file_hash: str = Field(
         ...,
         description="Hash que deve corresponder exatamente ao arquivo pré-visualizado",

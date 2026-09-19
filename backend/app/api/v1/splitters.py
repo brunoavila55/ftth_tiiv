@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends, Header, Query, status
 
 from app.core.contracts import pending_endpoint
 from app.core.dependencies import require_permission
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 from app.schemas.splitters import SplitterCreate, SplitterRead, SplitterUpdate
 
 splitters_router = APIRouter(prefix="/splitters", tags=["Splitters"])
@@ -18,7 +18,7 @@ splitters_router = APIRouter(prefix="/splitters", tags=["Splitters"])
 )
 def list_splitters(
     pagination: PaginationParams = Depends(),
-    structure_id: str | None = Query(
+    structure_id: UuidStr | None = Query(
         default=None, description="Filtrar por estrutura alojadora (CTO/CEO)"
     ),
 ) -> Any:
@@ -42,7 +42,7 @@ def create_splitter(payload: SplitterCreate) -> Any:
     summary="Detalhes do splitter",
     dependencies=[Depends(require_permission("splitters:read"))],
 )
-def get_splitter(splitter_id: str) -> Any:
+def get_splitter(splitter_id: UuidStr) -> Any:
     pending_endpoint("B08")
 
 
@@ -53,7 +53,7 @@ def get_splitter(splitter_id: str) -> Any:
     dependencies=[Depends(require_permission("splitters:write"))],
 )
 def update_splitter(
-    splitter_id: str,
+    splitter_id: UuidStr,
     payload: SplitterUpdate,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
 ) -> Any:
@@ -67,7 +67,7 @@ def update_splitter(
     dependencies=[Depends(require_permission("splitters:write"))],
 )
 def delete_splitter(
-    splitter_id: str,
+    splitter_id: UuidStr,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
 ) -> None:
     pending_endpoint("B08")

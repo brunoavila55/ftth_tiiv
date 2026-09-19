@@ -426,12 +426,20 @@
           },
           "terminal_a_id": {
             "description": "UUID do terminal primário da operação",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Terminal A Id",
             "type": "string"
           },
           "terminal_b_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -476,6 +484,10 @@
           },
           "entity_id": {
             "description": "UUID da entidade associada (ex: estrutura, site, cliente)",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Entity Id",
             "type": "string"
           },
@@ -543,6 +555,10 @@
           "profile_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -555,6 +571,10 @@
           "service_link_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -567,6 +587,10 @@
           "start_terminal_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -1103,11 +1127,19 @@
         "properties": {
           "cable_id": {
             "description": "UUID do cabo ao qual o trecho pertence",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Cable Id",
             "type": "string"
           },
           "destination_structure_id": {
             "description": "UUID da estrutura final de acesso",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Destination Structure Id",
             "type": "string"
           },
@@ -1130,6 +1162,10 @@
           },
           "origin_structure_id": {
             "description": "UUID da estrutura inicial de acesso (poste, CEO, CTO)",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Origin Structure Id",
             "type": "string"
           },
@@ -1345,6 +1381,10 @@
           },
           "structure_id": {
             "description": "UUID do local/estrutura onde o lote de fusões/conexões está sendo executado",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Structure Id",
             "type": "string"
           }
@@ -1409,6 +1449,10 @@
           "structure_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -1420,11 +1464,19 @@
           },
           "terminal_a_id": {
             "description": "UUID do primeiro terminal distinto",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Terminal A Id",
             "type": "string"
           },
           "terminal_b_id": {
             "description": "UUID do segundo terminal distinto",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Terminal B Id",
             "type": "string"
           }
@@ -1840,6 +1892,10 @@
           "site_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -1856,6 +1912,10 @@
           "structure_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -2049,6 +2109,9 @@
           "site_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
                 "type": "string"
               },
               {
@@ -2070,6 +2133,9 @@
           "structure_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
                 "type": "string"
               },
               {
@@ -2280,6 +2346,10 @@
           "cable_segment_ids": {
             "description": "Lista de UUIDs dos trechos de cabo rompidos ou sob teste",
             "items": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "type": "string"
             },
             "maxItems": 500,
@@ -2407,6 +2477,10 @@
           },
           "import_id": {
             "description": "UUID do preview aprovado pelo operador",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Import Id",
             "type": "string"
           }
@@ -3115,6 +3189,10 @@
           "service_link_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -3126,6 +3204,10 @@
           },
           "terminal_id": {
             "description": "UUID do terminal óptico onde a medição foi realizada",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Terminal Id",
             "type": "string"
           },
@@ -3579,6 +3661,10 @@
             "type": "array"
           },
           "service_link_id": {
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Service Link Id",
             "type": "string"
           }
@@ -4416,6 +4502,10 @@
           "device_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -4457,6 +4547,10 @@
           "structure_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -4765,12 +4859,20 @@
         "properties": {
           "access_structure_id": {
             "description": "UUID da estrutura física onde o cabo é aberto/dividido (ex: CEO ou CTO)",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Access Structure Id",
             "type": "string"
           },
           "cut_fiber_ids": {
             "description": "Lista de UUIDs das fibras cortadas nesta caixa. Fibras não listadas permanecem passantes (continuidade interna)",
             "items": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "type": "string"
             },
             "maxItems": 1728,
@@ -4879,6 +4981,10 @@
         "properties": {
           "customer_id": {
             "description": "UUID do cliente atendido",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Customer Id",
             "type": "string"
           },
@@ -4896,11 +5002,19 @@
           },
           "onu_device_id": {
             "description": "UUID do equipamento ONU instalado no cliente",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Onu Device Id",
             "type": "string"
           },
           "port_id": {
             "description": "UUID da porta da CTO que atende esta ativação",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Port Id",
             "type": "string"
           }
@@ -5032,6 +5146,10 @@
         "properties": {
           "element_id": {
             "description": "UUID do elemento óptico cujos parâmetros serão substituídos",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Element Id",
             "type": "string"
           },
@@ -5283,6 +5401,10 @@
           "device_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -5330,6 +5452,10 @@
           "structure_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -5665,6 +5791,10 @@
           "site_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "minLength": 36,
+                "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                 "type": "string"
               },
               {
@@ -5883,6 +6013,9 @@
           "site_id": {
             "anyOf": [
               {
+                "format": "uuid",
+                "maxLength": 36,
+                "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})?$",
                 "type": "string"
               },
               {
@@ -6107,6 +6240,10 @@
           },
           "start_terminal_id": {
             "description": "UUID do terminal de início da travessia",
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
             "title": "Start Terminal Id",
             "type": "string"
           }
@@ -6502,6 +6639,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -6660,6 +6801,10 @@
             "name": "attachment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Attachment Id",
               "type": "string"
             }
@@ -6704,6 +6849,10 @@
             "name": "attachment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Attachment Id",
               "type": "string"
             }
@@ -6747,6 +6896,10 @@
             "name": "attachment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Attachment Id",
               "type": "string"
             }
@@ -6788,6 +6941,10 @@
             "name": "attachment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Attachment Id",
               "type": "string"
             }
@@ -6850,6 +7007,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -6868,6 +7029,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -7096,6 +7261,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -7206,6 +7375,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7257,6 +7430,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7297,6 +7474,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7367,6 +7548,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7432,6 +7617,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7502,6 +7691,10 @@
             "name": "segment_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Segment Id",
               "type": "string"
             }
@@ -7667,6 +7860,10 @@
             "name": "cable_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Cable Id",
               "type": "string"
             }
@@ -7718,6 +7915,10 @@
             "name": "cable_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Cable Id",
               "type": "string"
             }
@@ -7758,6 +7959,10 @@
             "name": "cable_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Cable Id",
               "type": "string"
             }
@@ -7831,6 +8036,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -8002,6 +8211,10 @@
             "name": "connection_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Connection Id",
               "type": "string"
             }
@@ -8053,6 +8266,10 @@
             "name": "connection_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Connection Id",
               "type": "string"
             }
@@ -8208,6 +8425,10 @@
             "name": "customer_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Customer Id",
               "type": "string"
             }
@@ -8252,6 +8473,10 @@
             "name": "customer_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Customer Id",
               "type": "string"
             }
@@ -8292,6 +8517,10 @@
             "name": "customer_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Customer Id",
               "type": "string"
             }
@@ -8506,6 +8735,10 @@
             "name": "device_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Device Id",
               "type": "string"
             }
@@ -8557,6 +8790,10 @@
             "name": "device_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Device Id",
               "type": "string"
             }
@@ -8597,6 +8834,10 @@
             "name": "device_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Device Id",
               "type": "string"
             }
@@ -8708,6 +8949,10 @@
             "name": "export_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Export Id",
               "type": "string"
             }
@@ -8750,6 +8995,10 @@
             "name": "export_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Export Id",
               "type": "string"
             }
@@ -8876,6 +9125,10 @@
             "name": "import_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Import Id",
               "type": "string"
             }
@@ -8919,6 +9172,10 @@
             "name": "import_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Import Id",
               "type": "string"
             }
@@ -8982,6 +9239,10 @@
             "name": "job_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Job Id",
               "type": "string"
             }
@@ -9024,6 +9285,10 @@
             "name": "job_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Job Id",
               "type": "string"
             }
@@ -9157,6 +9422,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -9175,6 +9444,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -9285,6 +9558,10 @@
             "name": "measurement_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Measurement Id",
               "type": "string"
             }
@@ -9336,6 +9613,10 @@
             "name": "measurement_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Measurement Id",
               "type": "string"
             }
@@ -9376,6 +9657,10 @@
             "name": "measurement_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Measurement Id",
               "type": "string"
             }
@@ -9447,6 +9732,10 @@
             "name": "measurement_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Measurement Id",
               "type": "string"
             }
@@ -9665,6 +9954,10 @@
             "name": "profile_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Profile Id",
               "type": "string"
             }
@@ -9716,6 +10009,10 @@
             "name": "profile_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Profile Id",
               "type": "string"
             }
@@ -9756,6 +10053,10 @@
             "name": "profile_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Profile Id",
               "type": "string"
             }
@@ -9912,6 +10213,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -9928,6 +10233,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -10037,6 +10346,10 @@
             "name": "port_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Port Id",
               "type": "string"
             }
@@ -10088,6 +10401,10 @@
             "name": "port_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Port Id",
               "type": "string"
             }
@@ -10128,6 +10445,10 @@
             "name": "port_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Port Id",
               "type": "string"
             }
@@ -10297,6 +10618,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -10546,6 +10871,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -10562,6 +10891,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -10671,6 +11004,10 @@
             "name": "link_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Link Id",
               "type": "string"
             }
@@ -10715,6 +11052,10 @@
             "name": "link_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Link Id",
               "type": "string"
             }
@@ -10755,6 +11096,10 @@
             "name": "link_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Link Id",
               "type": "string"
             }
@@ -11022,6 +11367,10 @@
             "name": "site_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Site Id",
               "type": "string"
             }
@@ -11073,6 +11422,10 @@
             "name": "site_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Site Id",
               "type": "string"
             }
@@ -11113,6 +11466,10 @@
             "name": "site_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Site Id",
               "type": "string"
             }
@@ -11186,6 +11543,10 @@
             "schema": {
               "anyOf": [
                 {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
                   "type": "string"
                 },
                 {
@@ -11296,6 +11657,10 @@
             "name": "splitter_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Splitter Id",
               "type": "string"
             }
@@ -11340,6 +11705,10 @@
             "name": "splitter_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Splitter Id",
               "type": "string"
             }
@@ -11380,6 +11749,10 @@
             "name": "splitter_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Splitter Id",
               "type": "string"
             }
@@ -11574,6 +11947,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11625,6 +12002,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11665,6 +12046,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11735,6 +12120,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11778,6 +12167,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -11820,6 +12213,10 @@
             "name": "structure_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "Structure Id",
               "type": "string"
             }
@@ -12062,6 +12459,10 @@
             "name": "user_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "User Id",
               "type": "string"
             }
@@ -12114,6 +12515,10 @@
             "name": "user_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "User Id",
               "type": "string"
             }
@@ -12155,6 +12560,10 @@
             "name": "user_id",
             "required": true,
             "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
               "title": "User Id",
               "type": "string"
             }

@@ -14,7 +14,7 @@ from app.modules.optical.service import (
     simulate_optical_budget,
     update_optical_profile,
 )
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 from app.schemas.optical import (
     BudgetCalculationRequest,
     BudgetCalculationResponse,
@@ -78,7 +78,7 @@ def create_optical_profile_endpoint(
     dependencies=[Depends(require_permission("optical:read"))],
 )
 def get_optical_profile_endpoint(
-    profile_id: str,
+    profile_id: UuidStr,
     response: Response,
     db: Session = Depends(get_db),
 ) -> OpticalProfileRead:
@@ -94,7 +94,7 @@ def get_optical_profile_endpoint(
     dependencies=[Depends(require_permission("optical:write")), Depends(validate_csrf)],
 )
 def update_optical_profile_endpoint(
-    profile_id: str,
+    profile_id: UuidStr,
     payload: OpticalProfileUpdate,
     response: Response,
     if_match: str | None = Header(
@@ -116,7 +116,7 @@ def update_optical_profile_endpoint(
     dependencies=[Depends(require_permission("optical:write")), Depends(validate_csrf)],
 )
 def delete_optical_profile_endpoint(
-    profile_id: str,
+    profile_id: UuidStr,
     if_match: str | None = Header(
         default=None, description="Versão atual do recurso para concorrência otimista"
     ),

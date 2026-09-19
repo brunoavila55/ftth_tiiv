@@ -3,6 +3,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from app.schemas.common import UuidStr
 from app.schemas.topology import TraceDirection
 
 
@@ -63,17 +64,17 @@ class OpticalProfileRead(BaseModel):
 
 
 class BudgetCalculationRequest(BaseModel):
-    service_link_id: str | None = Field(
+    service_link_id: UuidStr | None = Field(
         default=None, description="UUID do atendimento de cliente a orçar"
     )
-    start_terminal_id: str | None = Field(
+    start_terminal_id: UuidStr | None = Field(
         default=None, description="UUID do terminal óptico alternativo para orçar"
     )
     direction: TraceDirection = Field(
         default=TraceDirection.DOWNSTREAM,
         description="Direção do orçamento óptico: downstream (OLT->ONU) ou upstream (ONU->OLT)",
     )
-    profile_id: str | None = Field(
+    profile_id: UuidStr | None = Field(
         default=None,
         description="UUID do perfil óptico (se não fornecido, adota o perfil padrão do dispositivo)",
     )
@@ -141,7 +142,7 @@ class BudgetCalculationResponse(BaseModel):
 
 
 class SimulationOverrideItem(BaseModel):
-    element_id: str = Field(
+    element_id: UuidStr = Field(
         ..., description="UUID do elemento óptico cujos parâmetros serão substituídos"
     )
     override_type: str = Field(
@@ -153,7 +154,7 @@ class SimulationOverrideItem(BaseModel):
 
 
 class OpticalSimulationRequest(BaseModel):
-    service_link_id: str
+    service_link_id: UuidStr
     direction: TraceDirection = TraceDirection.DOWNSTREAM
     engineering_margin_db: float = 3.0
     overrides: list[SimulationOverrideItem] = Field(

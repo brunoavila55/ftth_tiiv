@@ -3,7 +3,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
-from app.schemas.common import AdministrativeStatus, PhysicalCondition
+from app.schemas.common import AdministrativeStatus, PhysicalCondition, UuidOrEmptyStr, UuidStr
 from app.schemas.geojson import PointGeometry
 
 
@@ -83,7 +83,7 @@ class StructureCreate(BaseModel):
         ..., description="Tipo de estrutura (pole, ceo, cto, manhole, pedestal)"
     )
     location: PointGeometry = Field(..., description="Ponto geográfico da estrutura")
-    site_id: str | None = Field(
+    site_id: UuidStr | None = Field(
         default=None, description="UUID do site associado, se alocado internamente"
     )
     capacity: int = Field(default=0, ge=0, description="Capacidade física cadastrada", le=100000)
@@ -94,7 +94,7 @@ class StructureCreate(BaseModel):
 
 class StructureUpdate(BaseModel):
     location: PointGeometry | None = None
-    site_id: str | None = None
+    site_id: UuidOrEmptyStr | None = None
     capacity: int | None = Field(default=None, ge=0, le=100000)
     status: AdministrativeStatus | None = None
     condition: PhysicalCondition | None = None
@@ -136,10 +136,10 @@ class DeviceCreate(BaseModel):
     manufacturer: str = Field(..., min_length=1, max_length=100)
     model: str = Field(..., min_length=1, max_length=100)
     serial_number: str | None = Field(default=None, max_length=100)
-    site_id: str | None = Field(
+    site_id: UuidStr | None = Field(
         default=None, description="Alocação em site (exclusivo com structure_id)"
     )
-    structure_id: str | None = Field(
+    structure_id: UuidStr | None = Field(
         default=None, description="Alocação em structure (exclusivo com site_id)"
     )
     status: AdministrativeStatus = Field(default=AdministrativeStatus.INSTALLED)
@@ -151,8 +151,8 @@ class DeviceUpdate(BaseModel):
     manufacturer: str | None = Field(default=None, max_length=100)
     model: str | None = Field(default=None, max_length=100)
     serial_number: str | None = Field(default=None, max_length=100)
-    site_id: str | None = None
-    structure_id: str | None = None
+    site_id: UuidOrEmptyStr | None = None
+    structure_id: UuidOrEmptyStr | None = None
     status: AdministrativeStatus | None = None
     condition: PhysicalCondition | None = None
     notes: str | None = Field(default=None, max_length=5000)
@@ -181,10 +181,10 @@ class PortCreate(BaseModel):
         ..., min_length=1, max_length=50, description="Identificador da porta (ex: PON-1, Porta 01)"
     )
     role: PortRole = Field(..., description="Função da porta")
-    device_id: str | None = Field(
+    device_id: UuidStr | None = Field(
         default=None, description="Dispositivo proprietário (exclusivo com structure_id)"
     )
-    structure_id: str | None = Field(
+    structure_id: UuidStr | None = Field(
         default=None, description="Estrutura proprietária (exclusivo com device_id)"
     )
     has_internal_pass_through: bool = Field(

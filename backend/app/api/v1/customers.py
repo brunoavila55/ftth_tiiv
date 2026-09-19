@@ -9,7 +9,7 @@ from app.core.permissions import has_permission
 from app.db.session import get_db
 from app.modules.customers import service
 from app.modules.identity.models import User
-from app.schemas.common import PaginatedResponse, PaginationParams, UserRole
+from app.schemas.common import PaginatedResponse, PaginationParams, UserRole, UuidStr
 from app.schemas.customers import (
     CustomerCreate,
     CustomerRead,
@@ -77,7 +77,7 @@ def create_customer(
     dependencies=[Depends(require_permission("customers:read"))],
 )
 def get_customer(
-    customer_id: str,
+    customer_id: UuidStr,
     db: Session = Depends(get_db),
 ) -> Any:
     return service.get_customer_by_id(db, uuid.UUID(customer_id))
@@ -90,7 +90,7 @@ def get_customer(
     dependencies=[Depends(require_permission("customers:write")), Depends(validate_csrf)],
 )
 def update_customer(
-    customer_id: str,
+    customer_id: UuidStr,
     payload: CustomerUpdate,
     request: Request,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
@@ -116,7 +116,7 @@ def update_customer(
     dependencies=[Depends(require_permission("customers:write")), Depends(validate_csrf)],
 )
 def delete_customer(
-    customer_id: str,
+    customer_id: UuidStr,
     request: Request,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
     current_user: User = Depends(require_permission("customers:write")),
@@ -144,8 +144,8 @@ def delete_customer(
 )
 def list_service_links(
     pagination: PaginationParams = Depends(),
-    customer_id: str | None = Query(default=None),
-    port_id: str | None = Query(default=None),
+    customer_id: UuidStr | None = Query(default=None),
+    port_id: UuidStr | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> Any:
     cust_uuid = uuid.UUID(customer_id) if customer_id else None
@@ -195,7 +195,7 @@ def create_service_link(
     dependencies=[Depends(require_permission("customers:read"))],
 )
 def get_service_link(
-    link_id: str,
+    link_id: UuidStr,
     db: Session = Depends(get_db),
 ) -> Any:
     return service.get_service_link_by_id(db, uuid.UUID(link_id))
@@ -208,7 +208,7 @@ def get_service_link(
     dependencies=[Depends(require_permission("customers:write")), Depends(validate_csrf)],
 )
 def update_service_link(
-    link_id: str,
+    link_id: UuidStr,
     payload: ServiceLinkUpdate,
     request: Request,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
@@ -234,7 +234,7 @@ def update_service_link(
     dependencies=[Depends(require_permission("customers:write")), Depends(validate_csrf)],
 )
 def delete_service_link(
-    link_id: str,
+    link_id: UuidStr,
     request: Request,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
     current_user: User = Depends(require_permission("customers:write")),
@@ -257,7 +257,7 @@ def delete_service_link(
     description="Estado das portas (network:read). Dados pessoais do cliente só com customers:read.",
 )
 def get_cto_occupancy(
-    structure_id: str,
+    structure_id: UuidStr,
     current_user: User = Depends(require_permission("network:read")),
     db: Session = Depends(get_db),
 ) -> Any:

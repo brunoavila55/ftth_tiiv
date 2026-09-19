@@ -13,7 +13,7 @@ from app.modules.identity.service import (
     user_to_user_read,
 )
 from app.schemas.auth import UserCreate, UserRead, UserUpdate
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 
 users_router = APIRouter(prefix="/users", tags=["Usuários"])
 
@@ -70,7 +70,7 @@ def create_user(
     dependencies=[Depends(require_permission("users:read"))],
 )
 def get_user(
-    user_id: str,
+    user_id: UuidStr,
     response: Response,
     db: Session = Depends(get_db),
 ) -> UserRead:
@@ -87,7 +87,7 @@ def get_user(
     dependencies=[Depends(require_permission("users:write")), Depends(validate_csrf)],
 )
 def update_user(
-    user_id: str,
+    user_id: UuidStr,
     payload: UserUpdate,
     response: Response,
     if_match: str | None = Header(
@@ -110,7 +110,7 @@ def update_user(
     dependencies=[Depends(require_permission("users:write")), Depends(validate_csrf)],
 )
 def delete_user(
-    user_id: str,
+    user_id: UuidStr,
     if_match: str | None = Header(
         default=None, description="Versão atual do recurso para concorrência otimista"
     ),

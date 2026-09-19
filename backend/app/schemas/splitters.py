@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.schemas.common import UuidStr
+
 
 class SplitterPortLoss(BaseModel):
     port_number: int = Field(..., ge=1, description="Número da porta de saída (1 a N)", le=128)
@@ -16,11 +18,11 @@ class SplitterCreate(BaseModel):
     code: str = Field(
         ..., min_length=2, max_length=50, description="Código único do splitter (ex: SPL-CTO04-1x8)"
     )
-    structure_id: str | None = Field(
+    structure_id: UuidStr | None = Field(
         default=None,
         description="Estrutura onde o splitter está instalado (exclusivo com device_id)",
     )
-    device_id: str | None = Field(
+    device_id: UuidStr | None = Field(
         default=None,
         description="Dispositivo onde o splitter está alojado (exclusivo com structure_id)",
     )

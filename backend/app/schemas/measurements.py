@@ -3,6 +3,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from app.schemas.common import UuidStr
 from app.schemas.topology import TraceDirection
 
 
@@ -13,10 +14,10 @@ class MeasurementOrigin(StrEnum):
 
 
 class MeasurementCreate(BaseModel):
-    terminal_id: str = Field(
+    terminal_id: UuidStr = Field(
         ..., description="UUID do terminal óptico onde a medição foi realizada"
     )
-    service_link_id: str | None = Field(
+    service_link_id: UuidStr | None = Field(
         default=None,
         description="UUID do atendimento associado, se a medição ocorreu na ponta de um cliente",
     )

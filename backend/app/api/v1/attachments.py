@@ -35,7 +35,7 @@ from app.modules.attachments.service import (
 )
 from app.modules.identity.models import User
 from app.schemas.attachments import AttachmentRead, AttachmentReconciliationResponse
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import UUID_PATTERN, PaginatedResponse, PaginationParams, UuidStr
 
 attachments_router = APIRouter(prefix="/attachments", tags=["Anexos e Fotos"])
 
@@ -53,7 +53,12 @@ attachments_router = APIRouter(prefix="/attachments", tags=["Anexos e Fotos"])
 )
 def upload_attachment(
     entity_id: str = Form(
-        ..., description="UUID da entidade associada (ex: estrutura, site, cliente)"
+        ...,
+        description="UUID da entidade associada (ex: estrutura, site, cliente)",
+        pattern=UUID_PATTERN,
+        min_length=36,
+        max_length=36,
+        json_schema_extra={"format": "uuid"},
     ),
     entity_type: str = Form(
         ...,
@@ -102,7 +107,7 @@ def upload_attachment(
 def list_attachments_endpoint(
     pagination: PaginationParams = Depends(),
     entity_type: str | None = Query(default=None, description="Filtrar por tipo de entidade"),
-    entity_id: str | None = Query(default=None, description="Filtrar por UUID da entidade"),
+    entity_id: UuidStr | None = Query(default=None, description="Filtrar por UUID da entidade"),
     current_user: User = Depends(require_permission("attachments:read")),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[AttachmentRead]:
@@ -143,7 +148,7 @@ def list_attachments_endpoint(
     summary="Obter metadados de anexo",
 )
 def get_attachment_metadata(
-    attachment_id: str,
+    attachment_id: UuidStr,
     current_user: User = Depends(require_permission("attachments:read")),
     db: Session = Depends(get_db),
 ) -> AttachmentRead:
@@ -166,7 +171,7 @@ def get_attachment_metadata(
     description="Faz o download seguro de arquivo após validação das credenciais e permissões do usuário.",
 )
 def download_attachment(
-    attachment_id: str,
+    attachment_id: UuidStr,
     current_user: User = Depends(require_permission("attachments:read")),
     db: Session = Depends(get_db),
 ) -> Response:
@@ -196,7 +201,7 @@ def download_attachment(
     description="Retorna imagem otimizada em miniatura gerada com segurança.",
 )
 def get_attachment_thumbnail(
-    attachment_id: str,
+    attachment_id: UuidStr,
     current_user: User = Depends(require_permission("attachments:read")),
     db: Session = Depends(get_db),
 ) -> Response:
@@ -226,7 +231,7 @@ def get_attachment_thumbnail(
     dependencies=[Depends(validate_csrf)],
 )
 def delete_attachment(
-    attachment_id: str,
+    attachment_id: UuidStr,
     if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
     current_user: User = Depends(require_permission("attachments:write")),
     db: Session = Depends(get_db),

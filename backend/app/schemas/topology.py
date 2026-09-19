@@ -2,6 +2,8 @@ from enum import StrEnum
 
 from pydantic import BaseModel, Field
 
+from app.schemas.common import UuidStr
+
 
 class TraceDirection(StrEnum):
     DOWNSTREAM = "downstream"
@@ -17,7 +19,7 @@ class TraceStatus(StrEnum):
 
 
 class TraceRequest(BaseModel):
-    start_terminal_id: str = Field(..., description="UUID do terminal de início da travessia")
+    start_terminal_id: UuidStr = Field(..., description="UUID do terminal de início da travessia")
     direction: TraceDirection = Field(
         default=TraceDirection.DOWNSTREAM,
         description="Direção da propagação do sinal óptico: downstream (PON->ONU) ou upstream (ONU->PON)",
@@ -95,7 +97,7 @@ class TraceResponse(BaseModel):
 
 
 class ImpactAnalysisRequest(BaseModel):
-    cable_segment_ids: list[str] = Field(
+    cable_segment_ids: list[UuidStr] = Field(
         ...,
         min_length=1,
         description="Lista de UUIDs dos trechos de cabo rompidos ou sob teste",

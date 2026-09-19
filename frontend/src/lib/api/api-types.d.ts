@@ -1556,6 +1556,7 @@ export interface components {
             reservation_reason?: string | null;
             /**
              * Terminal A Id
+             * Format: uuid
              * @description UUID do terminal primário da operação
              */
             terminal_a_id: string;
@@ -1579,6 +1580,7 @@ export interface components {
             caption?: string | null;
             /**
              * Entity Id
+             * Format: uuid
              * @description UUID da entidade associada (ex: estrutura, site, cliente)
              */
             entity_id: string;
@@ -1881,11 +1883,13 @@ export interface components {
         CableSegmentCreate: {
             /**
              * Cable Id
+             * Format: uuid
              * @description UUID do cabo ao qual o trecho pertence
              */
             cable_id: string;
             /**
              * Destination Structure Id
+             * Format: uuid
              * @description UUID da estrutura final de acesso
              */
             destination_structure_id: string;
@@ -1898,6 +1902,7 @@ export interface components {
             measured_length_m?: number | null;
             /**
              * Origin Structure Id
+             * Format: uuid
              * @description UUID da estrutura inicial de acesso (poste, CEO, CTO)
              */
             origin_structure_id: string;
@@ -1995,6 +2000,7 @@ export interface components {
             operations: components["schemas"]["BatchOperationItem"][];
             /**
              * Structure Id
+             * Format: uuid
              * @description UUID do local/estrutura onde o lote de fusões/conexões está sendo executado
              */
             structure_id: string;
@@ -2030,11 +2036,13 @@ export interface components {
             structure_id?: string | null;
             /**
              * Terminal A Id
+             * Format: uuid
              * @description UUID do primeiro terminal distinto
              */
             terminal_a_id: string;
             /**
              * Terminal B Id
+             * Format: uuid
              * @description UUID do segundo terminal distinto
              */
             terminal_b_id: string;
@@ -2420,6 +2428,7 @@ export interface components {
             file_hash: string;
             /**
              * Import Id
+             * Format: uuid
              * @description UUID do preview aprovado pelo operador
              */
             import_id: string;
@@ -2795,6 +2804,7 @@ export interface components {
             service_link_id?: string | null;
             /**
              * Terminal Id
+             * Format: uuid
              * @description UUID do terminal óptico onde a medição foi realizada
              */
             terminal_id: string;
@@ -2977,7 +2987,10 @@ export interface components {
              * @description Lista de substituições pontuais a simular no caminho óptico
              */
             overrides: components["schemas"]["SimulationOverrideItem"][];
-            /** Service Link Id */
+            /**
+             * Service Link Id
+             * Format: uuid
+             */
             service_link_id: string;
         };
         /** OpticalSimulationResponse */
@@ -3596,6 +3609,7 @@ export interface components {
         SegmentSplitRequest: {
             /**
              * Access Structure Id
+             * Format: uuid
              * @description UUID da estrutura física onde o cabo é aberto/dividido (ex: CEO ou CTO)
              */
             access_structure_id: string;
@@ -3649,6 +3663,7 @@ export interface components {
         ServiceLinkCreate: {
             /**
              * Customer Id
+             * Format: uuid
              * @description UUID do cliente atendido
              */
             customer_id: string;
@@ -3656,11 +3671,13 @@ export interface components {
             notes?: string | null;
             /**
              * Onu Device Id
+             * Format: uuid
              * @description UUID do equipamento ONU instalado no cliente
              */
             onu_device_id: string;
             /**
              * Port Id
+             * Format: uuid
              * @description UUID da porta da CTO que atende esta ativação
              */
             port_id: string;
@@ -3713,6 +3730,7 @@ export interface components {
         SimulationOverrideItem: {
             /**
              * Element Id
+             * Format: uuid
              * @description UUID do elemento óptico cujos parâmetros serão substituídos
              */
             element_id: string;
@@ -4148,6 +4166,7 @@ export interface components {
             max_results: number;
             /**
              * Start Terminal Id
+             * Format: uuid
              * @description UUID do terminal de início da travessia
              */
             start_terminal_id: string;

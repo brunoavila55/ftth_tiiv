@@ -16,7 +16,7 @@ from app.modules.reports.service import (
     get_cto_occupancy_report,
     get_inconsistencies_report,
 )
-from app.schemas.common import PaginatedResponse, PaginationParams
+from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 from app.schemas.reports import (
     AuditEventRead,
     CableCapacityReportItem,
@@ -72,7 +72,7 @@ def global_search(
 )
 def list_cto_occupancy_report(
     pagination: PaginationParams = Depends(),
-    site_id: str | None = Query(default=None, description="Filtrar por UUID do Site"),
+    site_id: UuidStr | None = Query(default=None, description="Filtrar por UUID do Site"),
     min_occupancy_pct: float | None = Query(
         default=None, ge=0, le=100, description="Ocupação mínima %"
     ),
@@ -178,8 +178,8 @@ def list_inconsistencies_report(
 def list_audit_events(
     pagination: PaginationParams = Depends(),
     entity_type: str | None = Query(default=None, description="Filtrar por tipo de entidade"),
-    entity_id: str | None = Query(default=None, description="Filtrar por UUID da entidade"),
-    actor_id: str | None = Query(default=None, description="Filtrar por UUID do autor"),
+    entity_id: UuidStr | None = Query(default=None, description="Filtrar por UUID da entidade"),
+    actor_id: UuidStr | None = Query(default=None, description="Filtrar por UUID do autor"),
     action: str | None = Query(default=None, description="Filtrar por tipo de ação"),
     current_user: User = Depends(require_permission("audit:read")),
     db: Session = Depends(get_db),

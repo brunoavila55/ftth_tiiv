@@ -360,3 +360,9 @@ Rotina idempotente executada pelo worker a cada `RETENTION_INTERVAL_SECONDS` (36
 
 - Índices: `login_attempts(email, attempted_at)` e `(ip_address, attempted_at)` (rate limit de login; substituem os índices simples redundantes) e `user_sessions(expires_at)`/`(last_activity_at)` (a varredura da retenção).
 - Prazos adotados: 30 dias para tentativas de login (cobre a investigação de ataques lentos) e 7 dias para sessões inválidas (mesmo teto de vida absoluto da sessão). Ajuste por variável de ambiente conforme a política interna/LGPD.
+
+---
+
+## 26. Validação de identificadores
+
+Todo identificador de entrada (`*_id` em caminho, query, formulário ou corpo JSON) é validado como UUID (`UuidStr`, `format: uuid` no OpenAPI): valor malformado responde `422 application/problem+json` com o campo apontado — antes, ~14 rotas (clientes, atendimentos, conexões, conectividade/ocupação de estruturas, trace, criação de vínculos) respondiam `500` ao chamar `uuid.UUID(valor)`. UUID bem formado mas inexistente segue respondendo `404`. Nos campos de atualização em que `""` significa "remover o vínculo" (`DeviceUpdate.site_id/structure_id`, `StructureUpdate.site_id`) a string vazia continua aceita. Os testes `tests/integration/test_uuid_validation.py` varrem todas as rotas e o OpenAPI, e o guarda `test_request_caps.py` não abre mais exceção para `*_id`.

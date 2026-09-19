@@ -23,6 +23,7 @@ from app.modules.imports.service import (
     get_preview_by_id,
 )
 from app.modules.jobs.service import cancel_job_by_id, get_job_by_id
+from app.schemas.common import UuidStr
 from app.schemas.imports_exports import (
     ExportRequest,
     ExportResponse,
@@ -73,7 +74,7 @@ def preview_import(
     dependencies=[Depends(require_permission("imports:read"))],
 )
 def get_import_preview(
-    import_id: str,
+    import_id: UuidStr,
     db: Session = Depends(get_db),
 ) -> ImportPreviewResponse:
     return get_preview_by_id(db=db, import_id=import_id)
@@ -88,7 +89,7 @@ def get_import_preview(
     dependencies=[Depends(require_permission("imports:write")), Depends(validate_csrf)],
 )
 def commit_import(
-    import_id: str,
+    import_id: UuidStr,
     payload: ImportCommitRequest,
     idempotency_key: str = Header(..., description="Chave de idempotência única da operação"),
     db: Session = Depends(get_db),
@@ -136,7 +137,7 @@ def request_export(
     dependencies=[Depends(require_permission("exports:read"))],
 )
 def get_export_status(
-    export_id: str,
+    export_id: UuidStr,
     db: Session = Depends(get_db),
 ) -> JobRead:
     return get_job_by_id(db=db, job_id=export_id)
@@ -148,7 +149,7 @@ def get_export_status(
     dependencies=[Depends(require_permission("exports:read"))],
 )
 def download_export(
-    export_id: str,
+    export_id: UuidStr,
     current_user: User = Depends(require_permission("exports:read")),
     db: Session = Depends(get_db),
 ) -> Response:
@@ -229,7 +230,7 @@ def download_export(
     dependencies=[Depends(get_current_user)],
 )
 def get_job(
-    job_id: str,
+    job_id: UuidStr,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> JobRead:
@@ -250,7 +251,7 @@ def get_job(
     dependencies=[Depends(require_permission("imports:write")), Depends(validate_csrf)],
 )
 def cancel_job(
-    job_id: str,
+    job_id: UuidStr,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> JobRead:
