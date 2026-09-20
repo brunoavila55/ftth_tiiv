@@ -1104,7 +1104,7 @@ export interface paths {
         get: operations["api_v1_splitters_splitter_id_get_splitter"];
         put?: never;
         post?: never;
-        /** Desativar splitter */
+        /** Excluir splitter */
         delete: operations["api_v1_splitters_splitter_id_delete_splitter"];
         options?: never;
         head?: never;
@@ -7007,9 +7007,9 @@ export interface operations {
     api_v1_settings_update_app_settings: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+                "if-match"?: string | null;
             };
             path?: never;
             cookie?: never;
@@ -7310,9 +7310,9 @@ export interface operations {
     api_v1_splitters_splitter_id_delete_splitter: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+                "if-match"?: string | null;
             };
             path: {
                 splitter_id: string;
@@ -7342,9 +7342,9 @@ export interface operations {
     api_v1_splitters_splitter_id_update_splitter: {
         parameters: {
             query?: never;
-            header: {
+            header?: {
                 /** @description Versão atual do recurso (If-Match) */
-                "if-match": string;
+                "if-match"?: string | null;
             };
             path: {
                 splitter_id: string;

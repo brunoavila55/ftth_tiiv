@@ -21,6 +21,7 @@ import { DeactivationDialog } from "@/features/inventory/components/deactivation
 import { DevicesTable } from "@/features/inventory/components/devices-table";
 import { FusionEditor } from "@/features/connectivity/components/fusion-editor";
 import { CtoPortsGrid } from "@/features/customers/components/cto-ports-grid";
+import { SplittersPanel } from "@/features/splitters/components/splitters-panel";
 import {
   MapPin,
   Edit,
@@ -362,6 +363,8 @@ export function StructureDetailView({ structureId, kindOverride }: StructureDeta
       {/* Conteúdo da Aba: Portas / Conectividade */}
       {activeTab === "connectivity" && (
         <div className="space-y-6">
+          <SplittersPanel structureId={structureId} />
+
           {isCto && (
             <div className="space-y-4 pb-6 border-b border-border">
               <div className="flex items-center justify-between">

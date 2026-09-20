@@ -49,21 +49,30 @@ def db_session() -> Generator[Session, None, None]:
 @pytest.fixture(autouse=True)
 def clean_identity_tables(db_session: Session) -> Generator[None, None, None]:
     truncate_sql = text(
-        "TRUNCATE TABLE import_previews, async_jobs, attachments, optical_measurements, audit_events, service_links, customers, splitter_outputs, splitters, connections, fiber_segments, fibers, tubes, terminals, cable_segments, cables, ports, devices, structures, sites, optical_profiles, user_sessions, login_attempts, users CASCADE;"
+        "TRUNCATE TABLE app_settings, import_previews, async_jobs, attachments, optical_measurements, audit_events, service_links, customers, splitter_outputs, splitters, connections, fiber_segments, fibers, tubes, terminals, cable_segments, cables, ports, devices, structures, sites, optical_profiles, user_sessions, login_attempts, users CASCADE;"
     )
     reset_topology_sql = text(
         "INSERT INTO network_topology_state (id, topology_revision, updated_at) "
         "VALUES (1, 1, NOW()) "
         "ON CONFLICT (id) DO UPDATE SET topology_revision = 1, updated_at = NOW();"
     )
+    reset_settings_sql = text(
+        "INSERT INTO app_settings "
+        "(id, organization_name, timezone, default_map_longitude, default_map_latitude, "
+        "default_map_zoom, excess_loss_tolerance_db, version) VALUES "
+        "('00000000-0000-0000-0000-000000000001', 'Operação FTTH', "
+        "'America/Sao_Paulo', -46.633308, -23.550520, 14, 2.0, 1);"
+    )
     db_session.rollback()
     db_session.execute(truncate_sql)
     db_session.execute(reset_topology_sql)
+    db_session.execute(reset_settings_sql)
     db_session.commit()
     yield
     db_session.rollback()
     db_session.execute(truncate_sql)
     db_session.execute(reset_topology_sql)
+    db_session.execute(reset_settings_sql)
     db_session.commit()
 
 

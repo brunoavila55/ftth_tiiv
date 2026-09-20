@@ -11183,11 +11183,18 @@
             "description": "Versão atual do recurso (If-Match)",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],
@@ -11669,11 +11676,18 @@
             "description": "Versão atual do recurso (If-Match)",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],
@@ -11692,7 +11706,7 @@
             "description": "Validation Error"
           }
         },
-        "summary": "Desativar splitter",
+        "summary": "Excluir splitter",
         "tags": [
           "Splitters"
         ]
@@ -11761,11 +11775,18 @@
             "description": "Versão atual do recurso (If-Match)",
             "in": "header",
             "name": "if-match",
-            "required": true,
+            "required": false,
             "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
               "description": "Versão atual do recurso (If-Match)",
-              "title": "If-Match",
-              "type": "string"
+              "title": "If-Match"
             }
           }
         ],

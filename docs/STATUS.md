@@ -1,6 +1,6 @@
 # Estado do projeto — auditoria de segurança, estrutura e performance
 
-> Atualizado em 19/09/2026 (sessão de acompanhamento pós-auditoria). Detalhe técnico por achado: `docs/security-audit/resolucao.md`.
+> Atualizado em 20/09/2026 (conclusão dos contratos anteriormente pendentes). Detalhe técnico por achado: `docs/security-audit/resolucao.md`.
 > Procedimentos de operação das mudanças: `docs/runbooks/deployment-and-maintenance.md` (seções 9–28).
 
 ## 1. O que foi feito
@@ -19,7 +19,9 @@ A auditoria (`docs/security-audit/`) apontou 53 achados (18 de segurança, 21 de
 | Entrada de dados | Tetos de tamanho em todos os schemas; identificadores validados como UUID (422 em vez de 500) |
 | Frontend | Matriz de permissões gerada do backend (`contracts/permissions.json`), menu/rotas/ações escondidos por permissão |
 
-Resultado: **52 achados corrigidos, 1 parcial (PERF-09), 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 561 testes localmente (560 passam sem `pg_dump`/`pg_restore` no PATH + 1 pulado); frontend: 181.
+Resultado: **52 achados corrigidos, 1 parcial (PERF-09), 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 564 testes (563 passam sem `pg_dump`/`pg_restore` no PATH + 1 pulado); frontend: 183.
+
+**Conclusão dos contratos B03/B08 (20/09/2026):** os oito últimos stubs HTTP 501 foram eliminados. O CRUD de splitters agora cria entrada/saídas ópticas, persiste perdas por 1310/1490/1550 nm, aceita alojamento em estrutura ou dispositivo, atualiza a revisão topológica e protege exclusão de portas em uso. Configurações da organização passaram a ser persistidas e versionadas (`If-Match`), e o resumo de ocupação de estruturas foi implementado. A interface de CTO/CEO ganhou gestão completa de splitters e a tela de configurações deixou de exibir valores estáticos. Migração `0016_splitter_crud_settings` validada em `downgrade`/`upgrade`; OpenAPI e tipos TypeScript regenerados. Suítes: backend 563 passed + 1 skipped; frontend 183 passed; lint, Ruff, Mypy, TypeScript e build de produção limpos.
 
 **Sessão de 19/09/2026 (depois do adendo acima): EST-14 resolvido.** Storage de anexos/importações/exportações abstraído em `StorageBackend` (`backend/app/core/storage_backend.py`): `LocalStorage` (padrão, disco/volume, sem mudança de comportamento) e `S3Storage` (boto3, S3-compatível — MinIO escolhido pelo operador). `attachments/service.py`, `exports/service.py`, `imports/service.py`, `jobs/service.py` e os endpoints de download migrados; `core/storage.py` removido. Testado com `moto` (21 testes novos, rodam no CI) e manualmente contra um MinIO real (upload, hash, miniatura, delete, exportação em fluxo — todos OK; imagem `quay.io/minio/minio`, pois `minio/minio` saiu do Docker Hub em 2025). MinIO local em `compose.s3.yaml`, arquivo **separado** de propósito: `docker compose up` (só `compose.yaml`) não pode passar a exigir `MINIO_ROOT_USER`/`PASSWORD` de quem nunca vai usar S3 (testado: `docker compose config` falha na interpolação de variáveis mesmo com o serviço atrás de `profiles`, porque o compose valida o arquivo inteiro antes de aplicar o profile). Detalhe: `docs/adr/0007-escala-horizontal.md`.
 
@@ -77,7 +79,7 @@ cd ../frontend && pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck 
 
 - **Instale `pg_dump`/`pg_restore` (cliente PostgreSQL 16) na máquina.** Sem eles os testes de backup caem no dump binário do psycopg e **não exercitam o caminho que roda no CI** — foi por isso que o bug do PostGIS não aparecia localmente. `test_backup_security.py` tem dois testes mutuamente exclusivos por `pg_dump`/`pg_restore` (um só roda com eles, outro só sem); nas duas situações: 553 passam e 1 é pulado (verificado nesta sessão sem `pg_dump`/`pg_restore` no PATH).
 - Sem `TEST_DATABASE_URL` a suíte usa `127.0.0.1:5432/ftth_manager_test` (o mesmo servidor do `ftth_db`).
-- Containers descartáveis desta sessão, se ainda existirem: `docker rm -f ftth-test-pg ftth-audit-pg`.
+- Containers descartáveis de sessões anteriores, se ainda existirem: `docker rm -f ftth-test-pg ftth-audit-pg`.
 
 ## 4. Decisões assumidas (confirmadas pelo operador em 20/09/2026)
 

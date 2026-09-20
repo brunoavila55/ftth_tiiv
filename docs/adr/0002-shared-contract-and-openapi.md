@@ -42,8 +42,8 @@ Para evitar divergências, foram necessárias definições formais quanto a:
   - `412 Precondition Failed`: versão diverge do estado atual no banco.
   - `409 Conflict`: conflito lógico de negócio ou de revisão topológica (`topology_revision_conflict`).
 
-### 5. Respostas 501 para Contratos Pendentes
-- Rotas declaradas no contrato que dependem de etapas futuras (ex: B03, B04, B07) retornam status `501 Not Implemented` com Problem Details RFC 7807 (`code: endpoint_pending_implementation`), informando explicitamente qual etapa do roadmap as implementará. Nenhuma rota retorna sucesso falso (`200 OK {}`).
+### 5. Contratos pendentes durante o desenvolvimento
+- Durante a construção por etapas, rotas futuras retornavam `501 Not Implemented` em vez de sucesso falso. Em 20/09/2026, os últimos contratos B03/B08 foram implementados e o helper de stubs foi removido. O teste de contrato agora falha se qualquer rota publicada voltar a delegar para `pending_endpoint`.
 
 ## Consequências
 

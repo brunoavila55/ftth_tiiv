@@ -1,7 +1,7 @@
 import uuid
 from datetime import UTC, datetime
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -12,6 +12,8 @@ from app.core.errors import (
     UnprocessableEntityError,
 )
 from app.core.search import contains
+from app.modules.connectivity.models import Connection, Splitter, Terminal, TerminalReservation
+from app.modules.customers.models import ServiceLink
 from app.modules.gis.helpers import point_geometry_to_wkb, wkb_to_point_geometry
 from app.modules.inventory.models import Device, Port, Site, Structure
 from app.schemas.common import AdministrativeStatus, PhysicalCondition
@@ -30,6 +32,7 @@ from app.schemas.inventory import (
     SiteUpdate,
     StructureCreate,
     StructureKind,
+    StructureOccupancyResponse,
     StructureRead,
     StructureUpdate,
 )
@@ -242,6 +245,115 @@ def get_structure_by_id(session: Session, structure_id: str) -> Structure:
     if not structure:
         raise NotFoundError("Estrutura não encontrada.", code="structure_not_found")
     return structure
+
+
+def get_structure_occupancy(session: Session, structure_id: str) -> StructureOccupancyResponse:
+    """Resume a ocupação das portas diretas e dos dispositivos alojados na estrutura."""
+    structure = get_structure_by_id(session, structure_id)
+    device_ids = select(Device.id).where(Device.structure_id == structure.id)
+    ports = list(
+        session.scalars(
+            select(Port)
+            .where(
+                or_(
+                    Port.structure_id == structure.id,
+                    Port.device_id.in_(device_ids),
+                )
+            )
+            .order_by(Port.name, Port.id)
+        ).all()
+    )
+    port_ids = [port.id for port in ports]
+    terminals = (
+        list(
+            session.scalars(
+                select(Terminal).where(
+                    Terminal.entity_type == "port", Terminal.entity_id.in_(port_ids)
+                )
+            ).all()
+        )
+        if port_ids
+        else []
+    )
+    terminal_ids = [terminal.id for terminal in terminals]
+    terminals_by_port = {
+        terminal.entity_id: terminal for terminal in terminals if terminal.entity_id is not None
+    }
+
+    connected_terminal_ids: set[uuid.UUID] = set()
+    reserved_terminal_ids: set[uuid.UUID] = set()
+    active_service_port_ids = (
+        set(
+            session.scalars(
+                select(ServiceLink.port_id).where(
+                    ServiceLink.port_id.in_(port_ids), ServiceLink.status == "active"
+                )
+            ).all()
+        )
+        if port_ids
+        else set()
+    )
+    if terminal_ids:
+        for connection in session.scalars(
+            select(Connection).where(
+                Connection.is_active.is_(True),
+                or_(
+                    Connection.terminal_a_id.in_(terminal_ids),
+                    Connection.terminal_b_id.in_(terminal_ids),
+                ),
+            )
+        ):
+            if connection.terminal_a_id in terminal_ids:
+                connected_terminal_ids.add(connection.terminal_a_id)
+            if connection.terminal_b_id in terminal_ids:
+                connected_terminal_ids.add(connection.terminal_b_id)
+        reserved_terminal_ids = set(
+            session.scalars(
+                select(TerminalReservation.terminal_id).where(
+                    TerminalReservation.terminal_id.in_(terminal_ids),
+                    TerminalReservation.is_active.is_(True),
+                )
+            ).all()
+        )
+
+    connected = reserved = free = damaged = 0
+    for port in ports:
+        terminal = terminals_by_port.get(port.id)
+        notes = (port.notes or "").lower()
+        is_damaged = any(
+            marker in notes for marker in ("danificad", "defeito", "damaged", "quebrad", "broken")
+        )
+        if is_damaged:
+            damaged += 1
+
+        is_connected = port.id in active_service_port_ids or (
+            terminal is not None
+            and (
+                terminal.id in connected_terminal_ids
+                or terminal.is_occupied
+                or terminal.occupancy in ("connected", "customer_connected")
+            )
+        )
+        is_reserved = terminal is not None and (
+            terminal.id in reserved_terminal_ids or terminal.occupancy == "reserved"
+        )
+        if is_connected:
+            connected += 1
+        elif is_reserved:
+            reserved += 1
+        elif not is_damaged:
+            free += 1
+
+    return StructureOccupancyResponse(
+        structure_id=str(structure.id),
+        code=structure.code,
+        kind=StructureKind(structure.kind),
+        total_ports=len(ports),
+        connected_ports=connected,
+        reserved_ports=reserved,
+        free_ports=free,
+        damaged_ports=damaged,
+    )
 
 
 def create_structure(session: Session, payload: StructureCreate) -> Structure:
@@ -500,6 +612,18 @@ def update_device(
     )
 
     if payload.site_id is not None or payload.structure_id is not None:
+        location_changed = (new_site_id or None) != (
+            str(device.site_id) if device.site_id else None
+        ) or (new_struct_id or None) != (str(device.structure_id) if device.structure_id else None)
+        has_splitters = (
+            session.scalar(select(func.count(Splitter.id)).where(Splitter.device_id == device.id))
+            or 0
+        )
+        if location_changed and has_splitters:
+            raise ConflictError(
+                "Desvincule ou remova os splitters alojados antes de mover o dispositivo.",
+                code="device_has_splitters",
+            )
         if (new_site_id and new_struct_id) or (not new_site_id and not new_struct_id):
             raise UnprocessableEntityError(
                 "O dispositivo deve estar alocado exclusivamente em um site OU em uma estrutura.",

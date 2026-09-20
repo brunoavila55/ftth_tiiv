@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  AlertCircle,
   Building2,
   Clock,
   Palette,
@@ -10,10 +12,16 @@ import {
   History,
   ExternalLink,
   Layers,
-  Activity,
+  Loader2,
+  Save,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { PermissionGate } from "@/components/auth/permission-gate";
+import { ApiError } from "@/lib/api/types";
+import { getAppSettings, updateAppSettings } from "../api";
 
 const NBR_COLORS = [
   { pos: 1, name: "Verde", hex: "#16a34a" },
@@ -47,6 +55,57 @@ const TIA_COLORS = [
 
 export function SettingsView() {
   const [selectedStandard, setSelectedStandard] = React.useState<"NBR" | "TIA">("NBR");
+  const queryClient = useQueryClient();
+  const settingsQuery = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: getAppSettings,
+  });
+  const [form, setForm] = React.useState({
+    organization_name: "",
+    timezone: "",
+    longitude: "",
+    latitude: "",
+    default_map_zoom: "14",
+    excess_loss_tolerance_db: "2",
+  });
+  const [successMessage, setSuccessMessage] = React.useState<string | null>(null);
+
+  React.useEffect(() => {
+    if (!settingsQuery.data) return;
+    setForm({
+      organization_name: settingsQuery.data.organization_name,
+      timezone: settingsQuery.data.timezone,
+      longitude: String(settingsQuery.data.default_map_center[0]),
+      latitude: String(settingsQuery.data.default_map_center[1]),
+      default_map_zoom: String(settingsQuery.data.default_map_zoom),
+      excess_loss_tolerance_db: String(settingsQuery.data.excess_loss_tolerance_db),
+    });
+  }, [settingsQuery.data]);
+
+  const updateMutation = useMutation({
+    mutationFn: async () => {
+      if (!settingsQuery.data) throw new Error("Configurações ainda não carregadas.");
+      return updateAppSettings(
+        {
+          organization_name: form.organization_name.trim(),
+          timezone: form.timezone.trim(),
+          default_map_center: [Number(form.longitude), Number(form.latitude)],
+          default_map_zoom: Number(form.default_map_zoom),
+          excess_loss_tolerance_db: Number(form.excess_loss_tolerance_db),
+        },
+        settingsQuery.data.version
+      );
+    },
+    onSuccess: (updated) => {
+      queryClient.setQueryData(["app-settings"], updated);
+      setSuccessMessage("Configurações salvas com sucesso.");
+    },
+  });
+
+  const setField = (field: keyof typeof form, value: string) => {
+    setSuccessMessage(null);
+    setForm((current) => ({ ...current, [field]: value }));
+  };
 
   return (
     <div className="space-y-8">
@@ -62,43 +121,82 @@ export function SettingsView() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 text-xs">
-            <div className="space-y-3">
-              <div>
-                <span className="text-muted-foreground block text-[11px]">Nome da Instalação / Provedor</span>
-                <span className="font-semibold text-foreground text-sm">Operação FTTH Manager</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-[11px]">Fuso Horário do Sistema</span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <Clock className="h-3.5 w-3.5 text-muted-foreground" />
-                  <span className="font-medium text-foreground">America/Sao_Paulo (UTC-03:00)</span>
+          {settingsQuery.isLoading ? (
+            <div className="flex items-center gap-2 py-6 text-xs text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" /> Carregando parâmetros...
+            </div>
+          ) : settingsQuery.error || !settingsQuery.data ? (
+            <div className="flex items-center gap-2 rounded-md bg-destructive/10 p-3 text-xs text-destructive">
+              <AlertCircle className="h-4 w-4" />
+              {settingsQuery.error instanceof ApiError
+                ? settingsQuery.error.detail
+                : "Não foi possível carregar as configurações."}
+            </div>
+          ) : (
+            <form
+              className="space-y-5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                setSuccessMessage(null);
+                updateMutation.mutate();
+              }}
+            >
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="organization-name">Nome da instalação / provedor</Label>
+                  <Input id="organization-name" value={form.organization_name} onChange={(event) => setField("organization_name", event.target.value)} maxLength={150} required />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="organization-timezone">Fuso horário IANA</Label>
+                  <div className="relative">
+                    <Clock className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input id="organization-timezone" value={form.timezone} onChange={(event) => setField("timezone", event.target.value)} className="pl-8" required />
+                  </div>
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Centro padrão do mapa (longitude / latitude)</Label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Input aria-label="Longitude padrão" type="number" min="-180" max="180" step="0.000001" value={form.longitude} onChange={(event) => setField("longitude", event.target.value)} required />
+                    <Input aria-label="Latitude padrão" type="number" min="-90" max="90" step="0.000001" value={form.latitude} onChange={(event) => setField("latitude", event.target.value)} required />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="default-map-zoom">Zoom padrão</Label>
+                    <Input id="default-map-zoom" type="number" min="1" max="22" value={form.default_map_zoom} onChange={(event) => setField("default_map_zoom", event.target.value)} required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="excess-loss">Tolerância de perda (dB)</Label>
+                    <Input id="excess-loss" type="number" min="0.1" max="10" step="0.1" value={form.excess_loss_tolerance_db} onChange={(event) => setField("excess_loss_tolerance_db", event.target.value)} required />
+                  </div>
                 </div>
               </div>
-              <div>
-                <span className="text-muted-foreground block text-[11px]">Sistema Geodésico de Referência</span>
-                <span className="font-medium text-foreground font-mono">WGS 84 (EPSG:4326) / PostGIS Geography</span>
-              </div>
-            </div>
 
-            <div className="space-y-3">
-              <div>
-                <span className="text-muted-foreground block text-[11px]">Tolerância para Perda Óptica Excedente</span>
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <Activity className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400" />
-                  <span className="font-medium text-foreground">± 2.0 dB (Limite de alerta)</span>
+              <div className="grid grid-cols-1 gap-3 rounded-md bg-muted/40 p-3 text-xs sm:grid-cols-3">
+                <div><span className="block text-[11px] text-muted-foreground">Aplicação</span><strong>{settingsQuery.data.app_name}</strong></div>
+                <div><span className="block text-[11px] text-muted-foreground">Trace máximo</span><strong className="font-mono">{settingsQuery.data.trace_max_depth} saltos</strong></div>
+                <div><span className="block text-[11px] text-muted-foreground">Upload máximo</span><strong>{Math.round(settingsQuery.data.max_upload_size_bytes / 1024 / 1024)} MB</strong></div>
+              </div>
+
+              {updateMutation.error && (
+                <div className="flex items-center gap-2 text-xs text-destructive">
+                  <AlertCircle className="h-4 w-4" />
+                  {updateMutation.error instanceof ApiError ? updateMutation.error.detail : "Não foi possível salvar as configurações."}
                 </div>
+              )}
+              {successMessage && <p className="text-xs text-emerald-600 dark:text-emerald-400">{successMessage}</p>}
+
+              <div className="flex items-center justify-between border-t border-border pt-4">
+                <span className="text-[11px] text-muted-foreground">Versão ETag: v{settingsQuery.data.version}</span>
+                <PermissionGate permission="settings:write">
+                  <Button type="submit" size="sm" disabled={updateMutation.isPending} className="gap-2">
+                    {updateMutation.isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    Salvar parâmetros
+                  </Button>
+                </PermissionGate>
               </div>
-              <div>
-                <span className="text-muted-foreground block text-[11px]">Profundidade Máxima de Rastreamento (Trace PON)</span>
-                <span className="font-medium text-foreground font-mono">100 saltos / nós</span>
-              </div>
-              <div>
-                <span className="text-muted-foreground block text-[11px]">Tamanho Máximo de Upload por Arquivo</span>
-                <span className="font-medium text-foreground">10 MB (JPEG, PNG, WebP, PDF)</span>
-              </div>
-            </div>
-          </div>
+            </form>
+          )}
         </CardContent>
       </Card>
 

@@ -1,9 +1,9 @@
-from typing import Any
+from fastapi import APIRouter, Depends, Header, Response
+from sqlalchemy.orm import Session
 
-from fastapi import APIRouter, Depends, Header
-
-from app.core.contracts import pending_endpoint
-from app.core.dependencies import require_permission
+from app.core.dependencies import require_permission, validate_csrf
+from app.db.session import get_db
+from app.modules.app_settings import service
 from app.schemas.settings import AppSettingsRead, AppSettingsUpdate
 
 settings_router = APIRouter(prefix="/settings", tags=["Configurações da Organização"])
@@ -16,8 +16,10 @@ settings_router = APIRouter(prefix="/settings", tags=["Configurações da Organi
     description="Retorna preferências operacionais, fuso horário, limites e configurações geográficas.",
     dependencies=[Depends(require_permission("settings:read"))],
 )
-def get_app_settings() -> Any:
-    pending_endpoint("B03")
+def get_app_settings(response: Response, db: Session = Depends(get_db)) -> AppSettingsRead:
+    result = service.get_app_settings(db)
+    response.headers["ETag"] = f'"{result.version}"'
+    return result
 
 
 @settings_router.patch(
@@ -25,10 +27,14 @@ def get_app_settings() -> Any:
     response_model=AppSettingsRead,
     summary="Atualizar configurações da aplicação",
     description="Atualiza parâmetros gerais da organização. Exige cabeçalho If-Match.",
-    dependencies=[Depends(require_permission("settings:write"))],
+    dependencies=[Depends(require_permission("settings:write")), Depends(validate_csrf)],
 )
 def update_app_settings(
     payload: AppSettingsUpdate,
-    if_match: str = Header(..., description="Versão atual do recurso (If-Match)"),
-) -> Any:
-    pending_endpoint("B03")
+    response: Response,
+    if_match: str | None = Header(default=None, description="Versão atual do recurso (If-Match)"),
+    db: Session = Depends(get_db),
+) -> AppSettingsRead:
+    result = service.update_app_settings(db, payload=payload, if_match=if_match)
+    response.headers["ETag"] = f'"{result.version}"'
+    return result

@@ -567,7 +567,6 @@ Este documento rastreia a evolução contínua da implementação do backend con
   - [x] CI workflow configurado com PostGIS, linters, types, drift OpenAPI e testes de backend e frontend.
   - [x] Documentação técnica completa: ERD, catálogo de APIs, matriz de requisitos e relatório de auditoria B18.
   - [x] Governança open source estabelecida: CONTRIBUTING.md, SECURITY.md e recomendação de licença.
-  - [x] Sem regressões em nenhuma fase anterior: 140 testes de backend e 166 de frontend aprovados.
+  - [x] Sem regressões em nenhuma fase anterior: 563 testes de backend aprovados + 1 pulado por ambiente e 183 de frontend aprovados.
 - **Próximo passo alinhado**: F19 (Testes integrados e qualidade) e F20 (Entrega e revisão de produto).
-
 

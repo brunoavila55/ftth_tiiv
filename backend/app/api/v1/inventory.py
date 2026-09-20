@@ -3,7 +3,6 @@ import uuid
 from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy.orm import Session
 
-from app.core.contracts import pending_endpoint
 from app.core.dependencies import require_permission, validate_csrf
 from app.db.session import get_db
 from app.modules.connectivity.service import (
@@ -34,6 +33,9 @@ from app.modules.inventory.service import (
     update_port,
     update_site,
     update_structure,
+)
+from app.modules.inventory.service import (
+    get_structure_occupancy as fetch_structure_occupancy,
 )
 from app.schemas.common import PaginatedResponse, PaginationParams, UuidStr
 from app.schemas.connectivity import StructureConnectivityResponse
@@ -267,8 +269,11 @@ def delete_structure_endpoint(
     summary="Ocupação de portas da estrutura / CTO",
     dependencies=[Depends(require_permission("network:read"))],
 )
-def get_structure_occupancy(structure_id: UuidStr) -> StructureOccupancyResponse:
-    pending_endpoint("B08")
+def get_structure_occupancy(
+    structure_id: UuidStr,
+    db: Session = Depends(get_db),
+) -> StructureOccupancyResponse:
+    return fetch_structure_occupancy(db, structure_id)
 
 
 @inventory_router.get(

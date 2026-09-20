@@ -1,12 +1,10 @@
+import inspect
 import json
 from pathlib import Path
 
-from fastapi import status
-from fastapi.testclient import TestClient
-from sqlalchemy.orm import Session
+from fastapi.routing import APIRoute
 
 from app.main import create_app
-from tests.conftest import create_test_user, login_test_client
 
 
 def test_openapi_json_matches_app_schema() -> None:
@@ -92,30 +90,11 @@ def test_units_are_explicit_in_schema_fields() -> None:
                 )
 
 
-def test_pending_endpoints_return_501_problem_details(
-    client: TestClient, db_session: Session
-) -> None:
-    """Garante que endpoints ainda não implementados retornam 501 e nunca sucesso falso."""
-    # Stubs também exigem autenticação/permissão (R03): usa um admin (settings:read)
-    create_test_user(db_session, "admin_contract@provedor.com.br", "admin")
-    login_test_client(client, "admin_contract@provedor.com.br")
-    # Testar um endpoint de cada família principal
-    pending_urls = [
-        ("GET", "/api/v1/settings"),
-    ]
-
-    for item in pending_urls:
-        method = item[0]
-        url = item[1]
-        json_body = item[2] if len(item) > 2 else None
-
-        resp = client.get(url) if method == "GET" else client.post(url, json=json_body)
-
-        assert resp.status_code == status.HTTP_501_NOT_IMPLEMENTED, (
-            f"Rota {method} {url} deveria retornar 501 Not Implemented, retornou {resp.status_code}"
-        )
-        assert resp.headers["content-type"] == "application/problem+json"
-        data = resp.json()
-        assert data["code"] == "endpoint_pending_implementation"
-        assert "agendada para a etapa" in data["detail"]
-        assert "status" in data and data["status"] == 501
+def test_no_pending_endpoint_stubs() -> None:
+    """Nenhuma rota publicada no contrato pode continuar delegando para um stub 501."""
+    app = create_app()
+    pending_routes = []
+    for route in app.routes:
+        if isinstance(route, APIRoute) and "pending_endpoint" in inspect.getsource(route.endpoint):
+            pending_routes.append(f"{','.join(sorted(route.methods or []))} {route.path}")
+    assert pending_routes == [], f"Rotas ainda não implementadas: {pending_routes}"

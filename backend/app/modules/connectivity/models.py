@@ -16,7 +16,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, VersionedModelMixin
 from app.modules.identity.models import User
-from app.modules.inventory.models import Site, Structure
+from app.modules.inventory.models import Device, Site, Structure
 
 
 class Terminal(Base, VersionedModelMixin):
@@ -237,6 +237,12 @@ class Splitter(Base, VersionedModelMixin):
         nullable=True,
         index=True,
     )
+    device_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True),
+        ForeignKey("devices.id", ondelete="RESTRICT"),
+        nullable=True,
+        index=True,
+    )
     code: Mapped[str] = mapped_column(String(50), nullable=False)
     splitter_type: Mapped[str] = mapped_column(String(50), nullable=False, default="balanced")
     ratio: Mapped[str] = mapped_column(String(20), nullable=False, default="1:8")
@@ -249,6 +255,7 @@ class Splitter(Base, VersionedModelMixin):
 
     structure: Mapped[Structure | None] = relationship(foreign_keys=[structure_id])
     site: Mapped[Site | None] = relationship(foreign_keys=[site_id])
+    device: Mapped[Device | None] = relationship(foreign_keys=[device_id])
     input_terminal: Mapped[Terminal] = relationship(foreign_keys=[input_terminal_id])
     outputs: Mapped[list["SplitterOutput"]] = relationship(
         back_populates="splitter",
@@ -262,6 +269,7 @@ class Splitter(Base, VersionedModelMixin):
         ),
         Index("idx_splitters_structure", "structure_id"),
         Index("idx_splitters_input_terminal", "input_terminal_id"),
+        Index("uq_splitters_code", "code", unique=True),
     )
 
 
@@ -285,11 +293,26 @@ class SplitterOutput(Base, VersionedModelMixin):
     )
     nominal_loss_db: Mapped[float] = mapped_column(Float, nullable=False, default=10.5)
     measured_loss_db: Mapped[float | None] = mapped_column(Float, nullable=True)
+    loss_1310_db: Mapped[float | None] = mapped_column(Float, nullable=True)
+    loss_1490_db: Mapped[float | None] = mapped_column(Float, nullable=True)
+    loss_1550_db: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     splitter: Mapped[Splitter] = relationship(back_populates="outputs")
     terminal: Mapped[Terminal] = relationship(foreign_keys=[terminal_id])
 
     __table_args__ = (
         CheckConstraint("nominal_loss_db >= 0.0", name="chk_splitter_output_nominal_loss_positive"),
+        CheckConstraint(
+            "loss_1310_db IS NULL OR loss_1310_db >= 0.0",
+            name="chk_splitter_output_loss_1310_positive",
+        ),
+        CheckConstraint(
+            "loss_1490_db IS NULL OR loss_1490_db >= 0.0",
+            name="chk_splitter_output_loss_1490_positive",
+        ),
+        CheckConstraint(
+            "loss_1550_db IS NULL OR loss_1550_db >= 0.0",
+            name="chk_splitter_output_loss_1550_positive",
+        ),
         Index("uq_splitter_outputs_num", "splitter_id", "output_number", unique=True),
     )

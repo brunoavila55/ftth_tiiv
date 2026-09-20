@@ -26,7 +26,7 @@ Registro contínuo de entregas, decisões de implementação, critérios de acei
 | **F16** | **Importação e exportação**: Assistentes de importação/exportação CSV/KML/GeoJSON com preview de validação. | ✅ Concluído | B14 |
 | **F17** | **Relatórios, configuração e usuários**: Relatórios de ocupação de CTOs, capacidade de cabos, diagnóstico de anomalias, telas de administração de operadores (RBAC) e parâmetros do sistema. | ✅ Concluído | B03, B15 |
 | **F18** | **Campo, acessibilidade e desempenho**: Responsividade em viewport 360 px sem overflow, alvos de toque $\ge 44\text{px}$, daltonismo (número + nome da cor em fibras), coordenadas copiáveis/GPS, proteção contra falso salvo (offline), resiliência sem WebGL e bundle compartilhado de 103 kB. | ✅ Concluído | B16 |
-| **F19** | **Testes integrados e qualidade**: Suíte unificada de 166 testes Vitest, typecheck estrito, verificação de linters sem erros e validação contra drift do contrato OpenAPI. | ✅ Concluído | B17, B18 |
+| **F19** | **Testes integrados e qualidade**: Suíte unificada de 183 testes Vitest, typecheck estrito, verificação de linters sem erros e validação contra drift do contrato OpenAPI. | ✅ Concluído | B17, B18 |
 | **F20** | **Entrega e revisão de produto**: Revisão completa de rotas e ações, ausência de dead-ends, integração com Caddy/Compose, runbooks e manuais operacionais. | ✅ Concluído | B18 |
 
 ---
@@ -674,7 +674,7 @@ Registro contínuo de entregas, decisões de implementação, critérios de acei
 ### F19 — Testes integrados e qualidade
 - **Data de conclusão**: 2026-09-18
 - **Ações e Entregas**:
-  - Execução e validação unificada da suíte de testes de integração e componentes com Vitest e Testing Library cobrindo 19 arquivos e 166 testes automatizados.
+  - Execução e validação unificada da suíte de testes de integração e componentes com Vitest e Testing Library cobrindo 24 arquivos e 183 testes automatizados.
   - Cobertura completa das jornadas críticas do provedor FTTH:
     - **Autenticação & RBAC**: Login com cookies protegidos, proteção CSRF, expiração de sessão e bloqueio visual/lógico de ações não autorizadas por papel (`tests/auth-rbac.test.tsx`).
     - **Navegação & Shell**: AppShell, breadcrumbs dinâmicos com encurtamento de UUID, busca global `Ctrl+K`, drawer mobile e banner de conectividade (`tests/app-shell-navigation.test.tsx`).
@@ -701,7 +701,7 @@ Registro contínuo de entregas, decisões de implementação, critérios de acei
   - `pnpm test` -> **166 passed (166) em 19 test files** (100% sucesso)
   - `pnpm build` -> **25 páginas estáticas geradas com sucesso**; First Load JS compartilhado de apenas **103 kB**.
 - **Critérios de aceite F19 atendidos**:
-  - [x] Suíte de testes automatizados com 100% de aprovação (166 testes em 19 arquivos).
+  - [x] Suíte de testes automatizados com 100% de aprovação (183 testes em 24 arquivos).
   - [x] Zero erros de linter (ESLint) e tipagem estática (TypeScript strict).
   - [x] Contratos OpenAPI e tipos TypeScript 100% sincronizados sem drift.
   - [x] Build de produção standalone gerado com sucesso sem inclusão de mocks ou dados de desenvolvimento.
@@ -742,7 +742,6 @@ Registro contínuo de entregas, decisões de implementação, critérios de acei
   - [x] Docker Compose multi-serviço sobe e opera perfeitamente com proxy reverso e CSP estrito.
   - [x] Documentação operacional completa e pronta para operadores e mantenedores open source.
   - [x] Ciclo completo ponta a ponta validado e auditado com 100% de conformidade.
-
 
 
 

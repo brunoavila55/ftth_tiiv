@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { UsersTable } from "@/features/users/components/users-table";
 import { SettingsView } from "@/features/settings/components/settings-view";
 import * as usersApi from "@/features/users/api";
+import * as settingsApi from "@/features/settings/api";
 import type { UserRead, PaginatedResult } from "@/features/users/types";
 import { ApiError } from "@/lib/api/types";
 
@@ -94,6 +95,28 @@ describe("Settings & User Management (F17)", () => {
       version: 2,
     });
     vi.spyOn(usersApi, "deleteUser").mockResolvedValue();
+    vi.spyOn(settingsApi, "getAppSettings").mockResolvedValue({
+      app_name: "FTTH Manager",
+      organization_name: "Operação FTTH Manager",
+      timezone: "America/Sao_Paulo",
+      default_map_center: [-46.633308, -23.55052],
+      default_map_zoom: 14,
+      max_upload_size_bytes: 10_485_760,
+      trace_max_depth: 300,
+      excess_loss_tolerance_db: 2,
+      version: 1,
+    });
+    vi.spyOn(settingsApi, "updateAppSettings").mockResolvedValue({
+      app_name: "FTTH Manager",
+      organization_name: "Provedor Atualizado",
+      timezone: "America/Fortaleza",
+      default_map_center: [-38.5267, -3.7319],
+      default_map_zoom: 16,
+      max_upload_size_bytes: 10_485_760,
+      trace_max_depth: 300,
+      excess_loss_tolerance_db: 1.5,
+      version: 2,
+    });
   });
 
   it("renders users table with operators, role badges and active statuses", async () => {
@@ -235,12 +258,30 @@ describe("Settings & User Management (F17)", () => {
     });
   });
 
-  it("renders SettingsView with organization parameters, color standards and links", () => {
-    render(<SettingsView />);
+  it("renders and updates organization parameters, color standards and links", async () => {
+    renderWithQuery(<SettingsView />);
 
-    expect(screen.getByText("Operação FTTH Manager")).toBeDefined();
-    expect(screen.getByText("America/Sao_Paulo (UTC-03:00)")).toBeDefined();
+    const organizationInput = await screen.findByLabelText("Nome da instalação / provedor");
+    expect((organizationInput as HTMLInputElement).value).toBe("Operação FTTH Manager");
+    expect((screen.getByLabelText("Fuso horário IANA") as HTMLInputElement).value).toBe(
+      "America/Sao_Paulo"
+    );
     expect(screen.getByText("Catálogos de Código de Cores de Fibras e Tubos")).toBeDefined();
+
+    fireEvent.change(organizationInput, { target: { value: "Provedor Atualizado" } });
+    fireEvent.change(screen.getByLabelText("Fuso horário IANA"), {
+      target: { value: "America/Fortaleza" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Salvar parâmetros" }));
+    await waitFor(() =>
+      expect(settingsApi.updateAppSettings).toHaveBeenCalledWith(
+        expect.objectContaining({
+          organization_name: "Provedor Atualizado",
+          timezone: "America/Fortaleza",
+        }),
+        1
+      )
+    );
 
     // Padrão NBR ativo por padrão
     expect(screen.getByText(/#1 Verde/i)).toBeDefined();

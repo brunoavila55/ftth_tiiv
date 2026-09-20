@@ -11,7 +11,7 @@ O backend foi construído seguindo as etapas de uma especificação inicial (`ba
 | Etapa | Descrição | Status |
 |---|---|:---:|
 | **B01** | **Fundação reproduzível**: Configurações tipadas, logging JSON sanitizado, RFC 7807 Problem Details, healthchecks (`/health/live`, `/health/ready`), Compose e isolamento de domínio. | ✅ Concluído |
-| **B02** | **Contrato e schemas**: Schemas Pydantic v2, paginação estrita, enums, contratos pendentes 501, exportador determinístico para `contracts/openapi.json` e tipos TypeScript em `contracts/api-types.d.ts`. | ✅ Concluído |
+| **B02** | **Contrato e schemas**: Schemas Pydantic v2, paginação estrita, enums, garantia automatizada de ausência de stubs 501, exportador determinístico para `contracts/openapi.json` e tipos TypeScript em `contracts/api-types.d.ts`. | ✅ Concluído |
 | **B03** | **Sessões, usuários e permissões**: Hashing Argon2id, mitigação de enumeração de timing, CSRF com double submit cookie, rate limiting distribuído no PostgreSQL, sessões com expiração absoluta e inatividade, RBAC granular e CLI de bootstrap de admin. | ✅ Concluído |
 | **B04** | **Inventário e migrações**: Sites, Estruturas (Postes, Caixas CEO/CTO, POPs), Dispositivos (OLT, Switch, DIO), Portas com regras de propriedade estrita, Perfis Ópticos com check constraints de limites físicos e integridade referencial. | ✅ Concluído |
 | **B05** | **GIS e comprimentos confiáveis**: SRID 4326, GeoJSON, validação estrita de geometrias e bounding box, comprimentos geodésicos em metros via PostGIS geography, regra óptica contra dupla contagem de reserva, tolerância de rotas (5m), índice GiST espacial e controle monotônico de `topology_revision`. | ✅ Concluído |
@@ -55,7 +55,7 @@ O frontend foi construído seguindo as etapas de uma especificação inicial (`f
 | **F16** | **Importação e exportação**: Assistentes de importação/exportação CSV/KML/GeoJSON com preview de validação e isolamento. | ✅ Concluído |
 | **F17** | **Relatórios e capacidade**: Relatórios de ocupação de CTOs, balanço de fibras em cabos e diagnóstico de inconsistências técnicas. | ✅ Concluído |
 | **F18** | **Hardening, acessibilidade e performance**: Acessibilidade WCAG 2.2 AA, alvos de toque $\ge 44 \times 44$ px, alto contraste e performance móvel. | ✅ Concluído |
-| **F19** | **Testes integrados e qualidade**: Suíte de 166 testes Vitest sem regressões em todos os 19 arquivos de teste. | ✅ Concluído |
+| **F19** | **Testes integrados e qualidade**: Suíte de 183 testes Vitest sem regressões em todos os 24 arquivos de teste. | ✅ Concluído |
 | **F20** | **Entrega e revisão de produto**: Validação funcional contínua e ausência de dead-ends ou mocks estáticos. | ✅ Concluído |
 
 ---
@@ -136,7 +136,7 @@ pnpm dev
 
 O projeto conta com suítes automatizadas de testes e checagem estrita de tipos para backend e frontend:
 
-### Backend (140 testes aprovados)
+### Backend (564 testes: 563 aprovados e 1 pulado conforme disponibilidade de `pg_dump`)
 ```bash
 cd backend
 
@@ -151,7 +151,7 @@ uv run ruff format --check .
 uv run mypy app
 ```
 
-### Frontend (166 testes aprovados em 19 arquivos)
+### Frontend (183 testes aprovados em 24 arquivos)
 ```bash
 cd frontend
 
@@ -194,7 +194,7 @@ Consulte o guia completo em [`docs/runbooks/deployment-and-maintenance.md`](docs
 - [`docs/runbooks/deployment-and-maintenance.md`](docs/runbooks/deployment-and-maintenance.md): Runbook operacional para produção, backup e restore drill.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md): Guia para contribuidores do projeto open source.
 - [`SECURITY.md`](SECURITY.md): Política de segurança, reporte responsável e controles de proteção.
-- [`docs/adr/`](docs/adr/): Architecture Decision Records (ADRs 0001 a 0006).
+- [`docs/adr/`](docs/adr/): Architecture Decision Records (ADRs 0001 a 0007).
 
 ---
 

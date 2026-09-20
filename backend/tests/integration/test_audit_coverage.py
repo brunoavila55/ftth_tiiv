@@ -36,10 +36,6 @@ EXCLUDED: dict[tuple[str, str], str] = {
     ("POST", "/api/v1/optical/budgets"): "cálculo somente-leitura (não altera dados)",
     ("POST", "/api/v1/optical/simulations"): "cálculo somente-leitura (não altera dados)",
     ("POST", "/api/v1/cable-segments/{segment_id}/split/preview"): "pré-visualização sem gravação",
-    ("POST", "/api/v1/splitters"): "stub 501 (B08 pendente)",
-    ("PATCH", "/api/v1/splitters/{splitter_id}"): "stub 501 (B08 pendente)",
-    ("DELETE", "/api/v1/splitters/{splitter_id}"): "stub 501 (B08 pendente)",
-    ("PATCH", "/api/v1/settings"): "stub 501 (B03 pendente)",
 }
 
 POINT_A = [-46.6330, -23.5500]
@@ -270,6 +266,32 @@ def test_every_mutating_route_writes_exactly_one_audit_event(
     )
     tracker.call(
         "DELETE", "/api/v1/ports/{port_id}", port_id=spare_port, headers={"If-Match": '"1"'}
+    )
+
+    # ---- splitters -------------------------------------------------------------------------
+    splitter = tracker.call(
+        "POST",
+        "/api/v1/splitters",
+        json_body={
+            "code": "SPL-AUD",
+            "structure_id": st_b,
+            "ratio": "1:2",
+            "output_ports_count": 2,
+        },
+    )
+    splitter_id = splitter.json()["id"]
+    splitter = tracker.call(
+        "PATCH",
+        "/api/v1/splitters/{splitter_id}",
+        splitter_id=splitter_id,
+        json_body={"notes": "splitter revisado"},
+        headers=tracker.etag(splitter),
+    )
+    tracker.call(
+        "DELETE",
+        "/api/v1/splitters/{splitter_id}",
+        splitter_id=splitter_id,
+        headers=tracker.etag(splitter),
     )
 
     # ---- cables / cable-segments -----------------------------------------------------------
@@ -531,6 +553,14 @@ def test_every_mutating_route_writes_exactly_one_audit_event(
     ).json()["job_id"]
     tracker.call("POST", "/api/v1/jobs/{job_id}/cancel", job_id=export_job)
 
+    # ---- configurações ---------------------------------------------------------------------
+    tracker.call(
+        "PATCH",
+        "/api/v1/settings",
+        json_body={"organization_name": "Operação Auditada"},
+        headers={"If-Match": '"1"'},
+    )
+
     # ---- users -----------------------------------------------------------------------------
     created = tracker.call(
         "POST",
@@ -608,7 +638,7 @@ def test_every_mutating_route_writes_exactly_one_audit_event(
     stale = set(EXCLUDED) - all_mutating
     assert not stale, f"Exclusões obsoletas: {sorted(stale)}"
     # sanidade: o roteiro não deixou tudo de fora
-    assert len(tracker.exercised) >= 45
+    assert len(tracker.exercised) >= 49
 
 
 def test_failed_mutation_writes_no_audit_event(client: TestClient, db_session: Session) -> None:

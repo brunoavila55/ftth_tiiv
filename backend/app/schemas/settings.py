@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AppSettingsRead(BaseModel):
@@ -24,3 +24,13 @@ class AppSettingsUpdate(BaseModel):
     default_map_center: tuple[float, float] | None = None
     default_map_zoom: int | None = Field(default=None, ge=1, le=22)
     excess_loss_tolerance_db: float | None = Field(default=None, ge=0.1, le=10.0)
+
+    @field_validator("default_map_center")
+    @classmethod
+    def validate_map_center(cls, value: tuple[float, float] | None) -> tuple[float, float] | None:
+        if value is None:
+            return None
+        longitude, latitude = value
+        if not -180 <= longitude <= 180 or not -90 <= latitude <= 90:
+            raise ValueError("default_map_center deve conter [longitude, latitude] válidas")
+        return value

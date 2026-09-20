@@ -131,6 +131,9 @@ Erros HTTP utilizam a estrutura padronizada:
 ### 6.5. Conectividade e Grafo (`/connectivity`, `/terminals`, `/splitters`, `/topology`)
 - `GET /api/v1/connectivity/structures/{structure_id}`: Retorna toda a malha de terminais, fusões e splitters de uma estrutura física.
 - `POST /api/v1/connectivity/batch`: Aplica lote atômico de criação/remoção de fusões com validação de `expected_topology_revision`.
+- `GET|POST /api/v1/splitters`: Lista por estrutura e cadastra splitters 1:N com perdas por saída em 1310/1490/1550 nm.
+- `GET|PATCH|DELETE /api/v1/splitters/{splitter_id}`: Consulta, atualiza perdas/notas e remove splitters sem vínculos ópticos, com `If-Match`.
+- `GET /api/v1/structures/{structure_id}/occupancy`: Resume portas conectadas, reservadas, livres e danificadas da estrutura e de seus dispositivos.
 - `POST /api/v1/topology/trace`: Executa travessia óptica determinística (downstream ou upstream) com retorno de perda acumulada e nós intermediários.
 - `POST /api/v1/topology/impact`: Simulação virtual de corte de cabos, retornando clientes, CTOs e portas PON atingidas sem mutação no banco operacional.
 
@@ -158,4 +161,8 @@ Erros HTTP utilizam a estrutura padronizada:
 - `GET /api/v1/reports/inconsistencies`: Detecção de inconsistências topológicas (pontas abertas, atenuações fora do padrão).
 - `GET /api/v1/metrics`: Métricas de desempenho em formato Prometheus (`text/plain`) e JSON estruturado.
 - `POST /api/v1/exports`: Enfileira exportação em segundo plano da rede (GeoJSON ou CSV).
+
+### 6.10. Configurações da organização (`/settings`)
+- `GET /api/v1/settings`: Retorna identidade, fuso IANA, centro/zoom do mapa, limites operacionais e versão ETag.
+- `PATCH /api/v1/settings`: Persiste parâmetros editáveis com CSRF, permissão `settings:write` e concorrência otimista `If-Match`.
 - `GET /api/v1/jobs/{job_id}`: Consulta status e resultado de job assíncrono.

@@ -140,8 +140,8 @@ Route (app)                                 Size  First Load JS
 ## 6. Resultados da Suíte de Testes Automatizados
 
 - **Comando**: `pnpm vitest run`
-- **Total de Arquivos de Teste**: **19 arquivos**
-- **Total de Testes Automatizados**: **166 testes passando (100% sucesso)**
+- **Total de Arquivos de Teste**: **24 arquivos**
+- **Total de Testes Automatizados**: **183 testes passando (100% sucesso)**
 - **Duração da Execução**: **8,15 segundos**
 - **Verificação de Tipos (`pnpm typecheck`)**: `tsc --noEmit` -> **0 erros**
 - **Linter (`pnpm lint`)**: `next lint` -> **0 avisos, 0 erros**
