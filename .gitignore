@@ -57,6 +57,9 @@ out/
 **/out/
 .pnpm-store/
 **/.pnpm-store/
+
+# Worker do MapLibre GL v6 copiado de node_modules por predev/prebuild (scripts/copy-maplibre-worker.mjs)
+frontend/public/maplibre/
 *.tsbuildinfo
 **/*.tsbuildinfo
 next-env.d.ts

@@ -8,7 +8,7 @@ import { NextResponse, type NextRequest } from "next/server";
  * CSP da requisição) e os carregados por eles ('strict-dynamic'). O MapLibre precisa de workers
  * `blob:`. 'unsafe-eval' só existe em desenvolvimento (React Refresh).
  */
-const TILE_HOSTS = "https://*.tile.openstreetmap.org https://*.basemaps.cartocdn.com";
+const TILE_HOSTS = "https://tiles.openfreemap.org";
 
 export function buildContentSecurityPolicy(nonce: string, isDev: boolean): string {
   const scriptSrc = ["'self'", `'nonce-${nonce}'`, "'strict-dynamic'"];

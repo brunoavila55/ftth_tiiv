@@ -27,61 +27,25 @@ export interface OperationalMapProps {
   onDoubleClick?: () => void;
 }
 
-// Estilo raster CARTO Voyager (padrão de alto desempenho, CDN global com CORS liberado)
-export const CARTO_VOYAGER_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    carto: {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-        "https://c.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-        "https://d.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-      ],
-      tileSize: 256,
-      attribution:
-        '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a>',
-    },
-  },
-  layers: [
-    {
-      id: "carto-tiles",
-      type: "raster",
-      source: "carto",
-      minzoom: 0,
-      maxzoom: 20,
-    },
-  ],
-};
+// Estilos vetoriais OpenFreeMap (CDN público, sem API key/cadastro; hospeda tiles, sprites e
+// glyphs num único domínio — ver TILE_HOSTS em middleware.ts). Substituem o CARTO Voyager/Dark
+// Matter, que passou a exigir API key (basemaps.cartocdn.com/apikey).
+export const MAP_STYLE_LIGHT_URL = "https://tiles.openfreemap.org/styles/positron";
+export const MAP_STYLE_DARK_URL = "https://tiles.openfreemap.org/styles/dark";
 
-// Estilo raster CARTO Dark Matter (modo escuro com alto contraste para cabos ópticos)
-export const CARTO_DARK_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    carto: {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        "https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-        "https://d.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png",
-      ],
-      tileSize: 256,
-      attribution:
-        '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions" target="_blank" rel="noreferrer">CARTO</a>',
-    },
-  },
-  layers: [
-    {
-      id: "carto-tiles",
-      type: "raster",
-      source: "carto",
-      minzoom: 0,
-      maxzoom: 20,
-    },
-  ],
-};
+// OpenFreeMap não embute atribuição nas fontes do style.json; o mapa é derivado de dados OSM
+// (licença ODbL), então a atribuição é obrigatória e precisa ser adicionada manualmente.
+const MAP_ATTRIBUTION =
+  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors · <a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a>';
+
+// MapLibre v6 não resolve mais a URL do worker automaticamente dentro do grafo de módulos do
+// webpack (só funciona com <script type="module"> direto de CDN) — precisa ser apontada
+// explicitamente, uma vez, antes do primeiro `new maplibregl.Map(...)`. maplibre-gl-worker.mjs
+// importa por caminho relativo o seu companheiro maplibre-gl-shared.mjs, então os dois são
+// copiados juntos para public/maplibre/ (scripts/copy-maplibre-worker.mjs, via predev/prebuild)
+// e servidos da mesma origem. Sem isso o mapa fica com o worker preso num blob: que nunca
+// termina de carregar: nenhum tile vetorial é buscado e nem 'load' nem 'error' disparam.
+maplibregl.setWorkerUrl("/maplibre/maplibre-gl-worker.mjs");
 
 function checkWebGLSupport(): boolean {
   if (typeof window === "undefined") return false;
@@ -261,7 +225,7 @@ export function OperationalMap({
     if (!webglSupported || !mapContainerRef.current || mapRef.current) return;
 
     const styleUrl: string | maplibregl.StyleSpecification =
-      process.env.NEXT_PUBLIC_MAP_STYLE_URL || (isDark ? CARTO_DARK_STYLE : CARTO_VOYAGER_STYLE);
+      process.env.NEXT_PUBLIC_MAP_STYLE_URL || (isDark ? MAP_STYLE_DARK_URL : MAP_STYLE_LIGHT_URL);
 
     let map: maplibregl.Map;
     try {
@@ -280,6 +244,7 @@ export function OperationalMap({
     map.addControl(
       new maplibregl.AttributionControl({
         compact: false,
+        customAttribution: MAP_ATTRIBUTION,
       }),
       "bottom-right"
     );

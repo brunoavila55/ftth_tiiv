@@ -21,9 +21,8 @@ describe("CSP com nonce (SEC-11)", () => {
   it("mantém workers blob: (MapLibre) e apenas os hosts de tiles autorizados", () => {
     const csp = buildContentSecurityPolicy("n", false);
     expect(directive(csp, "worker-src")).toContain("blob:");
-    expect(directive(csp, "connect-src")).toContain("https://*.tile.openstreetmap.org");
-    expect(directive(csp, "connect-src")).toContain("https://*.basemaps.cartocdn.com");
-    expect(directive(csp, "img-src")).toContain("https://*.basemaps.cartocdn.com");
+    expect(directive(csp, "connect-src")).toContain("https://tiles.openfreemap.org");
+    expect(directive(csp, "img-src")).toContain("https://tiles.openfreemap.org");
     expect(directive(csp, "object-src")).toContain("'none'");
     expect(directive(csp, "frame-ancestors")).toContain("'self'");
   });
