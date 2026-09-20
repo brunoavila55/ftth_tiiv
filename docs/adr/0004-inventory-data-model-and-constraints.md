@@ -6,7 +6,7 @@ Aceito
 ## Contexto
 O FTTH Manager modela a infraestrutura física de telecomunicações de provedores de internet. Elementos como POPs centrais, armários técnicos, postes de concessionária, caixas de emenda (CEOs), caixas de atendimento (CTOs), equipamentos ativos (OLTs, ONUs, switches) e passivos (DIOs) constituem os nós da rede.
 
-Conforme as diretrizes do `backend.md`:
+Conforme as diretrizes da especificação inicial (`backend.md`, removida após a auditoria; histórico no git):
 1. Campos essenciais devem ser colunas tipadas e normalizadas, não metadados JSON arbitrários.
 2. Cada dispositivo deve pertencer exclusivamente a um local técnico (`site`) ou a uma estrutura externa (`structure`).
 3. Toda porta óptica deve pertencer exclusivamente a um dispositivo ou a uma estrutura passiva (como portas conectorizadas de CTO).

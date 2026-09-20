@@ -6,7 +6,7 @@ Aceito
 ## Contexto
 O FTTH Manager baseia-se em infraestrutura física georreferenciada. Redes ópticas dependem de distâncias e comprimentos precisos em metros (`*_m`), pois o orçamento de potência e atenuação do sinal óptico é diretamente proporcional à distância física da fibra instalada.
 
-Conforme os requisitos do prompt B05 do `backend.md`:
+Conforme os requisitos do prompt B05 da especificação inicial (`backend.md`, removida após a auditoria; histórico no git):
 1. Todos os pontos e linhas devem ser expressos no sistema geodésico WGS84 / EPSG:4326 com GeoJSON estritamente válido.
 2. Todas as coordenadas devem ser validadas contra limites geográficos, rejeitando valores nulos, vazios, degenerados, NaN e Infinito com HTTP 422 Problem Details.
 3. Comprimentos e distâncias devem ser calculados obrigatoriamente em metros sobre o elipsoide de referência geodésico (via `geography` do PostGIS e fórmulas geodésicas), jamais em graus planares.

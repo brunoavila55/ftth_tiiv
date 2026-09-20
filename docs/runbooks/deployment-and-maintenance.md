@@ -177,15 +177,13 @@ docker compose start backend worker
 ## 8. Servidor de Tiles Cartográficos e Requisitos de Rede
 
 ### 8.1 Provedores de Tiles Suportados
-O mapa operacional do FTTH Manager utiliza MapLibre GL JS e requer acesso a um servidor de tiles raster ou vetoriais:
-- **Padrão OpenStreetMap**: `https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png`
-- **CartoDB Positron / Dark**: `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png`
-- **Servidor Próprio / Offline (TileServer-GL)**: Para operações em rede fechada ou sem internet, configure o endpoint interno via configuração da organização (`/settings`).
+O mapa operacional do FTTH Manager utiliza MapLibre GL JS. Padrão: **OpenFreeMap** (`https://tiles.openfreemap.org`), tiles vetoriais derivados de dados OpenStreetMap, sem API key/cadastro e sem limite de requisições publicado (estilos `positron`/`dark`, ver `operational-map.tsx`). É o sucessor do CartoDB Voyager/Dark Matter usado anteriormente, que passou a exigir API key (`basemaps.cartocdn.com/apikey`) e quebrou o mapa em produção (tiles substituídos por um aviso).
+- Para trocar de provedor (ex.: CartoDB com API key própria, MapTiler, Stadia Maps) ou usar um servidor próprio/offline (TileServer-GL, Protomaps/PMTiles) em rede fechada, defina `NEXT_PUBLIC_MAP_STYLE_URL` com a URL do `style.json` — variável já suportada pelo componente do mapa, sem mudança de código.
 
 ### 8.2 Requisitos de Firewall (Egress / Ingress)
 - **Ingress**: Portas `80/TCP` e `443/TCP` para acesso dos técnicos e administradores ao Caddy.
 - **Egress**:
-  - Acesso HTTPS (`443/TCP`) aos domínios de tiles configurados (`*.tile.openstreetmap.org`, `*.basemaps.cartocdn.com`).
+  - Acesso HTTPS (`443/TCP`) ao domínio de tiles configurado (`tiles.openfreemap.org` por padrão — ajuste a CSP em `middleware.ts` (`TILE_HOSTS`) se trocar de provedor).
   - Nenhuma outra porta de saída é requerida para a operação segura do sistema.
 
 ---

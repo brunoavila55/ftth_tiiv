@@ -8,7 +8,7 @@
 
 O **FTTH Manager** é uma aplicação open source, self-hosted, voltada para a documentação física e óptica de operações FTTH. O sistema lida com inventário de ativos, geolocalização (GIS), conexões fibra a fibra com integridade estrita, cálculo óptico de perdas e potência, e rastreamento de caminhos PON.
 
-A especificação `backend.md` estabelece os requisitos arquiteturais:
+A especificação inicial (`backend.md`, removida após a auditoria; histórico no git) estabeleceu os requisitos arquiteturais:
 1. Monólito modular com domínio óptico independente de HTTP e persistência.
 2. Stack Python com FastAPI, Pydantic v2, SQLAlchemy 2 síncrono com driver `psycopg` (v3), GeoAlchemy2 e Alembic.
 3. PostgreSQL 16 com extensão PostGIS 3.4.

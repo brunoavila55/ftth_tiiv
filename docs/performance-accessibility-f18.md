@@ -1,6 +1,6 @@
 # FTTH Manager — Relatório de Campo, Acessibilidade e Desempenho (F18)
 
-Este documento consolida as medições técnicas, auditorias de conformidade e evidências de validação da etapa **F18** conforme a especificação [`frontend.md`](file:///home/bruno/projects/ftth_tiiv/frontend.md).
+Este documento consolida as medições técnicas, auditorias de conformidade e evidências de validação da etapa **F18** conforme a especificação inicial (`frontend.md`, removida após a auditoria; histórico no git).
 
 ---
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Script de benchmark e observabilidade de endpoints críticos (B16).
 
-Mede com rigor estatístico os requisitos de desempenho especificados em backend.md:
+Mede com rigor estatístico os seguintes requisitos de desempenho:
 - Bounding-box map view sobre dataset de 10k+ estruturas (alvo: p95 < 1s)
 - Rastreamento óptico (trace) downstream e upstream sobre 100k+ fibras (alvo: < 2s)
 - Planos de execução SQL (EXPLAIN ANALYZE) para validação de índices espaciais e B-Tree

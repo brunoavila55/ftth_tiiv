@@ -1,6 +1,6 @@
 # FTTH Manager — Progresso do Backend
 
-Este documento rastreia a evolução contínua da implementação do backend conforme a especificação `backend.md`.
+Este documento rastreia a evolução contínua da implementação do backend conforme a especificação inicial (`backend.md`, removida após a auditoria; histórico no git).
 
 ---
 

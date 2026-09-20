@@ -6,7 +6,7 @@
 
 ## Contexto
 
-Conforme estabelecido em `backend.md` e `frontend.md`, o backend é o proprietário absoluto do contrato e das regras de integridade e validação do sistema. O frontend gerará tipos TypeScript estritos diretamente a partir do arquivo [`contracts/openapi.json`](file:///home/bruno/projects/ftth_tiiv/contracts/openapi.json).
+Conforme estabelecido na especificação inicial (`backend.md`/`frontend.md`, removidas após a auditoria; histórico no git), o backend é o proprietário absoluto do contrato e das regras de integridade e validação do sistema. O frontend gerará tipos TypeScript estritos diretamente a partir do arquivo [`contracts/openapi.json`](file:///home/bruno/projects/ftth_tiiv/contracts/openapi.json).
 
 Para evitar divergências, foram necessárias definições formais quanto a:
 1. Padronização de endpoints e esquemas de dados.

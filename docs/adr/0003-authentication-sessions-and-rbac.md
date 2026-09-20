@@ -4,7 +4,7 @@
 Aceito
 
 ## Contexto
-O FTTH Manager é um sistema corporativo para documentação física e óptica de infraestrutura de telecomunicações. As operações manipulam dados críticos de rota, clientes, topologia e cabos. Conforme estabelecido no documento de especificação `backend.md`:
+O FTTH Manager é um sistema corporativo para documentação física e óptica de infraestrutura de telecomunicações. As operações manipulam dados críticos de rota, clientes, topologia e cabos. Conforme estabelecido na especificação inicial (`backend.md`, removida após a auditoria; histórico no git):
 1. Não há cadastro público de usuários; o provisionamento é feito exclusivamente por administradores e a inicialização de acesso deve ocorrer via CLI segura.
 2. Não deve ser utilizado JWT no `localStorage` por riscos de extração via XSS.
 3. Não deve ser introduzido Redis exclusivamente para controle de concorrência ou limitação de taxa de autenticação.

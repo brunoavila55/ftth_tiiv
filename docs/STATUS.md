@@ -1,6 +1,6 @@
 # Estado do projeto — auditoria de segurança, estrutura e performance
 
-> Atualizado em 19/09/2026. Detalhe técnico por achado: `docs/security-audit/resolucao.md`.
+> Atualizado em 19/09/2026 (sessão de acompanhamento pós-auditoria). Detalhe técnico por achado: `docs/security-audit/resolucao.md`.
 > Procedimentos de operação das mudanças: `docs/runbooks/deployment-and-maintenance.md` (seções 9–28).
 
 ## 1. O que foi feito
@@ -19,9 +19,22 @@ A auditoria (`docs/security-audit/`) apontou 53 achados (18 de segurança, 21 de
 | Entrada de dados | Tetos de tamanho em todos os schemas; identificadores validados como UUID (422 em vez de 500) |
 | Frontend | Matriz de permissões gerada do backend (`contracts/permissions.json`), menu/rotas/ações escondidos por permissão |
 
-Resultado: **52 achados corrigidos, 1 parcial (PERF-09), 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 554 testes localmente (553 passam sem `pg_dump`/`pg_restore` no PATH + 1 pulado; 531 antes desta sessão + 23 novos de `StorageBackend`/S3); frontend: 181.
+Resultado: **52 achados corrigidos, 1 parcial (PERF-09), 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 561 testes localmente (560 passam sem `pg_dump`/`pg_restore` no PATH + 1 pulado); frontend: 181.
 
 **Sessão de 19/09/2026 (depois do adendo acima): EST-14 resolvido.** Storage de anexos/importações/exportações abstraído em `StorageBackend` (`backend/app/core/storage_backend.py`): `LocalStorage` (padrão, disco/volume, sem mudança de comportamento) e `S3Storage` (boto3, S3-compatível — MinIO escolhido pelo operador). `attachments/service.py`, `exports/service.py`, `imports/service.py`, `jobs/service.py` e os endpoints de download migrados; `core/storage.py` removido. Testado com `moto` (21 testes novos, rodam no CI) e manualmente contra um MinIO real (upload, hash, miniatura, delete, exportação em fluxo — todos OK; imagem `quay.io/minio/minio`, pois `minio/minio` saiu do Docker Hub em 2025). MinIO local em `compose.s3.yaml`, arquivo **separado** de propósito: `docker compose up` (só `compose.yaml`) não pode passar a exigir `MINIO_ROOT_USER`/`PASSWORD` de quem nunca vai usar S3 (testado: `docker compose config` falha na interpolação de variáveis mesmo com o serviço atrás de `profiles`, porque o compose valida o arquivo inteiro antes de aplicar o profile). Detalhe: `docs/adr/0007-escala-horizontal.md`.
+
+**Sessão de acompanhamento (19/09/2026): N-03 e itens 1/2 do épico do ADR 0007 resolvidos, decisão de instalação confirmada — MinIO sempre em container junto ao compose.**
+- **N-03**: permissões mortas (`cables:*`, `connectivity:*`, `topology:*`, `map:read`) removidas de `ROLE_PERMISSIONS` (`backend/app/core/permissions.py`); `contracts/permissions.json` e `frontend/src/lib/permissions/rbac.generated.ts` regenerados. Muda o retorno de `/auth/me` (listas de permissões mais curtas); sem impacto funcional (nada usava essas permissões — rotas e navegação já usavam `network:*`).
+- **Backup do bucket S3/MinIO** (item 4 do épico): `create_backup`/`restore_backup` (`backend/app/core/backup_restore.py`) usam a interface `StorageBackend` em vez de andar pelo filesystem quando `STORAGE_BACKEND=s3` e nenhum `--storage-path` é passado — baixam/restauram o bucket inteiro dentro do mesmo pacote assinado, com a mesma proteção contra path traversal do caminho local. Serviço `backup` do `compose.yaml` ganhou as variáveis `STORAGE_BACKEND`/`S3_*`.
+- **URLs pré-assinadas do S3** (item 2 do épico): `S3Storage.presigned_url()` novo; os três endpoints de download (anexo, miniatura, exportação) redirecionam (307) quando disponível, senão continuam com `StreamingResponse`. **Desligado por padrão** (`S3_PUBLIC_ENDPOINT_URL` vazio): o MinIO do `compose.s3.yaml` (`http://minio:9000`) só é alcançável dentro da rede Docker — habilitar exige expor o MinIO publicamente (Caddy com TLS próprio) e configurar essa variável.
+- Testado com `moto` (7 testes novos: 4 em `test_storage_backend.py`, 3 em `test_backup_s3.py`); suíte completa 560 passam + 1 pulado (era 553+1). `contracts/openapi.json` sem alteração (permissões não fazem parte do schema OpenAPI).
+
+**Limpeza pós-auditoria (19/09/2026):** a pedido do operador, removidos os artefatos brutos que só serviam ao processo da auditoria, já concluída e mesclada — `docs/security-audit/tools/` (16 scripts geradores/medidores), `findings.json`, `issues.md`, `inventario-rotas.md` e o PDF do relatório, além de `backend.md`/`frontend.md` (prompts de especificação usados para construir o app do zero). Mantidos como registro: `docs/security-audit/resolucao.md` (resumo técnico por achado) e `docs/security-audit/evidencias/` (medições e saídas de `pip-audit`/`pnpm audit`, citadas por `resolucao.md`). Nada de código ou teste foi alterado; referências quebradas nas ADRs, `README.md`, `backend/README.md`, docs de progresso e no docstring de `backend/scripts/benchmark_endpoints.py` foram ajustadas para não apontar mais para os arquivos removidos. Histórico completo segue no git.
+
+**Smoke do mapa (19/09/2026): dois bugs reais encontrados e corrigidos, nenhum no código do app até então não testado end-to-end em navegador.** Rodei o compose local com Playwright headless (login → `/map`) e achei:
+1. **Basemap CARTO quebrado**: `basemaps.cartocdn.com` (Voyager/Dark Matter, hardcoded em `operational-map.tsx`) passou a exigir API key — servia HTTP 200 com uma imagem-aviso ("API KEY REQUIRED") no lugar do tile. Substituído por **OpenFreeMap** (`tiles.openfreemap.org`, vetorial, sem cadastro/API key/limite — estilos `positron`/`dark`); CSP (`middleware.ts`) e `docs/runbooks/deployment-and-maintenance.md` §8 atualizados. `NEXT_PUBLIC_MAP_STYLE_URL` continua disponível para trocar de provedor sem mudar código.
+2. **MapLibre GL v6 nunca carregava tiles vetoriais sob webpack** (bug de migração conhecido do maplibre-gl-js — issues #8018/#8459 no upstream, "closed" em 15/09/2026): a resolução automática da URL do worker via `import.meta.url` não funciona dentro do bundle do Next.js/webpack, e falha silenciosamente (nem `load` nem `error` disparam) — reproduzido isolado até com o style oficial de demonstração do próprio MapLibre, fora do código do app. Corrigido chamando `maplibregl.setWorkerUrl()` uma vez (`operational-map.tsx`) apontando para `maplibre-gl-worker.mjs` + seu companheiro `maplibre-gl-shared.mjs` (import relativo entre os dois — precisam ser servidos juntos), copiados de `node_modules` para `public/maplibre/` por `predev`/`prebuild` (`frontend/scripts/copy-maplibre-worker.mjs`, novo). Esse segundo bug já existia com o CARTO raster também (raster não usa worker, por isso não aparecia) — só ficou visível ao trocar para um estilo vetorial.
+Confirmado com screenshot real (São Paulo, ruas e labels renderizando) contra o compose local seedado (`seed_demo.py`); 181 testes de frontend + lint + typecheck + build Docker OK depois da mudança.
 
 ## 2. Situação do CI (`master`, 19/09/2026)
 
@@ -44,13 +57,8 @@ O CI vermelho anterior tinha uma causa real de código: `restore_backup` usava `
 
 ### 3.2 Posso fazer numa próxima sessão (sem depender de infraestrutura)
 
-- **Backup do bucket S3/MinIO** — `scripts/backup.py`/`restore.py` só cobrem o volume local (`STORAGE_PATH`); quem ligar `STORAGE_BACKEND=s3` em produção depende só da durabilidade própria do MinIO/S3 (versionamento/replicação do bucket) até isso ser feito. Ver item 4 do épico em `docs/adr/0007-escala-horizontal.md`.
-- **URLs pré-assinadas do S3** — hoje todo download com `STORAGE_BACKEND=s3` passa pelo backend (`StreamingResponse`); pré-assinar a URL evitaria essa carga em arquivos grandes. Item 2 do mesmo épico.
-- **N-03 — permissões sem rota**: `cables:*`, `connectivity:*`, `topology:*` e `map:read` existem no RBAC, mas as rotas exigem `network:*`. Caminho seguro: remover as permissões mortas e regenerar `contracts/` (`scripts/export_permissions.py` + OpenAPI). Muda o retorno de `/auth/me`.
-- **Smoke do mapa com `maplibre-gl` 6** em navegador headless (Playwright) contra o compose local.
 - **PERF-09** — o `UPDATE network_topology_state` (linha única) serializa escritas de topologia. Mitigado (último passo antes do commit + `statement_timeout`). Advisory lock/sequence só se a medição mostrar contenção; não é urgente.
 - **N-05** — rate limit em memória por processo (efetivo ×2 com `WEB_CONCURRENCY=2`, zera a cada restart). Aceito; a interface `RateLimiter` (`core/rate_limit.py`) permite trocar por Postgres/Redis.
-- **N-08** — `docs/security-audit/tools/*.py` têm caminhos absolutos; não regerar `inventario-rotas.md` sem revisar.
 - **Revisão do diff** — `/code-review` e `/security-review` sobre as 28 etapas + adendo, recomendado antes de considerar a auditoria concluída.
 
 ### 3.3 Como rodar tudo localmente

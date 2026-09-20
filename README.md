@@ -6,7 +6,7 @@ Sistema open source e self-hosted para gestão técnica e operacional de redes d
 
 ## 🚀 Status do Projeto (Roadmap Backend B01–B18)
 
-O backend segue estritamente as etapas definidas em [`backend.md`](backend.md).
+O backend foi construído seguindo as etapas de uma especificação inicial (`backend.md`, removida após a conclusão da auditoria de segurança; histórico no git).
 
 | Etapa | Descrição | Status |
 |---|---|:---:|
@@ -33,7 +33,7 @@ O backend segue estritamente as etapas definidas em [`backend.md`](backend.md).
 
 ## 🎨 Status do Projeto (Roadmap Frontend F01–F20)
 
-O frontend segue rigorosamente as etapas definidas em [`frontend.md`](frontend.md).
+O frontend foi construído seguindo as etapas de uma especificação inicial (`frontend.md`, removida após a conclusão da auditoria de segurança; histórico no git).
 
 | Etapa | Descrição | Status |
 |---|---|:---:|

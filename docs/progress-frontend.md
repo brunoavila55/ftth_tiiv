@@ -1,6 +1,6 @@
 # Progresso de Desenvolvimento Frontend — FTTH Manager
 
-Registro contínuo de entregas, decisões de implementação, critérios de aceite atendidos e evidências de verificação do frontend do **FTTH Manager**, seguindo rigorosamente [`frontend.md`](file:///home/bruno/projects/ftth_tiiv/frontend.md) e o contrato compartilhado em `contracts/openapi.json`.
+Registro contínuo de entregas, decisões de implementação, critérios de aceite atendidos e evidências de verificação do frontend do **FTTH Manager**, seguindo rigorosamente a especificação inicial (`frontend.md`, removida após a auditoria; histórico no git) e o contrato compartilhado em `contracts/openapi.json`.
 
 ---
 
@@ -713,7 +713,7 @@ Registro contínuo de entregas, decisões de implementação, critérios de acei
 - **Data de conclusão**: 2026-09-18
 - **Ações e Entregas**:
   - **Auditoria de Rotas e Telas**:
-    - Todas as rotas da aplicação (`/dashboard`, `/map`, `/sites`, `/poles`, `/ceos`, `/ctos`, `/devices`, `/cables`, `/customers`, `/topology`, `/optical-budget`, `/measurements`, `/simulations`, `/reports`, `/imports`, `/exports`, `/audit`, `/settings`, `/settings/users`) revisadas contra `frontend.md`.
+    - Todas as rotas da aplicação (`/dashboard`, `/map`, `/sites`, `/poles`, `/ceos`, `/ctos`, `/devices`, `/cables`, `/customers`, `/topology`, `/optical-budget`, `/measurements`, `/simulations`, `/reports`, `/imports`, `/exports`, `/audit`, `/settings`, `/settings/users`) revisadas contra a especificação inicial (`frontend.md`, removida após a auditoria; histórico no git).
     - Eliminação completa de botões mortos, scaffolds e dados inventados hardcoded.
     - Respeito integral às unidades físicas em todas as telas (`_m`, `_db`, `_dbm`, `nm`).
   - **Infraestrutura e Containerização**:

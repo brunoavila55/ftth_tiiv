@@ -4,7 +4,7 @@
 Aceito
 
 ## Contexto
-No projeto FTTH Manager, a modelagem de cabos de fibra óptica requer granularidade no nível de tubo loose e fibra individual. Conforme os requisitos do prompt B06 do `backend.md`:
+No projeto FTTH Manager, a modelagem de cabos de fibra óptica requer granularidade no nível de tubo loose e fibra individual. Conforme os requisitos do prompt B06 da especificação inicial (`backend.md`, removida após a auditoria; histórico no git):
 1. Criação transacional de cabos a partir de modelos de catálogo ou especificações diretas, gerando tubos e fibras numerados com rastreabilidade completa.
 2. Suporte a cabos multitubo e cabos sem tubos físicos (monotubo / loose único ou tight buffered), utilizando agrupamento lógico explicitamente identificado (`is_logical_group = True`).
 3. Suporte a múltiplos padrões e sequências de cores de tubos e fibras (NBR 14106 / ABNT, TIA-598-C, DIN VDE 0888), sem codificar uma única sequência como verdade universal. Fibras e tubos são identificados por número global, posição e nome da cor. Nenhuma fibra pode ser anônima ou identificada exclusivamente por cor.
