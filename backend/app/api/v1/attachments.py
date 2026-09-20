@@ -12,7 +12,7 @@ from fastapi import (
     UploadFile,
     status,
 )
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.concurrency import parse_if_match
@@ -197,6 +197,11 @@ def download_attachment(
             filename=attachment.file_name,
             content_disposition_type="attachment",
         )
+    presigned = backend.presigned_url(
+        key, filename=attachment.file_name, content_type=attachment.content_type
+    )
+    if presigned is not None:
+        return RedirectResponse(url=presigned, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
     return StreamingResponse(
         stream_chunks(backend.open_read(key)),
         media_type=attachment.content_type,
@@ -230,6 +235,9 @@ def get_attachment_thumbnail(
     local = backend.local_path(key)
     if local is not None:
         return FileResponse(path=str(local), media_type="image/webp")
+    presigned = backend.presigned_url(key, content_type="image/webp")
+    if presigned is not None:
+        return RedirectResponse(url=presigned, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
     return StreamingResponse(stream_chunks(backend.open_read(key)), media_type="image/webp")
 
 

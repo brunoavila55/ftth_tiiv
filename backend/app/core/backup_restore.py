@@ -19,6 +19,7 @@ Segurança (SEC-10 / EST-19):
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import hmac
 import json
@@ -34,7 +35,7 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import IO, Literal, cast
 from urllib.parse import urlparse
 
 import psycopg
@@ -49,6 +50,7 @@ from app.core.backup_crypto import (
     is_encrypted_file,
 )
 from app.core.config import get_settings
+from app.core.storage_backend import StorageBackend, get_storage_backend
 from app.db.session import get_session_factory
 
 logger = logging.getLogger("ftth.backup")
@@ -334,15 +336,72 @@ def restore_database_psycopg_binary(db_url: str, dump_path: Path) -> None:
             conn.commit()
 
 
+def _tar_attachments_from_local(storage_path: Path, attachments_tar: Path) -> int:
+    """Anexos em volume local (padrão): mesmo comportamento de sempre."""
+    files_count = 0
+    with tarfile.open(attachments_tar, "w:gz") as tar:
+        if storage_path.exists():
+            for root, _, files in os.walk(storage_path):
+                for file in files:
+                    full_p = Path(root) / file
+                    rel_p = full_p.relative_to(storage_path)
+                    tar.add(full_p, arcname=str(rel_p))
+                    files_count += 1
+    return files_count
+
+
+def _tar_attachments_from_bucket(backend: StorageBackend, attachments_tar: Path) -> int:
+    """Anexos em S3/MinIO (item 4 do épico, ADR 0007): baixa todo o bucket para o pacote de backup —
+    sem isso, quem usa `STORAGE_BACKEND=s3` depende só da durabilidade própria do bucket."""
+    files_count = 0
+    with tarfile.open(attachments_tar, "w:gz") as tar:
+        for entry in backend.list(""):
+            with contextlib.closing(backend.open_read(entry.key)) as fh:
+                info = tarfile.TarInfo(name=entry.key)
+                info.size = entry.size_bytes
+                info.mtime = int(entry.mtime)
+                tar.addfile(info, fileobj=fh)
+            files_count += 1
+    return files_count
+
+
+def _reject_unsafe_member_name(name: str) -> None:
+    if name.startswith(("/", "\\")) or ".." in Path(name).parts:
+        raise BackupIntegrityError(f"Backup recusado: nome de anexo inseguro no pacote: {name!r}")
+
+
+def _restore_attachments_to_bucket(backend: StorageBackend, attachments_tar: Path) -> None:
+    """Restaura anexos para S3/MinIO. `safe_extract` não se aplica (não há filesystem de destino);
+    cada nome de membro é validado individualmente antes de gravar no bucket."""
+    with tarfile.open(attachments_tar, "r:gz") as tar:
+        for member in tar.getmembers():
+            if not member.isfile():
+                continue
+            _reject_unsafe_member_name(member.name)
+            fh = tar.extractfile(member)
+            if fh is None:
+                continue
+            with backend.save_stream(member.name) as out:
+                out_bytes = cast("IO[bytes]", out)
+                while chunk := fh.read(65536):
+                    out_bytes.write(chunk)
+
+
 def create_backup(
     target_dir: Path | str | None = None,
     db_url: str | None = None,
     storage_path: Path | str | None = None,
 ) -> Path:
-    """Executa o procedimento completo de backup atômico de DB e Anexos."""
+    """Executa o procedimento completo de backup atômico de DB e Anexos.
+
+    Anexos: se `storage_path` for informado (explicitamente, ou por `STORAGE_BACKEND=local`), lê o
+    volume local; se `STORAGE_BACKEND=s3` e nenhum `storage_path` for informado, baixa o bucket
+    inteiro do S3/MinIO configurado (`get_storage_backend()`).
+    """
     settings = get_settings()
     db_url = db_url or settings.DATABASE_URL
-    storage_path = Path(storage_path or settings.STORAGE_PATH)
+    use_bucket = storage_path is None and settings.STORAGE_BACKEND == "s3"
+    storage_path_resolved = Path(storage_path or settings.STORAGE_PATH)
     signing_key = get_signing_key()  # falha cedo (produção sem chave)
 
     timestamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
@@ -403,15 +462,10 @@ def create_backup(
 
         # 3. Dump dos Anexos / Fotos
         attachments_tar = tmp_dir / "attachments.tar.gz"
-        files_count = 0
-        with tarfile.open(attachments_tar, "w:gz") as tar:
-            if storage_path.exists():
-                for root, _, files in os.walk(storage_path):
-                    for file in files:
-                        full_p = Path(root) / file
-                        rel_p = full_p.relative_to(storage_path)
-                        tar.add(full_p, arcname=str(rel_p))
-                        files_count += 1
+        if use_bucket:
+            files_count = _tar_attachments_from_bucket(get_storage_backend(), attachments_tar)
+        else:
+            files_count = _tar_attachments_from_local(storage_path_resolved, attachments_tar)
 
         att_sha256 = calculate_sha256(attachments_tar)
         att_size = attachments_tar.stat().st_size
@@ -505,7 +559,8 @@ def restore_backup(
 
     settings = get_settings()
     target_db_url = target_db_url or settings.DATABASE_URL
-    target_storage_path = Path(target_storage_path or settings.STORAGE_PATH)
+    use_bucket = target_storage_path is None and settings.STORAGE_BACKEND == "s3"
+    target_storage_path_resolved = Path(target_storage_path or settings.STORAGE_PATH)
 
     with tempfile.TemporaryDirectory() as tmp_dir_str:
         tmp_dir = Path(tmp_dir_str)
@@ -554,7 +609,10 @@ def restore_backup(
 
         # 4a. Anexos primeiro (extração validada): se forem recusados, o banco nem é tocado
         if attachments_tar.exists() and manifest.attachments_count > 0:
-            safe_extract(attachments_tar, target_storage_path, "r:gz")
+            if use_bucket:
+                _restore_attachments_to_bucket(get_storage_backend(), attachments_tar)
+            else:
+                safe_extract(attachments_tar, target_storage_path_resolved, "r:gz")
 
         # 4b. Restauração do Banco de Dados
         has_pg_restore = shutil.which("pg_restore") is not None

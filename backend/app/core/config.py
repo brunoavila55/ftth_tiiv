@@ -96,6 +96,13 @@ class Settings(BaseSettings):
     S3_SECRET_KEY: str = ""
     S3_REGION: str = "us-east-1"
     S3_USE_PATH_STYLE: bool = True  # MinIO exige addressing por path, não por subdomínio
+    # URL pública opcional para assinar downloads diretos do bucket (evita StreamingResponse pelo
+    # backend em arquivos grandes). Vazio (padrão) = downloads sempre passam pelo backend — seguro
+    # por padrão, pois S3_ENDPOINT_URL do MinIO em compose.s3.yaml (ex.: http://minio:9000) só é
+    # alcançável DENTRO da rede Docker, nunca pelo navegador do usuário. Só defina esta variável se
+    # o bucket tiver um endpoint alcançável publicamente (S3 gerenciado, ou MinIO exposto pelo Caddy
+    # com TLS próprio — decisão de instalação, ver ADR 0007).
+    S3_PUBLIC_ENDPOINT_URL: str = ""
     # Jobs assíncronos: lease do worker (renovada por heartbeat a cada lease/3 enquanto o job roda)
     JOB_LEASE_SECONDS: float = Field(default=60.0, gt=0)
     EXPORT_TTL_DAYS: int = Field(default=7, ge=1)  # arquivos de exportação vencem após N dias

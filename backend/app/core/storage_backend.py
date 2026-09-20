@@ -57,6 +57,19 @@ class StorageBackend(Protocol):
         sem passar pelo processo — quando `None`, quem chama deve usar `open_read`/streaming)."""
         ...
 
+    def presigned_url(
+        self,
+        key: str,
+        *,
+        filename: str | None = None,
+        content_type: str | None = None,
+        expires_in: int = 300,
+    ) -> str | None:
+        """URL assinada para download direto do bucket, evitando proxy pelo backend em arquivos
+        grandes. `None` quando o backend não suporta (local) ou quando não há endpoint público
+        configurado — quem chama deve então servir via `open_read`/streaming."""
+        ...
+
 
 def stream_chunks(stream: IO[bytes], chunk_size: int = 65_536) -> Iterator[bytes]:
     """Consome `stream` em blocos e garante o fechamento — usado para servir download via
@@ -185,6 +198,16 @@ class LocalStorage:
     def local_path(self, key: str) -> Path | None:
         return self._resolve(key)
 
+    def presigned_url(
+        self,
+        key: str,
+        *,
+        filename: str | None = None,
+        content_type: str | None = None,
+        expires_in: int = 300,
+    ) -> str | None:
+        return None
+
 
 class S3Storage:
     """S3/MinIO via boto3. `save`/`save_stream` só deixam o objeto visível quando completo."""
@@ -198,22 +221,39 @@ class S3Storage:
         secret_key: str,
         region: str,
         use_path_style: bool,
+        public_endpoint_url: str = "",
     ) -> None:
         import boto3
         from botocore.client import Config as BotoConfig
 
         self._bucket = bucket
+        boto_config = BotoConfig(
+            signature_version="s3v4",
+            s3={"addressing_style": "path" if use_path_style else "auto"},
+        )
         self._client = boto3.client(
             "s3",
             endpoint_url=endpoint_url or None,
             aws_access_key_id=access_key,
             aws_secret_access_key=secret_key,
             region_name=region,
-            config=BotoConfig(
-                signature_version="s3v4",
-                s3={"addressing_style": "path" if use_path_style else "auto"},
-            ),
+            config=boto_config,
         )
+        # Assinatura só embute a URL do próprio cliente; quando o endpoint interno (ex.: MinIO em
+        # compose.s3.yaml, "http://minio:9000") não é alcançável pelo navegador, um segundo cliente
+        # com o endpoint público assina a mesma requisição sem precisar alcançá-lo (gera a URL
+        # localmente, não faz chamada de rede) — ver S3_PUBLIC_ENDPOINT_URL.
+        self._presign_client = self._client
+        self._presigned_downloads_enabled = bool(public_endpoint_url)
+        if public_endpoint_url and public_endpoint_url != endpoint_url:
+            self._presign_client = boto3.client(
+                "s3",
+                endpoint_url=public_endpoint_url,
+                aws_access_key_id=access_key,
+                aws_secret_access_key=secret_key,
+                region_name=region,
+                config=boto_config,
+            )
         self._ensure_bucket()
 
     def _ensure_bucket(self) -> None:
@@ -301,6 +341,26 @@ class S3Storage:
     def local_path(self, key: str) -> Path | None:
         return None
 
+    def presigned_url(
+        self,
+        key: str,
+        *,
+        filename: str | None = None,
+        content_type: str | None = None,
+        expires_in: int = 300,
+    ) -> str | None:
+        if not self._presigned_downloads_enabled:
+            return None
+        params: dict[str, str] = {"Bucket": self._bucket, "Key": key}
+        if content_type:
+            params["ResponseContentType"] = content_type
+        if filename:
+            params["ResponseContentDisposition"] = f'attachment; filename="{filename}"'
+        url: str = self._presign_client.generate_presigned_url(
+            "get_object", Params=params, ExpiresIn=expires_in
+        )
+        return url
+
 
 @lru_cache
 def get_storage_backend() -> StorageBackend:
@@ -313,5 +373,6 @@ def get_storage_backend() -> StorageBackend:
             secret_key=settings.S3_SECRET_KEY,
             region=settings.S3_REGION,
             use_path_style=settings.S3_USE_PATH_STYLE,
+            public_endpoint_url=settings.S3_PUBLIC_ENDPOINT_URL,
         )
     return LocalStorage(Path(settings.STORAGE_PATH))

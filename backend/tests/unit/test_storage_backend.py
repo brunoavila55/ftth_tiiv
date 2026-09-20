@@ -140,3 +140,51 @@ def test_s3_bucket_is_created_automatically() -> None:
         client = boto3.client("s3", region_name="us-east-1")
         buckets = {b["Name"] for b in client.list_buckets()["Buckets"]}
         assert "outro-bucket" in buckets
+
+
+# ---------------------------------------------------------------------------------------------
+# URLs pré-assinadas (ADR 0007, item 2): desabilitadas por padrão — só ligam com endpoint público
+# explícito, porque o MinIO do compose.s3.yaml (S3_ENDPOINT_URL=http://minio:9000) só é alcançável
+# dentro da rede Docker, nunca pelo navegador do usuário.
+# ---------------------------------------------------------------------------------------------
+
+
+def test_local_presigned_url_is_always_none(local_backend: LocalStorage) -> None:
+    local_backend.save("attachments/a.png", b"dados")
+    assert local_backend.presigned_url("attachments/a.png") is None
+
+
+def test_s3_presigned_url_disabled_without_public_endpoint(s3_backend: S3Storage) -> None:
+    s3_backend.save("exports/1.csv", b"a,b\n1,2\n")
+    assert s3_backend.presigned_url("exports/1.csv") is None
+
+
+def test_s3_presigned_url_uses_public_endpoint_when_configured() -> None:
+    # `endpoint_url=""` no cliente principal é o único jeito de exercitar S3Storage sob moto (ele só
+    # intercepta o endpoint padrão da AWS); o cliente de assinatura, por outro lado, nunca faz
+    # chamada de rede (`generate_presigned_url` só monta e assina a URL localmente), então pode
+    # apontar para qualquer host público — inclusive um inalcançável neste teste.
+    with mock_aws():
+        backend = S3Storage(
+            bucket="ftth-presign-bucket",
+            endpoint_url="",
+            access_key="test",
+            secret_key="test",
+            region="us-east-1",
+            use_path_style=True,
+            public_endpoint_url="https://minio.exemplo.com.br",
+        )
+        backend.save("attachments/foto.jpg", b"dados")
+        url = backend.presigned_url(
+            "attachments/foto.jpg", filename="foto.jpg", content_type="image/jpeg"
+        )
+        assert url is not None
+        assert url.startswith("https://minio.exemplo.com.br/")
+        assert "X-Amz-Signature=" in url
+        assert "response-content-disposition=attachment%3B" in url
+        assert "filename%3D%22foto.jpg%22" in url
+        assert "response-content-type=image%2Fjpeg" in url
+
+
+def test_s3_presign_client_is_reused_when_no_public_endpoint_is_set(s3_backend: S3Storage) -> None:
+    assert s3_backend._presign_client is s3_backend._client  # type: ignore[attr-defined]

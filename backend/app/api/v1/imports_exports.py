@@ -2,7 +2,7 @@ import uuid
 from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, File, Header, HTTPException, Response, UploadFile, status
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, RedirectResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -216,6 +216,9 @@ def download_export(
     local = backend.local_path(job.result_path)
     if local is not None:
         return FileResponse(path=str(local), media_type=content_type, filename=filename)
+    presigned = backend.presigned_url(job.result_path, filename=filename, content_type=content_type)
+    if presigned is not None:
+        return RedirectResponse(url=presigned, status_code=status.HTTP_307_TEMPORARY_REDIRECT)
     return StreamingResponse(
         stream_chunks(backend.open_read(job.result_path)),
         media_type=content_type,
