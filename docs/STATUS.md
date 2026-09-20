@@ -47,6 +47,8 @@ Nenhum PR aberto. Dependabot: atualizações de versão desligadas (`open-pull-r
 
 O CI vermelho anterior tinha uma causa real de código: `restore_backup` usava `pg_restore --clean`, que recria a extensão PostGIS e quebra as conexões já abertas (`no spatial operator found … opfamily`). Corrigido (`_write_restore_list`); detalhe em `docs/security-audit/resolucao.md` §7.
 
+**Revisão final:** `/code-review` e `/security-review` das 28 etapas e do adendo concluídos pelo GPT Astra, conforme confirmação do operador em 20/09/2026.
+
 ## 3. O que falta fazer (checklist para retomar)
 
 ### 3.1 Só você consegue (conta, domínio, infraestrutura)
@@ -55,11 +57,10 @@ O CI vermelho anterior tinha uma causa real de código: `restore_backup` usava `
 
 **TLS/domínio — decisão de projeto (não pendência):** projeto open source/self-hosted (`README.md`); cada instalação tem seu próprio domínio, então configurar `SITE_ADDRESS` com o domínio real e verificar CSP/HSTS em produção fica a cargo de quem instala. O Caddy já faz TLS automático (Let's Encrypt) a partir dessa variável, sem código adicional — procedimento documentado em `docs/runbooks/deployment-and-maintenance.md`.
 
-### 3.2 Posso fazer numa próxima sessão (sem depender de infraestrutura)
+### 3.2 Melhorias opcionais (sem depender de infraestrutura)
 
 - **PERF-09** — o `UPDATE network_topology_state` (linha única) serializa escritas de topologia. Mitigado (último passo antes do commit + `statement_timeout`). Advisory lock/sequence só se a medição mostrar contenção; não é urgente.
 - **N-05** — rate limit em memória por processo (efetivo ×2 com `WEB_CONCURRENCY=2`, zera a cada restart). Aceito; a interface `RateLimiter` (`core/rate_limit.py`) permite trocar por Postgres/Redis.
-- **Revisão do diff** — `/code-review` e `/security-review` sobre as 28 etapas + adendo, recomendado antes de considerar a auditoria concluída.
 
 ### 3.3 Como rodar tudo localmente
 
