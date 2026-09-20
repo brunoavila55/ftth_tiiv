@@ -51,7 +51,7 @@ O CI vermelho anterior tinha uma causa real de código: `restore_backup` usava `
 
 ### 3.1 Só você consegue (conta, domínio, infraestrutura)
 
-1. **Confirmar as decisões assumidas** (seção 4 abaixo).
+**Decisões assumidas confirmadas pelo operador em 20/09/2026** (seção 4 abaixo) — nada pendente aqui.
 
 **TLS/domínio — decisão de projeto (não pendência):** projeto open source/self-hosted (`README.md`); cada instalação tem seu próprio domínio, então configurar `SITE_ADDRESS` com o domínio real e verificar CSP/HSTS em produção fica a cargo de quem instala. O Caddy já faz TLS automático (Let's Encrypt) a partir dessa variável, sem código adicional — procedimento documentado em `docs/runbooks/deployment-and-maintenance.md`.
 
@@ -78,7 +78,7 @@ cd ../frontend && pnpm install --frozen-lockfile && pnpm lint && pnpm typecheck 
 - Sem `TEST_DATABASE_URL` a suíte usa `127.0.0.1:5432/ftth_manager_test` (o mesmo servidor do `ftth_db`).
 - Containers descartáveis desta sessão, se ainda existirem: `docker rm -f ftth-test-pg ftth-audit-pg`.
 
-## 4. Decisões assumidas (confirmar)
+## 4. Decisões assumidas (confirmadas pelo operador em 20/09/2026)
 
 Sem painel/busca públicos; rate limit em memória por processo (interface trocável); auditoria por listeners da Session; exportações expiram em 7 dias; cabos importados resolvem pontas por código → proximidade → erro; 2 workers, pool 5+5 e `statement_timeout` 30 s (worker 10 min); TLS no Caddy (balanceador externo documentado); upgrade do maplibre-gl 6; backup cifrado por `cryptography` (AES-256-GCM); retenção de 30 dias (`login_attempts`) e 7 dias (sessões inválidas), `audit_events` sem retenção; R21 só ADR.
 
