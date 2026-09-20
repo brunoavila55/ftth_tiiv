@@ -225,7 +225,9 @@ def list_audit_events(
             action=e.action,
             entity_type=e.entity_type,
             entity_id=str(e.entity_id),
-            changes=(e.changes or {}) if can_see_pii else mask_pii_changes(e.changes or {}),
+            changes=(e.changes or {})
+            if can_see_pii
+            else mask_pii_changes(e.changes or {}, entity_type=e.entity_type),
             reason=e.reason,
             request_id=e.request_id,
             created_at=e.created_at,

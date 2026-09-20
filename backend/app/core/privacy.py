@@ -17,6 +17,10 @@ CUSTOMER_PII_ENTITY_TYPES = frozenset({"customer", "service_link"})
 # Campos pessoais mascarados na trilha de auditoria para quem não tem customers:read
 AUDIT_PII_FIELDS = frozenset({"phone", "email", "address"})
 
+# `name`/`notes` só identificam pessoa em eventos de cliente/vínculo (`CUSTOMER_PII_ENTITY_TYPES`);
+# mascará-los para qualquer entidade escondería dado não sensível (nome de site, notas de medição).
+AUDIT_CUSTOMER_ONLY_PII_FIELDS = frozenset({"name", "notes"})
+
 REDACTED = "[REDACTED]"
 
 
@@ -40,15 +44,20 @@ def require_customer_access(user: User, entity_type: str, *, write: bool = False
         )
 
 
-def mask_pii_changes(changes: Any) -> Any:
-    """Mascara recursivamente phone/email/address, preservando as chaves (o campo mudou)."""
+def mask_pii_changes(changes: Any, *, entity_type: str | None = None) -> Any:
+    """Mascara recursivamente phone/email/address (todas as entidades) e, quando `entity_type` é
+    de cliente/vínculo (`is_customer_pii_entity`), também name/notes, preservando as chaves (o
+    campo mudou)."""
+    fields = AUDIT_PII_FIELDS
+    if entity_type is not None and is_customer_pii_entity(entity_type):
+        fields = fields | AUDIT_CUSTOMER_ONLY_PII_FIELDS
     if isinstance(changes, dict):
         return {
             key: REDACTED
-            if isinstance(key, str) and key.lower() in AUDIT_PII_FIELDS
-            else mask_pii_changes(value)
+            if isinstance(key, str) and key.lower() in fields
+            else mask_pii_changes(value, entity_type=entity_type)
             for key, value in changes.items()
         }
     if isinstance(changes, list):
-        return [mask_pii_changes(item) for item in changes]
+        return [mask_pii_changes(item, entity_type=entity_type) for item in changes]
     return changes

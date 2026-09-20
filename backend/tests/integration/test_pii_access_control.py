@@ -158,7 +158,12 @@ def _seed_audit_events(db: Session) -> None:
             action="customer:updated",
             entity_type="customer",
             entity_id=uuid.uuid4(),
-            changes={**PII, "notes": "sem PII", "nested": {"before": {"phone": PII["phone"]}}},
+            changes={
+                **PII,
+                "name": "Fulana Sigilosa",
+                "notes": "endereço alternativo para entrega",
+                "nested": {"before": {"phone": PII["phone"]}},
+            },
         )
     )
     db.add(
@@ -170,12 +175,23 @@ def _seed_audit_events(db: Session) -> None:
             changes={"address": PII["address"], "status": "active"},
         )
     )
+    db.add(
+        AuditEvent(
+            actor_name="Eng",
+            action="site:updated",
+            entity_type="site",
+            entity_id=uuid.uuid4(),
+            changes={"name": "Site Central", "notes": "manutenção preventiva"},
+        )
+    )
     db.commit()
 
 
 def test_audit_events_mask_pii_for_users_without_customers_read(
     client: TestClient, db_session: Session
 ) -> None:
+    """name/notes só identificam pessoa em eventos de customer/service_link: mascarados aí, mas
+    preservados em outras entidades (ex.: nome/notas de um site) — não é dado pessoal."""
     _seed_audit_events(db_session)
     _login(client, db_session, "technician")
     resp = client.get("/api/v1/audit-events")
@@ -183,13 +199,18 @@ def test_audit_events_mask_pii_for_users_without_customers_read(
     body = resp.text
     for value in PII.values():
         assert value not in body
+    assert "Fulana Sigilosa" not in body
+    assert "endereço alternativo para entrega" not in body
     items = resp.json()["items"]
     cust_evt = next(i for i in items if i["entity_type"] == "customer")
     assert cust_evt["changes"]["phone"] == "[REDACTED]"
-    assert cust_evt["changes"]["notes"] == "sem PII"  # só os campos pessoais são mascarados
+    assert cust_evt["changes"]["name"] == "[REDACTED]"
+    assert cust_evt["changes"]["notes"] == "[REDACTED]"
     assert cust_evt["changes"]["nested"]["before"]["phone"] == "[REDACTED]"
     link_evt = next(i for i in items if i["entity_type"] == "service_link")
     assert link_evt["changes"] == {"address": "[REDACTED]", "status": "active"}
+    site_evt = next(i for i in items if i["entity_type"] == "site")
+    assert site_evt["changes"] == {"name": "Site Central", "notes": "manutenção preventiva"}
 
 
 def test_audit_events_show_pii_to_customers_readers(
@@ -199,6 +220,7 @@ def test_audit_events_show_pii_to_customers_readers(
     _login(client, db_session, "engineer")
     resp = client.get("/api/v1/audit-events")
     assert PII["phone"] in resp.text and PII["address"] in resp.text
+    assert "Fulana Sigilosa" in resp.text
 
 
 @pytest.mark.parametrize(
@@ -250,29 +272,11 @@ def test_cto_occupancy_hides_customer_data_without_customers_read(
             assert value not in resp.text
 
 
-# Permissões declaradas na matriz que ainda não são exigidas por nenhuma rota, por motivo:
-_GRANULAR_NOT_WIRED = (
-    "declarada na matriz, mas as rotas usam network:read|write (concedidas aos mesmos papéis, "
-    "então não há privilégio a mais); a decisão de usar ou remover é da R27 (front × back)"
-)
-UNUSED_PERMISSION_EXCEPTIONS: dict[str, str] = {
-    "cables:read": _GRANULAR_NOT_WIRED,
-    "cables:write": _GRANULAR_NOT_WIRED,
-    "connectivity:read": _GRANULAR_NOT_WIRED,
-    "connectivity:write": _GRANULAR_NOT_WIRED,
-    "map:read": _GRANULAR_NOT_WIRED,
-    "topology:read": _GRANULAR_NOT_WIRED,
-    "topology:write": _GRANULAR_NOT_WIRED,
-}
-
-
 def test_every_declared_permission_is_required_by_some_route() -> None:
     declared = set().union(*ROLE_PERMISSIONS.values())
     used: set[str] = set()
     for route in iter_api_routes(create_app()):
         used |= required_permissions(route.dependant)
 
-    unused = declared - used - set(UNUSED_PERMISSION_EXCEPTIONS)
+    unused = declared - used
     assert not unused, f"Permissões declaradas mas nunca exigidas por rota: {sorted(unused)}"
-    stale = set(UNUSED_PERMISSION_EXCEPTIONS) & used
-    assert not stale, f"Exceções obsoletas (agora usadas): {sorted(stale)}"
