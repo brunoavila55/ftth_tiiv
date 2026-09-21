@@ -200,4 +200,6 @@ Consulte o guia completo em [`docs/runbooks/deployment-and-maintenance.md`](docs
 
 ## 📄 Licença
 
-Recomendada a licença **AGPL-3.0 (GNU Affero General Public License v3)** para manter a infraestrutura livre e comunitária mesmo quando operada como serviço de nuvem (SaaS). Alternativamente, consulte as recomendações em [`docs/audit-b18.md`](docs/audit-b18.md).
+Este projeto é licenciado sob a **GNU Affero General Public License v3.0
+(AGPL-3.0-only)**. Consulte o arquivo [`LICENSE`](LICENSE) para ver os termos
+completos.
