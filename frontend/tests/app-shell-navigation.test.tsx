@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import * as React from "react";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
   NAVIGATION_GROUPS,
@@ -15,6 +17,7 @@ import {
 } from "@/components/ui/state-displays";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { ApiError } from "@/lib/api/types";
+import NotFoundPage from "@/app/not-found";
 
 describe("Navegação e Breadcrumbs (F02 Design System & Shell)", () => {
   it("contém todos os 4 grupos estruturais exigidos pelo frontend.md", () => {
@@ -51,6 +54,30 @@ describe("Navegação e Breadcrumbs (F02 Design System & Shell)", () => {
     for (const item of devItems) {
       expect(item.badge).toBe("Em breve");
     }
+  });
+
+  it("mantém uma página real para cada item de menu marcado como implementado", () => {
+    const implementedItems = NAVIGATION_GROUPS.flatMap((group) => group.items).filter(
+      (item) => item.implemented
+    );
+
+    for (const item of implementedItems) {
+      const routeSegments = item.href.split("/").filter(Boolean);
+      const pagePath = path.join(
+        process.cwd(),
+        "src",
+        "app",
+        "(app)",
+        ...routeSegments,
+        "page.tsx"
+      );
+      expect(existsSync(pagePath), `${item.href} deve possuir page.tsx`).toBe(true);
+    }
+
+    expect(
+      existsSync(path.join(process.cwd(), "src", "app", "(app)", "[...slug]", "page.tsx")),
+      "rotas desconhecidas não podem ser mascaradas por um catch-all"
+    ).toBe(false);
   });
 
   it("converte caminhos de URL para breadcrumbs legíveis em pt-BR", () => {
@@ -93,6 +120,18 @@ describe("Navegação e Breadcrumbs (F02 Design System & Shell)", () => {
 
     const homeLink = screen.getByRole("link", { name: /início/i });
     expect(homeLink.getAttribute("href")).toBe("/");
+  });
+});
+
+describe("Página não encontrada", () => {
+  it("exibe HTTP 404 e oferece retorno seguro ao painel", () => {
+    render(<NotFoundPage />);
+
+    expect(screen.getByText("HTTP 404")).toBeTruthy();
+    expect(screen.getByRole("heading", { name: "Página não encontrada" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: /voltar ao painel/i }).getAttribute("href")).toBe(
+      "/dashboard"
+    );
   });
 });
 

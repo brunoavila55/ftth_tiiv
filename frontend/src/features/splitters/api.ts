@@ -29,6 +29,13 @@ export async function listSplitters(
   });
 }
 
+export async function listAllSplitters(params: {
+  page?: number;
+  page_size?: number;
+} = {}): Promise<PaginatedResult<SplitterRead>> {
+  return api.get<PaginatedResult<SplitterRead>>("/splitters", { params });
+}
+
 export async function createSplitter(payload: SplitterCreatePayload): Promise<SplitterRead> {
   return api.post<SplitterRead>("/splitters", payload);
 }

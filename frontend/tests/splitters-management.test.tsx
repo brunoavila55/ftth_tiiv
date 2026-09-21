@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SplitterFormDialog } from "@/features/splitters/components/splitter-form-dialog";
 import { SplittersPanel } from "@/features/splitters/components/splitters-panel";
+import { SplittersCatalog } from "@/features/splitters/components/splitters-catalog";
 import * as splitterApi from "@/features/splitters/api";
 
 vi.mock("@/features/auth/auth-context", () => import("./support/auth-context-mock"));
@@ -12,6 +13,7 @@ vi.mock("@/features/splitters/api", async (importOriginal) => {
   return {
     ...actual,
     listSplitters: vi.fn(),
+    listAllSplitters: vi.fn(),
     createSplitter: vi.fn(),
     updateSplitter: vi.fn(),
     deleteSplitter: vi.fn(),
@@ -76,6 +78,25 @@ describe("gestão de splitters", () => {
       page: 1,
       page_size: 100,
     });
+    vi.mocked(splitterApi.listAllSplitters).mockResolvedValue({
+      items: [splitter],
+      total: 1,
+      page: 1,
+      page_size: 20,
+    });
+  });
+
+  it("renderiza o catálogo global na rota de splitters", async () => {
+    renderWithQueryClient(<SplittersCatalog />);
+
+    expect(await screen.findByText("SPL-CTO-01")).toBeTruthy();
+    expect(screen.getByText("Estrutura #20000000…")).toBeTruthy();
+    expect(screen.getByText("1:2")).toBeTruthy();
+    expect(screen.getByText("3.60–3.70 dB")).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: /cadastrar em uma caixa/i }).getAttribute("href")
+    ).toBe("/ctos");
+    expect(splitterApi.listAllSplitters).toHaveBeenCalledWith({ page: 1, page_size: 20 });
   });
 
   it("lista razão, saídas e faixa de perda da estrutura", async () => {

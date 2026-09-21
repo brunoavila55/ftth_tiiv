@@ -1,6 +1,6 @@
 # Estado do projeto — auditoria de segurança, estrutura e performance
 
-> Atualizado em 20/09/2026 (conclusão dos contratos anteriormente pendentes). Detalhe técnico por achado: `docs/security-audit/resolucao.md`.
+> Atualizado em 21/09/2026 (catálogo global de splitters). Detalhe técnico por achado: `docs/security-audit/resolucao.md`.
 > Procedimentos de operação das mudanças: `docs/runbooks/deployment-and-maintenance.md` (seções 9–28).
 
 ## 1. O que foi feito
@@ -19,7 +19,11 @@ A auditoria (`docs/security-audit/`) apontou 53 achados (18 de segurança, 21 de
 | Entrada de dados | Tetos de tamanho em todos os schemas; identificadores validados como UUID (422 em vez de 500) |
 | Frontend | Matriz de permissões gerada do backend (`contracts/permissions.json`), menu/rotas/ações escondidos por permissão |
 
-Resultado: **52 achados corrigidos, 1 parcial (PERF-09), 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 564 testes (563 passam sem `pg_dump`/`pg_restore` no PATH + 1 pulado); frontend: 183.
+Resultado: **52 achados corrigidos, 1 parcial (PERF-09), 0 pendentes**; rotas sem autenticação de 18 para 8 (todas intencionais). Backend: 564 testes (563 passam sem `pg_dump`/`pg_restore` no PATH + 1 pulado); frontend: 184.
+
+**Catálogo global de splitters (21/09/2026):** a rota `/splitters`, já publicada no menu, ganhou uma página operacional própria em vez de cair no fallback “Em breve”. Ela lista todos os splitters com paginação, alojamento, razão, saídas, faixa de perda em 1490 nm e revisão; permite editar e excluir conforme RBAC e leva à estrutura/dispositivo hospedeiro. Novos cadastros continuam partindo da ficha da CTO/CEO, onde o contexto físico é obrigatório. Suíte frontend: 184 testes; lint, TypeScript e build de produção limpos.
+
+**Rotas desconhecidas e cobertura do menu (21/09/2026):** removido o catch-all que convertia qualquer URL inexistente em uma falsa tela “Em breve”. O App Router agora responde com uma página HTTP 404 explícita, e a suíte verifica no filesystem que todo item de menu marcado como implementado possui seu próprio `page.tsx`. Suíte frontend: 186 testes; lint, TypeScript e build de produção limpos.
 
 **Conclusão dos contratos B03/B08 (20/09/2026):** os oito últimos stubs HTTP 501 foram eliminados. O CRUD de splitters agora cria entrada/saídas ópticas, persiste perdas por 1310/1490/1550 nm, aceita alojamento em estrutura ou dispositivo, atualiza a revisão topológica e protege exclusão de portas em uso. Configurações da organização passaram a ser persistidas e versionadas (`If-Match`), e o resumo de ocupação de estruturas foi implementado. A interface de CTO/CEO ganhou gestão completa de splitters e a tela de configurações deixou de exibir valores estáticos. Migração `0016_splitter_crud_settings` validada em `downgrade`/`upgrade`; OpenAPI e tipos TypeScript regenerados. Suítes: backend 563 passed + 1 skipped; frontend 183 passed; lint, Ruff, Mypy, TypeScript e build de produção limpos.
 

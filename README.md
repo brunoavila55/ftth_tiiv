@@ -55,7 +55,7 @@ O frontend foi construído seguindo as etapas de uma especificação inicial (`f
 | **F16** | **Importação e exportação**: Assistentes de importação/exportação CSV/KML/GeoJSON com preview de validação e isolamento. | ✅ Concluído |
 | **F17** | **Relatórios e capacidade**: Relatórios de ocupação de CTOs, balanço de fibras em cabos e diagnóstico de inconsistências técnicas. | ✅ Concluído |
 | **F18** | **Hardening, acessibilidade e performance**: Acessibilidade WCAG 2.2 AA, alvos de toque $\ge 44 \times 44$ px, alto contraste e performance móvel. | ✅ Concluído |
-| **F19** | **Testes integrados e qualidade**: Suíte de 183 testes Vitest sem regressões em todos os 24 arquivos de teste. | ✅ Concluído |
+| **F19** | **Testes integrados e qualidade**: Suíte de 186 testes Vitest sem regressões em todos os 24 arquivos de teste. | ✅ Concluído |
 | **F20** | **Entrega e revisão de produto**: Validação funcional contínua e ausência de dead-ends ou mocks estáticos. | ✅ Concluído |
 
 ---
@@ -151,7 +151,7 @@ uv run ruff format --check .
 uv run mypy app
 ```
 
-### Frontend (183 testes aprovados em 24 arquivos)
+### Frontend (186 testes aprovados em 24 arquivos)
 ```bash
 cd frontend
 

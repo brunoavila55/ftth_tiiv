@@ -51,5 +51,5 @@ Esta matriz mapeia cada fase de desenvolvimento (Backend B01–B18 e Frontend F0
 | **F16** | Dashboard executivo e relatórios | `tests/dashboard-search.test.tsx`<br>`tests/reports-capacity.test.tsx` | ✅ PASS | Indicadores operacionais, gráficos de ocupação de CTOs e cabos, e busca global. |
 | **F17** | Assistentes de import/export, configurações e usuários | `tests/imports-exports-wizard.test.tsx`<br>`tests/settings-users.test.tsx`<br>`tests/splitters-management.test.tsx` | ✅ PASS | Wizard de exportação GeoJSON/CSV, importação com preview, parâmetros persistidos, gestão de splitters e usuários. |
 | **F18** | Acessibilidade e modo campo | `tests/field-accessibility-performance.test.tsx` | ✅ PASS | Contraste elevado, alvos de toque $\ge 44 \times 44$ px, teclado acessível e performance. |
-| **F19** | Testes integrados e qualidade frontend | Todas as suítes (24 arquivos, 183 testes) | ✅ PASS | Execução limpa e determinística do Vitest sem regressões. |
+| **F19** | Testes integrados e qualidade frontend | Todas as suítes (24 arquivos, 186 testes) | ✅ PASS | Execução limpa e determinística do Vitest sem regressões. |
 | **F20** | Entrega e validação de produto | Revisão funcional e ausência de dead-ends | ✅ PASS | Todos os botões, diálogos e navegações conectados a APIs reais ou mocks fiéis. |
