@@ -19,6 +19,7 @@ class StructureKind(StrEnum):
     CTO = "cto"
     MANHOLE = "manhole"
     PEDESTAL = "pedestal"
+    RACK = "rack"
 
 
 class DeviceKind(StrEnum):
@@ -80,7 +81,7 @@ class StructureCreate(BaseModel):
         ..., min_length=2, max_length=50, description="Código único da estrutura (ex: CTO-04)"
     )
     kind: StructureKind = Field(
-        ..., description="Tipo de estrutura (pole, ceo, cto, manhole, pedestal)"
+        ..., description="Tipo de estrutura (pole, ceo, cto, manhole, pedestal, rack)"
     )
     location: PointGeometry = Field(..., description="Ponto geográfico da estrutura")
     site_id: UuidStr | None = Field(

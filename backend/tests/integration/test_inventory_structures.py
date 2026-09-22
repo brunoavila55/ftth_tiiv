@@ -79,14 +79,28 @@ def test_structure_lifecycle_and_kinds(
         headers={"X-CSRF-Token": auth_csrf},
     )
 
-    # 3. Listar filtrando por kind=cto
+    # 3. Cria rack interno (usado pelo seed demo dentro do POP)
+    rack_resp = client.post(
+        "/api/v1/structures",
+        json={
+            "code": "RACK-POP-01",
+            "kind": "rack",
+            "location": {"type": "Point", "coordinates": [-46.634300, -23.551400]},
+            "capacity": 48,
+        },
+        headers={"X-CSRF-Token": auth_csrf},
+    )
+    assert rack_resp.status_code == status.HTTP_201_CREATED
+    assert rack_resp.json()["kind"] == "rack"
+
+    # 4. Listar filtrando por kind=cto
     list_ctos = client.get("/api/v1/structures?kind=cto")
     assert list_ctos.status_code == status.HTTP_200_OK
     cto_data = list_ctos.json()
     assert cto_data["total"] == 1
     assert cto_data["items"][0]["code"] == "CTO-01-CENTRO"
 
-    # 4. Atualização com If-Match correto
+    # 5. Atualização com If-Match correto
     patch_resp = client.patch(
         f"/api/v1/structures/{struct_id}",
         json={"capacity": 24, "notes": "Capacidade ampliada para 24"},
@@ -97,7 +111,7 @@ def test_structure_lifecycle_and_kinds(
     assert patch_resp.json()["version"] == 2
     assert patch_resp.headers.get("ETag") == '"2"'
 
-    # 5. Exclusão bem-sucedida (204)
+    # 6. Exclusão bem-sucedida (204)
     del_resp = client.delete(
         f"/api/v1/structures/{struct_id}",
         headers={"X-CSRF-Token": auth_csrf, "If-Match": '"2"'},

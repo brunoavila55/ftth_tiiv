@@ -202,7 +202,7 @@ export function DevFeatureState({
       <p className="text-sm text-muted-foreground max-w-lg mb-6">{description}</p>
 
       <Button variant="outline" asChild size="sm">
-        <Link href="/" className="gap-1.5">
+        <Link href="/dashboard" className="gap-1.5">
           <ArrowLeft className="h-3.5 w-3.5" aria-hidden="true" />
           <span>Voltar ao Início</span>
         </Link>

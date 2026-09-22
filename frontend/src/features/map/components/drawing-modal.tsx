@@ -16,7 +16,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { UnitInput } from "@/components/ui/unit-input";
 import { CoordinateInput } from "@/components/ui/coordinate-input";
-import { createSite, createStructure } from "@/features/inventory/api";
+import {
+  createSite,
+  createStructure,
+  listStructures,
+  type StructureRead,
+} from "@/features/inventory/api";
 import { createCableSegment, listCables, type CableRead } from "@/features/cables/api";
 import { calculateLineLength } from "../utils/geometry";
 import { ApiError } from "@/lib/api/types";
@@ -27,6 +32,32 @@ export interface DrawingModalProps {
   draft: DrawingDraft | null;
   onClose: () => void;
   onSuccess: (createdId: string) => void;
+}
+
+const STRUCTURES_PAGE_SIZE = 200;
+
+async function loadAllStructures(): Promise<StructureRead[]> {
+  const structures: StructureRead[] = [];
+
+  for (let page = 1; ; page += 1) {
+    const response = await listStructures({ page, page_size: STRUCTURES_PAGE_SIZE });
+    structures.push(...response.items);
+    if (response.items.length < STRUCTURES_PAGE_SIZE || structures.length >= response.total) break;
+  }
+
+  return structures;
+}
+
+function structureKindLabel(kind: string): string {
+  const labels: Record<string, string> = {
+    cto: "CTO",
+    ceo: "CEO",
+    pole: "Poste",
+    manhole: "Caixa subterrânea",
+    pedestal: "Pedestal",
+    rack: "Rack",
+  };
+  return labels[kind] ?? kind.toUpperCase();
 }
 
 export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalProps) {
@@ -41,6 +72,8 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
 
   // Campos de Cabo
   const [cablesList, setCablesList] = React.useState<CableRead[]>([]);
+  const [structuresList, setStructuresList] = React.useState<StructureRead[]>([]);
+  const [loadingAssociations, setLoadingAssociations] = React.useState(false);
   const [selectedCableId, setSelectedCableId] = React.useState("");
   const [originStructureId, setOriginStructureId] = React.useState("");
   const [destStructureId, setDestStructureId] = React.useState("");
@@ -48,17 +81,39 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
   const [slackLength, setSlackLength] = React.useState<string>("10");
   const [cableVertices, setCableVertices] = React.useState<[number, number][]>([]);
 
-  // Carrega lista de cabos cadastrados para seleção
+  // Carrega cabos e todas as estruturas que podem ocupar as pontas do trecho.
   React.useEffect(() => {
-    if (open && draft?.mode === "draw_cable") {
-      listCables().then((res) => {
-        setCablesList(res.items);
-        if (res.items.length > 0 && !selectedCableId) {
-          setSelectedCableId(res.items[0].id);
+    if (!open || draft?.mode !== "draw_cable") return;
+
+    let cancelled = false;
+    setLoadingAssociations(true);
+
+    Promise.all([listCables({ page_size: 200 }), loadAllStructures()])
+      .then(([cablesResponse, structures]) => {
+        if (cancelled) return;
+        setCablesList(cablesResponse.items);
+        setStructuresList(
+          structures.sort((a, b) => {
+            if (a.kind === "cto" && b.kind !== "cto") return -1;
+            if (a.kind !== "cto" && b.kind === "cto") return 1;
+            return a.code.localeCompare(b.code, "pt-BR");
+          })
+        );
+        setSelectedCableId(cablesResponse.items[0]?.id ?? "");
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setErrorMsg("Não foi possível carregar os cabos e estruturas disponíveis.");
         }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAssociations(false);
       });
-    }
-  }, [open, draft?.mode, selectedCableId]);
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, draft?.mode]);
 
   // Inicializa dados com base no rascunho
   React.useEffect(() => {
@@ -98,6 +153,31 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
   const effectiveLengthMeters = !isNaN(parsedMeasured) && parsedMeasured > 0
     ? parsedMeasured
     : Math.round((mapLengthMeters + parsedSlack) * 10) / 10;
+
+  const associateStructure = (endpoint: "origin" | "destination", structureId: string) => {
+    if (endpoint === "origin") {
+      setOriginStructureId(structureId);
+    } else {
+      setDestStructureId(structureId);
+    }
+
+    const structure = structuresList.find((item) => item.id === structureId);
+    if (!structure) return;
+
+    // A API exige que as pontas da geometria coincidam com as estruturas associadas.
+    // Ao selecionar uma CTO/CEO/poste, encaixa a extremidade exatamente no ponto cadastrado.
+    setCableVertices((current) => {
+      if (current.length < 2) return current;
+      const next = [...current];
+      const coordinates = structure.location.coordinates as [number, number];
+      if (endpoint === "origin") {
+        next[0] = coordinates;
+      } else {
+        next[next.length - 1] = coordinates;
+      }
+      return next;
+    });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -140,6 +220,9 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
         }
         if (!originStructureId.trim() || !destStructureId.trim()) {
           throw new Error("As estruturas de origem e destino devem ser informadas.");
+        }
+        if (originStructureId === destStructureId) {
+          throw new Error("A origem e o destino devem ser estruturas diferentes.");
         }
 
         const segment = await createCableSegment({
@@ -308,34 +391,59 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
               </div>
 
               {/* Estruturas de Origem e Destino */}
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <div className="space-y-1.5">
                   <Label htmlFor="origin-struct">Estrutura Origem (A) *</Label>
-                  <Input
+                  <select
                     id="origin-struct"
                     value={originStructureId}
-                    onChange={(e) => setOriginStructureId(e.target.value)}
-                    placeholder="UUID ou Código"
+                    onChange={(e) => associateStructure("origin", e.target.value)}
+                    disabled={loadingAssociations}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     required
-                  />
+                  >
+                    <option value="">
+                      {loadingAssociations ? "Carregando estruturas..." : "Selecione a origem"}
+                    </option>
+                    {structuresList.map((structure) => (
+                      <option key={structure.id} value={structure.id}>
+                        {structure.code} — {structureKindLabel(structure.kind)}
+                      </option>
+                    ))}
+                  </select>
                   {draft.originStructureCode && (
                     <p className="text-[10px] text-primary">Snap: {draft.originStructureCode}</p>
                   )}
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="dest-struct">Estrutura Destino (B) *</Label>
-                  <Input
+                  <select
                     id="dest-struct"
                     value={destStructureId}
-                    onChange={(e) => setDestStructureId(e.target.value)}
-                    placeholder="UUID ou Código"
+                    onChange={(e) => associateStructure("destination", e.target.value)}
+                    disabled={loadingAssociations}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring disabled:cursor-not-allowed disabled:opacity-50"
                     required
-                  />
+                  >
+                    <option value="">
+                      {loadingAssociations ? "Carregando estruturas..." : "Selecione o destino"}
+                    </option>
+                    {structuresList.map((structure) => (
+                      <option key={structure.id} value={structure.id}>
+                        {structure.code} — {structureKindLabel(structure.kind)}
+                      </option>
+                    ))}
+                  </select>
                   {draft.destinationStructureCode && (
                     <p className="text-[10px] text-primary">Snap: {draft.destinationStructureCode}</p>
                   )}
                 </div>
               </div>
+
+              <p className="text-[10px] text-muted-foreground">
+                Selecione as CTOs, CEOs ou postes das duas pontas. O traçado será encaixado
+                automaticamente nas coordenadas das estruturas escolhidas.
+              </p>
 
               {/* Painel Tripartido de Comprimentos Ópticos */}
               <div className="rounded-lg border border-border bg-muted/40 p-3 space-y-3">

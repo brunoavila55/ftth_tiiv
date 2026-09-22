@@ -26,7 +26,10 @@ function LoginForm() {
   const [errorMessage, setErrorMessage] = React.useState<string | null>(null);
 
   const rawReturnUrl = searchParams.get("returnUrl") || searchParams.get("redirect");
-  const targetUrl = React.useMemo(() => sanitizeReturnUrl(rawReturnUrl, "/"), [rawReturnUrl]);
+  const targetUrl = React.useMemo(
+    () => sanitizeReturnUrl(rawReturnUrl, "/dashboard"),
+    [rawReturnUrl]
+  );
 
   // Inicializa o token e cookie CSRF no carregamento da tela
   React.useEffect(() => {
@@ -224,4 +227,3 @@ export default function LoginPage() {
     </React.Suspense>
   );
 }
-

@@ -136,7 +136,7 @@ export function Sidebar({
           )}
         >
           <Link
-            href="/"
+            href="/dashboard"
             className={cn(
               "flex items-center gap-2.5 font-bold tracking-tight text-foreground transition-opacity hover:opacity-90",
               isCollapsed && "justify-center"

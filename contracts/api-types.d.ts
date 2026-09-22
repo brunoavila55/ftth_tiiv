@@ -3960,7 +3960,7 @@ export interface components {
             code: string;
             /** @default ok */
             condition: components["schemas"]["PhysicalCondition"];
-            /** @description Tipo de estrutura (pole, ceo, cto, manhole, pedestal) */
+            /** @description Tipo de estrutura (pole, ceo, cto, manhole, pedestal, rack) */
             kind: components["schemas"]["StructureKind"];
             /** @description Ponto geográfico da estrutura */
             location: components["schemas"]["PointGeometry"];
@@ -3978,7 +3978,7 @@ export interface components {
          * StructureKind
          * @enum {string}
          */
-        StructureKind: "pole" | "ceo" | "cto" | "manhole" | "pedestal";
+        StructureKind: "pole" | "ceo" | "cto" | "manhole" | "pedestal" | "rack";
         /** StructureOccupancyResponse */
         StructureOccupancyResponse: {
             /** Code */

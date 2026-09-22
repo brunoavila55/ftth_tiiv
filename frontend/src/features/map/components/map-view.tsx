@@ -189,7 +189,9 @@ export function MapView() {
   const pointCandidates = React.useMemo(() => {
     if (!data) return [];
     return data.features
-      .filter((f) => f.geometry.type === "Point")
+      .filter(
+        (f) => f.geometry.type === "Point" && f.properties.entity_type === "structure"
+      )
       .map((f) => ({
         id: f.properties.entity_id || f.id,
         code: f.properties.code,
@@ -207,6 +209,8 @@ export function MapView() {
     setHistoryIndex(-1);
     setSnapCandidate(null);
     setSelectedFeature(null);
+    setActiveDraft(null);
+    setModalOpen(false);
   };
 
   // Undo / Redo no histórico de vértices
@@ -243,6 +247,8 @@ export function MapView() {
     setHistory([]);
     setHistoryIndex(-1);
     setSnapCandidate(null);
+    setActiveDraft(null);
+    setModalOpen(false);
   }, []);
 
   // Finaliza desenho e abre modal de revisão técnica
@@ -449,7 +455,7 @@ export function MapView() {
               <DrawingToolbar
                 mode={interactionMode}
                 pointKind={pointKind}
-                draft={activeDraft}
+                verticesCount={draftCoordinates.length}
                 canUndo={historyIndex >= 0}
                 canRedo={historyIndex < history.length - 1}
                 currentLengthMeters={currentLengthMeters}
@@ -492,7 +498,7 @@ export function MapView() {
             <DrawingModal
               open={modalOpen}
               draft={activeDraft}
-              onClose={() => setModalOpen(false)}
+              onClose={handleCancelDrawing}
               onSuccess={() => {
                 setModalOpen(false);
                 handleCancelDrawing();

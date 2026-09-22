@@ -51,6 +51,33 @@ vi.mock("@/features/cables/api", () => ({
 }));
 
 vi.mock("@/features/inventory/api", () => ({
+  listStructures: vi.fn().mockResolvedValue({
+    items: [
+      {
+        id: "struct-orig-1",
+        code: "CTO-ORIG-01",
+        kind: "cto",
+        location: { type: "Point", coordinates: [-46.633308, -23.55052] },
+        capacity: 16,
+        status: "installed",
+        condition: "ok",
+        version: 1,
+      },
+      {
+        id: "struct-dest-2",
+        code: "CTO-DEST-02",
+        kind: "cto",
+        location: { type: "Point", coordinates: [-46.634, -23.551] },
+        capacity: 16,
+        status: "installed",
+        condition: "ok",
+        version: 1,
+      },
+    ],
+    total: 2,
+    page: 1,
+    page_size: 200,
+  }),
   createSite: vi.fn().mockResolvedValue({
     id: "site-uuid-new",
     code: "POP-NOVO",
@@ -143,17 +170,12 @@ describe("Desenho e Edição Geográfica (F07)", () => {
       const handleSetMode = vi.fn();
       const handleUndo = vi.fn();
       const handleCancel = vi.fn();
+      const handleFinish = vi.fn();
 
       render(
         <DrawingToolbar
           mode="draw_cable"
-          draft={{
-            mode: "draw_cable",
-            coordinates: [
-              [-46.633, -23.55],
-              [-46.634, -23.551],
-            ],
-          }}
+          verticesCount={2}
           canUndo={true}
           canRedo={false}
           currentLengthMeters={112.5}
@@ -168,7 +190,7 @@ describe("Desenho e Edição Geográfica (F07)", () => {
           onUndo={handleUndo}
           onRedo={vi.fn()}
           onCancel={handleCancel}
-          onFinish={vi.fn()}
+          onFinish={handleFinish}
         />
       );
 
@@ -183,6 +205,11 @@ describe("Desenho e Edição Geográfica (F07)", () => {
       const cancelBtn = screen.getByLabelText("Cancelar desenho");
       fireEvent.click(cancelBtn);
       expect(handleCancel).toHaveBeenCalledTimes(1);
+
+      const finishBtn = screen.getByLabelText("Concluir traçado");
+      expect(finishBtn.hasAttribute("disabled")).toBe(false);
+      fireEvent.click(finishBtn);
+      expect(handleFinish).toHaveBeenCalledTimes(1);
     });
   });
 
@@ -283,6 +310,54 @@ describe("Desenho e Edição Geográfica (F07)", () => {
           })
         );
         expect(handleSuccess).toHaveBeenCalledWith("segment-uuid-1");
+      });
+    });
+
+    it("associa CTOs pelas listas e encaixa as pontas do traçado nas estruturas", async () => {
+      const handleSuccess = vi.fn();
+      const draft: DrawingDraft = {
+        mode: "draw_cable",
+        coordinates: [
+          [-46.632, -23.549],
+          [-46.635, -23.552],
+        ],
+      };
+
+      render(
+        <DrawingModal
+          open={true}
+          draft={draft}
+          onClose={vi.fn()}
+          onSuccess={handleSuccess}
+        />
+      );
+
+      const originSelect = await screen.findByLabelText(/Estrutura Origem/);
+      const destinationSelect = screen.getByLabelText(/Estrutura Destino/);
+
+      await waitFor(() => {
+        expect(screen.getAllByText(/CTO-ORIG-01 — CTO/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/CTO-DEST-02 — CTO/).length).toBeGreaterThan(0);
+      });
+
+      fireEvent.change(originSelect, { target: { value: "struct-orig-1" } });
+      fireEvent.change(destinationSelect, { target: { value: "struct-dest-2" } });
+      fireEvent.click(screen.getByRole("button", { name: /Confirmar e Salvar/i }));
+
+      await waitFor(() => {
+        expect(cablesApi.createCableSegment).toHaveBeenCalledWith(
+          expect.objectContaining({
+            origin_structure_id: "struct-orig-1",
+            destination_structure_id: "struct-dest-2",
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [-46.633308, -23.55052],
+                [-46.634, -23.551],
+              ],
+            },
+          })
+        );
       });
     });
   });

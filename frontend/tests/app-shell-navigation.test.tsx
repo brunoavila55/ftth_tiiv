@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import * as React from "react";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { render, screen, fireEvent } from "@testing-library/react";
 import {
@@ -20,6 +20,18 @@ import { ApiError } from "@/lib/api/types";
 import NotFoundPage from "@/app/not-found";
 
 describe("Navegação e Breadcrumbs (F02 Design System & Shell)", () => {
+  it("redireciona a raiz para o painel operacional sem exibir o showcase de desenvolvimento", () => {
+    const source = readFileSync(
+      path.join(process.cwd(), "src", "app", "(app)", "page.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain('redirect("/dashboard")');
+    expect(source).not.toContain("F02–F05");
+    expect(source).not.toContain("Próximo Marco");
+    expect(source).not.toContain("Testar Confirmação");
+  });
+
   it("contém todos os 4 grupos estruturais exigidos pelo frontend.md", () => {
     const groupTitles = NAVIGATION_GROUPS.map((g) => g.title);
     expect(groupTitles).toContain("Visão Geral");

@@ -15,13 +15,13 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import type { MapInteractionMode, PointKind, DrawingDraft } from "../types";
+import type { MapInteractionMode, PointKind } from "../types";
 import type { SnapCandidate } from "../utils/geometry";
 
 export interface DrawingToolbarProps {
   mode: MapInteractionMode;
   pointKind?: PointKind;
-  draft: DrawingDraft | null;
+  verticesCount: number;
   canUndo: boolean;
   canRedo: boolean;
   currentLengthMeters: number;
@@ -36,7 +36,7 @@ export interface DrawingToolbarProps {
 export function DrawingToolbar({
   mode,
   pointKind,
-  draft,
+  verticesCount,
   canUndo,
   canRedo,
   currentLengthMeters,
@@ -50,8 +50,6 @@ export function DrawingToolbar({
   const [pointMenuOpen, setPointMenuOpen] = React.useState(false);
 
   const isDrawing = mode !== "view";
-  const verticesCount = draft?.coordinates.length ?? 0;
-
   // Instrução contextual dinâmica
   let instruction = "Modo de navegação e consulta de ativos.";
   if (mode === "draw_point") {
@@ -78,10 +76,10 @@ export function DrawingToolbar({
     <div
       role="toolbar"
       aria-label="Ferramentas de desenho geográfico"
-      className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1.5"
+      className="absolute top-4 left-1/2 z-20 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 flex-col items-center gap-1.5"
     >
       {/* Barra principal de botões */}
-      <div className="flex items-center gap-1.5 rounded-xl border border-border bg-card/95 p-1.5 shadow-2xl backdrop-blur-md text-xs">
+      <div className="flex max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-border bg-card/95 p-1.5 text-xs shadow-2xl backdrop-blur-md">
         {/* Botão Modo Navegar */}
         <Button
           variant={mode === "view" ? "secondary" : "ghost"}
@@ -227,7 +225,7 @@ export function DrawingToolbar({
               aria-label="Cancelar desenho"
             >
               <XCircle className="h-3.5 w-3.5" />
-              <span className="hidden md:inline">Cancelar</span>
+              <span>Cancelar</span>
             </Button>
 
             <Button
@@ -239,11 +237,11 @@ export function DrawingToolbar({
                 (mode === "draw_point" && verticesCount === 0)
               }
               className="h-8 px-3 gap-1.5 font-semibold shadow-sm"
-              title="Finalizar e revisar cadastro"
-              aria-label="Finalizar e salvar"
+              title="Concluir traçado e associar as estruturas"
+              aria-label="Concluir traçado"
             >
               <CheckCircle className="h-3.5 w-3.5" />
-              <span>Salvar</span>
+              <span>Concluir</span>
             </Button>
           </>
         )}
