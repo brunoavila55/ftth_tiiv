@@ -413,9 +413,13 @@ export function OperationalMap({
           source: "ftth-points-source",
           paint: {
             "circle-radius": [
-              "+",
-              ["interpolate", ["linear"], ["zoom"], 10, 4, 16, 7.5],
-              ["case", ["boolean", ["get", "isSelected"], false], 1.5, 0],
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              10,
+              ["case", ["boolean", ["get", "isSelected"], false], 5.5, 4],
+              16,
+              ["case", ["boolean", ["get", "isSelected"], false], 9, 7.5],
             ],
             "circle-color": [
               "match",

@@ -12,6 +12,7 @@ const mapMocks = vi.hoisted(() => {
       this.sources.clear();
     });
     readonly sources = new Map<string, { setData: ReturnType<typeof vi.fn> }>();
+    readonly layers: Array<Record<string, unknown>> = [];
     readonly handlers = new Map<string, Set<(...args: unknown[]) => void>>();
     readonly canvas = { style: { cursor: "" } };
     readonly dragPan = { disable: vi.fn(), enable: vi.fn() };
@@ -25,7 +26,7 @@ const mapMocks = vi.hoisted(() => {
     }
 
     addControl() {}
-    addLayer() {}
+    addLayer(layer: Record<string, unknown>) { this.layers.push(layer); }
     resize() {}
     remove() {}
     zoomIn() {}
@@ -118,6 +119,26 @@ describe("Tema do mapa operacional", () => {
     expect(MAP_POINT_COLORS.cto).toBe("#f59e0b");
     expect(MAP_POINT_COLORS.ceo).toBe("#8b5cf6");
     expect(MAP_POINT_COLORS.cto).not.toBe(MAP_POINT_COLORS.ceo);
+  });
+
+  it("mantém o zoom no topo da expressão de raio aceita pelo MapLibre", () => {
+    render(
+      <OperationalMap
+        features={[]}
+        layers={{ sites: true, structures: true, ctos: true, cables: true }}
+        selectedFeatureId={null}
+        onSelectFeature={vi.fn()}
+        onViewportChange={vi.fn()}
+      />
+    );
+    const map = mapMocks.MockMap.latest;
+    act(() => map?.emit("style.load"));
+
+    const pointLayer = map?.layers.find((layer) => layer.id === "ftth-points-layer");
+    const paint = pointLayer?.paint as Record<string, unknown> | undefined;
+    const radius = paint?.["circle-radius"] as unknown[] | undefined;
+    expect(radius?.[0]).toBe("interpolate");
+    expect(radius?.[2]).toEqual(["zoom"]);
   });
 
   it("troca o style sem recriar o mapa e restaura as camadas FTTH", () => {
