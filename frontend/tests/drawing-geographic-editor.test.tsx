@@ -5,6 +5,7 @@ import {
   haversineDistance,
   calculateLineLength,
   findNearestSnapCandidate,
+  insertVertexAtNearestSegment,
 } from "@/features/map/utils/geometry";
 import { DrawingToolbar } from "@/features/map/components/drawing-toolbar";
 import { DrawingModal } from "@/features/map/components/drawing-modal";
@@ -149,6 +150,22 @@ describe("Desenho e Edição Geográfica (F07)", () => {
       }
     });
 
+    it("insere novo vértice no trecho mais próximo sem alterar as extremidades", () => {
+      const coordinates: [number, number][] = [
+        [-51.2, -30.1],
+        [-51.19, -30.1],
+        [-51.18, -30.1],
+      ];
+
+      expect(insertVertexAtNearestSegment(coordinates, [-51.185, -30.099])).toEqual([
+        [-51.2, -30.1],
+        [-51.19, -30.1],
+        [-51.185, -30.099],
+        [-51.18, -30.1],
+      ]);
+      expect(coordinates).toHaveLength(3);
+    });
+
     it("retorna null quando nenhuma estrutura estiver dentro do raio de snap", () => {
       const cursor: [number, number] = [-46.65, -23.57]; // Bem longe
       const candidates = [
@@ -242,6 +259,29 @@ describe("Desenho e Edição Geográfica (F07)", () => {
       expect(finishBtn.hasAttribute("disabled")).toBe(false);
       fireEvent.click(finishBtn);
       expect(handleFinish).toHaveBeenCalledTimes(1);
+    });
+
+    it("aciona a edição do cabo selecionado", () => {
+      const handleSetMode = vi.fn();
+      render(
+        <DrawingToolbar
+          mode="view"
+          verticesCount={0}
+          canUndo={false}
+          canRedo={false}
+          currentLengthMeters={0}
+          snapCandidate={null}
+          canEditGeometry={true}
+          onSetMode={handleSetMode}
+          onUndo={vi.fn()}
+          onRedo={vi.fn()}
+          onCancel={vi.fn()}
+          onFinish={vi.fn()}
+        />
+      );
+
+      fireEvent.click(screen.getByTitle("Editar vértices do cabo selecionado"));
+      expect(handleSetMode).toHaveBeenCalledWith("edit_geometry");
     });
   });
 

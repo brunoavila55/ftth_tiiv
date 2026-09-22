@@ -145,6 +145,8 @@ def query_map_features(
                 extra={
                     "kind": st.kind,
                     "site_id": str(st.site_id) if st.site_id else None,
+                    "capacity": st.capacity,
+                    "condition": st.condition,
                 },
             )
             features.append(MapFeature(id=f"structure:{st.id}", geometry=pt, properties=props))
@@ -154,7 +156,11 @@ def query_map_features(
         remaining = max_limit + 1 - len(features)
         segment_stmt = (
             select(CableSegment)
-            .options(joinedload(CableSegment.cable))
+            .options(
+                joinedload(CableSegment.cable),
+                joinedload(CableSegment.origin_structure),
+                joinedload(CableSegment.destination_structure),
+            )
             .where(func.ST_Intersects(CableSegment.geometry, envelope))
             .order_by(CableSegment.created_at)
             .limit(remaining)
@@ -171,6 +177,15 @@ def query_map_features(
                 version=seg.version,
                 extra={
                     "cable_id": str(seg.cable_id),
+                    "model": seg.cable.model if seg.cable else None,
+                    "fiber_count": seg.cable.fiber_count if seg.cable else None,
+                    "tube_count": seg.cable.tube_count if seg.cable else None,
+                    "origin_code": (
+                        seg.origin_structure.code if seg.origin_structure else None
+                    ),
+                    "destination_code": (
+                        seg.destination_structure.code if seg.destination_structure else None
+                    ),
                     "map_length_m": seg.map_length_m,
                     "measured_length_m": seg.measured_length_m,
                     "slack_length_m": seg.slack_length_m,

@@ -26,6 +26,8 @@ export interface OperationalMapProps {
   onMapClick?: (coords: [number, number]) => void;
   onMouseMove?: (coords: [number, number]) => void;
   onDoubleClick?: () => void;
+  onVertexMove?: (index: number, coords: [number, number]) => void;
+  onVertexMoveEnd?: () => void;
 }
 
 // Estilos vetoriais OpenFreeMap (CDN público, sem API key/cadastro; hospeda tiles, sprites e
@@ -33,11 +35,47 @@ export interface OperationalMapProps {
 // Matter, que passou a exigir API key (basemaps.cartocdn.com/apikey).
 export const MAP_STYLE_LIGHT_URL = "https://tiles.openfreemap.org/styles/positron";
 export const MAP_STYLE_DARK_URL = "https://tiles.openfreemap.org/styles/dark";
+export const MAP_POINT_COLORS = {
+  site: "#0284c7",
+  cto: "#f59e0b",
+  ceo: "#8b5cf6",
+  structure: "#64748b",
+  selected: "#f43f5e",
+} as const;
 
 // OpenFreeMap não embute atribuição nas fontes do style.json; o mapa é derivado de dados OSM
 // (licença ODbL), então a atribuição é obrigatória e precisa ser adicionada manualmente.
 const MAP_ATTRIBUTION =
   '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors · <a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a>';
+
+const INTERACTIVE_LAYER_IDS = [
+  "ftth-points-layer",
+  "ftth-cables-layer",
+  "ftth-cables-hit-layer",
+];
+
+type RenderedNetworkFeature = {
+  id?: string | number;
+  properties?: Record<string, unknown> | null;
+};
+
+export function findSelectedMapFeature(
+  features: MapFeature[],
+  renderedFeature: RenderedNetworkFeature | undefined
+): MapFeature | null {
+  if (!renderedFeature) return null;
+
+  const renderedId = renderedFeature.id == null ? null : String(renderedFeature.id);
+  const entityId = renderedFeature.properties?.entity_id;
+
+  return (
+    features.find(
+      (feature) =>
+        (renderedId !== null && feature.id === renderedId) ||
+        (typeof entityId === "string" && feature.properties.entity_id === entityId)
+    ) ?? null
+  );
+}
 
 // MapLibre v6 não resolve mais a URL do worker automaticamente dentro do grafo de módulos do
 // webpack (só funciona com <script type="module"> direto de CDN) — precisa ser apontada
@@ -78,6 +116,8 @@ export function OperationalMap({
   onMapClick,
   onMouseMove,
   onDoubleClick,
+  onVertexMove,
+  onVertexMoveEnd,
 }: OperationalMapProps) {
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
@@ -86,6 +126,14 @@ export function OperationalMap({
   const mapRef = React.useRef<maplibregl.Map | null>(null);
   const appliedStyleUrlRef = React.useRef<string | null>(null);
   const onViewportChangeRef = React.useRef(onViewportChange);
+  const interactionCallbacksRef = React.useRef({
+    onMapClick,
+    onMouseMove,
+    onDoubleClick,
+    onVertexMove,
+    onVertexMoveEnd,
+    onSelectFeature,
+  });
   const [webglSupported, setWebglSupported] = React.useState<boolean>(true);
   const [locating, setLocating] = React.useState<boolean>(false);
   const [geoError, setGeoError] = React.useState<string | null>(null);
@@ -151,9 +199,13 @@ export function OperationalMap({
     const pointFeatures = features
       .filter((f) => {
         if (f.geometry.type !== "Point") return false;
-        if (f.properties.entity_type === "site" && !layers.sites) return false;
-        if (f.properties.entity_type === "cto" && !layers.ctos) return false;
-        if (f.properties.entity_type === "structure" && !layers.structures) return false;
+        const structureKind =
+          f.properties.entity_type === "structure" && typeof f.properties.extra?.kind === "string"
+            ? f.properties.extra.kind.toLowerCase()
+            : f.properties.entity_type;
+        if (structureKind === "site" && !layers.sites) return false;
+        if (structureKind === "cto" && !layers.ctos) return false;
+        if (structureKind !== "site" && structureKind !== "cto" && !layers.structures) return false;
         return true;
       })
       .map((f) => ({
@@ -165,6 +217,10 @@ export function OperationalMap({
         },
         properties: {
           ...f.properties,
+          map_kind:
+            f.properties.entity_type === "structure" && typeof f.properties.extra?.kind === "string"
+              ? f.properties.extra.kind.toLowerCase()
+              : f.properties.entity_type,
           isSelected: f.id === selectedFeatureId,
         },
       }));
@@ -198,7 +254,10 @@ export function OperationalMap({
         type: "Point" as const,
         coordinates: c,
       },
-      properties: { index: idx },
+      properties: {
+        index: idx,
+        isEndpoint: idx === 0 || idx === draftCoordinates.length - 1,
+      },
     }));
     return { type: "FeatureCollection" as const, features: pts };
   }, [draftCoordinates]);
@@ -240,6 +299,14 @@ export function OperationalMap({
     snap: snapGeoJson,
   };
   onViewportChangeRef.current = onViewportChange;
+  interactionCallbacksRef.current = {
+    onMapClick,
+    onMouseMove,
+    onDoubleClick,
+    onVertexMove,
+    onVertexMoveEnd,
+    onSelectFeature,
+  };
 
   const desiredStyleUrl =
     process.env.NEXT_PUBLIC_MAP_STYLE_URL ||
@@ -293,6 +360,21 @@ export function OperationalMap({
           data: currentGeoJson.lines,
         });
 
+        // Uma linha transparente mais larga facilita selecionar cabos em telas touch e em zoom baixo.
+        map.addLayer({
+          id: "ftth-cables-hit-layer",
+          type: "line",
+          source: "ftth-lines-source",
+          layout: {
+            "line-cap": "round",
+            "line-join": "round",
+          },
+          paint: {
+            "line-color": "rgba(0, 0, 0, 0.01)",
+            "line-width": 18,
+          },
+        });
+
         map.addLayer({
           id: "ftth-cables-layer",
           type: "line",
@@ -305,7 +387,7 @@ export function OperationalMap({
             "line-color": [
               "case",
               ["boolean", ["get", "isSelected"], false],
-              "#f43f5e",
+              MAP_POINT_COLORS.selected,
               "#4f46e5",
             ],
             "line-width": [
@@ -331,32 +413,33 @@ export function OperationalMap({
           source: "ftth-points-source",
           paint: {
             "circle-radius": [
-              "interpolate",
-              ["linear"],
-              ["zoom"],
-              10,
-              4,
-              16,
-              7.5,
+              "+",
+              ["interpolate", ["linear"], ["zoom"], 10, 4, 16, 7.5],
+              ["case", ["boolean", ["get", "isSelected"], false], 1.5, 0],
             ],
             "circle-color": [
+              "match",
+              ["get", "map_kind"],
+              "site",
+              MAP_POINT_COLORS.site,
+              "cto",
+              MAP_POINT_COLORS.cto,
+              "ceo",
+              MAP_POINT_COLORS.ceo,
+              MAP_POINT_COLORS.structure,
+            ],
+            "circle-stroke-width": [
               "case",
               ["boolean", ["get", "isSelected"], false],
-              "#f43f5e",
-              [
-                "match",
-                ["get", "entity_type"],
-                "site",
-                "#0284c7",
-                "cto",
-                "#f59e0b",
-                "ceo",
-                "#8b5cf6",
-                "#64748b",
-              ],
+              4,
+              2,
             ],
-            "circle-stroke-width": 2,
-            "circle-stroke-color": "#ffffff",
+            "circle-stroke-color": [
+              "case",
+              ["boolean", ["get", "isSelected"], false],
+              MAP_POINT_COLORS.selected,
+              "#ffffff",
+            ],
           },
         });
 
@@ -381,6 +464,20 @@ export function OperationalMap({
           },
         });
 
+        map.addLayer({
+          id: "ftth-draft-line-hit-layer",
+          type: "line",
+          source: "ftth-draft-line-source",
+          layout: {
+            "line-cap": "round",
+            "line-join": "round",
+          },
+          paint: {
+            "line-color": "rgba(244, 63, 94, 0.01)",
+            "line-width": 18,
+          },
+        });
+
         map.addSource("ftth-draft-points-source", {
           type: "geojson",
           data: currentGeoJson.draftPoints,
@@ -392,7 +489,12 @@ export function OperationalMap({
           source: "ftth-draft-points-source",
           paint: {
             "circle-radius": 6,
-            "circle-color": "#f43f5e",
+            "circle-color": [
+              "case",
+              ["boolean", ["get", "isEndpoint"], false],
+              "#64748b",
+              "#f43f5e",
+            ],
             "circle-stroke-width": 2,
             "circle-stroke-color": "#ffffff",
           },
@@ -502,6 +604,8 @@ export function OperationalMap({
 
     // Atualiza cursor conforme o modo
     const canvas = map.getCanvas();
+    let draggingVertexIndex: number | null = null;
+    let suppressNextClick = false;
     if (mode === "draw_point" || mode === "draw_cable") {
       canvas.style.cursor = "crosshair";
     } else if (mode === "edit_geometry") {
@@ -511,43 +615,87 @@ export function OperationalMap({
     }
 
     const handleMapClick = (e: maplibregl.MapMouseEvent) => {
-      if (mode !== "view") {
-        onMapClick?.([e.lngLat.lng, e.lngLat.lat]);
-      } else {
-        const pointFeatures = map.queryRenderedFeatures(e.point, {
-          layers: ["ftth-points-layer", "ftth-cables-layer"],
-        });
-        if (pointFeatures.length > 0) {
-          const clickedId = pointFeatures[0].id;
-          const found = features.find((f) => f.id === clickedId);
-          if (found) onSelectFeature(found);
-        } else {
-          onSelectFeature(null);
+      if (mode === "edit_geometry") {
+        if (suppressNextClick) {
+          suppressNextClick = false;
+          return;
         }
+        const draftLine = map.queryRenderedFeatures(e.point, {
+          layers: ["ftth-draft-line-layer", "ftth-draft-line-hit-layer"],
+        });
+        if (draftLine.length > 0) {
+          interactionCallbacksRef.current.onMapClick?.([e.lngLat.lng, e.lngLat.lat]);
+        }
+      } else if (mode !== "view") {
+        interactionCallbacksRef.current.onMapClick?.([e.lngLat.lng, e.lngLat.lat]);
+      } else {
+        const renderedFeatures = map.queryRenderedFeatures(e.point, {
+          layers: INTERACTIVE_LAYER_IDS,
+        });
+        interactionCallbacksRef.current.onSelectFeature(
+          findSelectedMapFeature(features, renderedFeatures[0])
+        );
       }
     };
 
     const handleMouseMove = (e: maplibregl.MapMouseEvent) => {
-      if (mode !== "view") {
-        onMouseMove?.([e.lngLat.lng, e.lngLat.lat]);
-      } else {
-        const pointFeatures = map.queryRenderedFeatures(e.point, {
-          layers: ["ftth-points-layer", "ftth-cables-layer"],
+      if (mode === "edit_geometry" && draggingVertexIndex !== null) {
+        interactionCallbacksRef.current.onVertexMove?.(draggingVertexIndex, [
+          e.lngLat.lng,
+          e.lngLat.lat,
+        ]);
+        canvas.style.cursor = "grabbing";
+      } else if (mode === "edit_geometry") {
+        const vertices = map.queryRenderedFeatures(e.point, {
+          layers: ["ftth-draft-points-layer"],
         });
-        canvas.style.cursor = pointFeatures.length > 0 ? "pointer" : "";
+        const index = Number(vertices[0]?.properties?.index);
+        const isEndpoint = index === 0 || index === draftCoordinates.length - 1;
+        canvas.style.cursor =
+          vertices.length === 0 ? "crosshair" : isEndpoint ? "not-allowed" : "grab";
+      } else if (mode !== "view") {
+        interactionCallbacksRef.current.onMouseMove?.([e.lngLat.lng, e.lngLat.lat]);
+      } else {
+        const renderedFeatures = map.queryRenderedFeatures(e.point, {
+          layers: INTERACTIVE_LAYER_IDS,
+        });
+        canvas.style.cursor = renderedFeatures.length > 0 ? "pointer" : "";
       }
+    };
+
+    const handleMouseDown = (e: maplibregl.MapMouseEvent) => {
+      if (mode !== "edit_geometry") return;
+      const vertices = map.queryRenderedFeatures(e.point, {
+        layers: ["ftth-draft-points-layer"],
+      });
+      const index = Number(vertices[0]?.properties?.index);
+      if (!Number.isInteger(index) || index <= 0 || index >= draftCoordinates.length - 1) return;
+
+      e.preventDefault();
+      draggingVertexIndex = index;
+      map.dragPan.disable();
+      canvas.style.cursor = "grabbing";
+    };
+
+    const handleMouseUp = () => {
+      if (draggingVertexIndex === null) return;
+      draggingVertexIndex = null;
+      suppressNextClick = true;
+      map.dragPan.enable();
+      canvas.style.cursor = "grab";
+      interactionCallbacksRef.current.onVertexMoveEnd?.();
     };
 
     const handleDblClick = (e: maplibregl.MapMouseEvent) => {
       if (mode === "draw_cable") {
         e.preventDefault();
-        onDoubleClick?.();
+        interactionCallbacksRef.current.onDoubleClick?.();
       }
     };
 
     const handleMoveEnd = () => {
       const bounds = map.getBounds();
-      onViewportChange(
+      onViewportChangeRef.current(
         {
           west: bounds.getWest(),
           south: bounds.getSouth(),
@@ -559,17 +707,26 @@ export function OperationalMap({
     };
 
     map.on("click", handleMapClick);
+    map.on("mousedown", handleMouseDown);
     map.on("mousemove", handleMouseMove);
+    map.on("mouseup", handleMouseUp);
     map.on("dblclick", handleDblClick);
     map.on("moveend", handleMoveEnd);
 
     return () => {
       map.off("click", handleMapClick);
+      map.off("mousedown", handleMouseDown);
       map.off("mousemove", handleMouseMove);
+      map.off("mouseup", handleMouseUp);
+      if (draggingVertexIndex !== null) map.dragPan.enable();
       map.off("dblclick", handleDblClick);
       map.off("moveend", handleMoveEnd);
     };
-  }, [mode, features, onMapClick, onMouseMove, onDoubleClick, onSelectFeature, onViewportChange]);
+  }, [
+    mode,
+    features,
+    draftCoordinates.length,
+  ]);
 
   // Controles de navegação customizados
   const handleZoomIn = () => mapRef.current?.zoomIn();

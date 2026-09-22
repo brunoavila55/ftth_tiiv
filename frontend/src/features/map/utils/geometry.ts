@@ -52,6 +52,49 @@ export function calculateLineLength(coordinates: [number, number][]): number {
   return Math.round(totalMeters * 10) / 10;
 }
 
+/** Insere um vértice no trecho mais próximo, preservando a ordem do LineString. */
+export function insertVertexAtNearestSegment(
+  coordinates: [number, number][],
+  vertex: [number, number]
+): [number, number][] {
+  if (coordinates.length < 2) return [...coordinates, vertex];
+
+  let nearestSegmentIndex = 0;
+  let nearestSquaredDistance = Number.POSITIVE_INFINITY;
+
+  for (let index = 0; index < coordinates.length - 1; index += 1) {
+    const [startX, startY] = coordinates[index];
+    const [endX, endY] = coordinates[index + 1];
+    const deltaX = endX - startX;
+    const deltaY = endY - startY;
+    const lengthSquared = deltaX * deltaX + deltaY * deltaY;
+    const projection =
+      lengthSquared === 0
+        ? 0
+        : Math.max(
+            0,
+            Math.min(
+              1,
+              ((vertex[0] - startX) * deltaX + (vertex[1] - startY) * deltaY) /
+                lengthSquared
+            )
+          );
+    const projectedX = startX + projection * deltaX;
+    const projectedY = startY + projection * deltaY;
+    const squaredDistance =
+      (vertex[0] - projectedX) ** 2 + (vertex[1] - projectedY) ** 2;
+
+    if (squaredDistance < nearestSquaredDistance) {
+      nearestSquaredDistance = squaredDistance;
+      nearestSegmentIndex = index;
+    }
+  }
+
+  const next = [...coordinates];
+  next.splice(nearestSegmentIndex + 1, 0, vertex);
+  return next;
+}
+
 export interface SnapCandidate {
   id: string;
   code: string;

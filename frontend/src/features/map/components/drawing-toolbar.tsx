@@ -26,6 +26,8 @@ export interface DrawingToolbarProps {
   canRedo: boolean;
   currentLengthMeters: number;
   snapCandidate: SnapCandidate | null;
+  canEditGeometry?: boolean;
+  isFinishing?: boolean;
   onSetMode: (mode: MapInteractionMode, pointKind?: PointKind) => void;
   onUndo: () => void;
   onRedo: () => void;
@@ -41,6 +43,8 @@ export function DrawingToolbar({
   canRedo,
   currentLengthMeters,
   snapCandidate,
+  canEditGeometry = false,
+  isFinishing = false,
   onSetMode,
   onUndo,
   onRedo,
@@ -69,7 +73,7 @@ export function DrawingToolbar({
       instruction = `Adicionando vértices (${verticesCount} pontos, ~${currentLengthMeters}m). Clique duplo ou 'Finalizar' para concluir.`;
     }
   } else if (mode === "edit_geometry") {
-    instruction = "Arraste os vértices para reajustar o traçado do cabo óptico.";
+    instruction = "Arraste os vértices intermediários. As extremidades permanecem ligadas às estruturas.";
   }
 
   return (
@@ -199,7 +203,11 @@ export function DrawingToolbar({
           }}
           className="h-8 px-2.5 gap-1.5 font-medium"
           aria-pressed={mode === "edit_geometry"}
-          title="Editar vértices de geometria"
+          title={
+            canEditGeometry
+              ? "Editar vértices do cabo selecionado"
+              : "Selecione um cabo no mapa antes de editar"
+          }
         >
           <Edit3 className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
           <span className="hidden sm:inline">Editar</span>
@@ -252,15 +260,21 @@ export function DrawingToolbar({
               size="sm"
               onClick={onFinish}
               disabled={
+                isFinishing ||
                 (mode === "draw_cable" && verticesCount < 2) ||
-                (mode === "draw_point" && verticesCount === 0)
+                (mode === "draw_point" && verticesCount === 0) ||
+                (mode === "edit_geometry" && verticesCount < 3)
               }
               className="h-8 px-3 gap-1.5 font-semibold shadow-sm"
-              title="Concluir traçado e associar as estruturas"
-              aria-label="Concluir traçado"
+              title={mode === "edit_geometry" ? "Salvar nova geometria" : "Concluir traçado e associar as estruturas"}
+              aria-label={mode === "edit_geometry" ? "Salvar geometria" : "Concluir traçado"}
             >
-              <CheckCircle className="h-3.5 w-3.5" />
-              <span>Concluir</span>
+              {isFinishing ? (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <CheckCircle className="h-3.5 w-3.5" />
+              )}
+              <span>{mode === "edit_geometry" ? "Salvar" : "Concluir"}</span>
             </Button>
           </>
         )}

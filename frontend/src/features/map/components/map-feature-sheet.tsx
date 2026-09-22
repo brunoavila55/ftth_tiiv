@@ -29,32 +29,73 @@ export function MapFeatureSheet({ feature, onClose }: MapFeatureSheetProps) {
 
   const { properties, geometry } = feature;
   const isPoint = geometry.type === "Point";
+  const extra = properties.extra ?? {};
+  const entityKind =
+    properties.entity_type === "structure" && typeof extra.kind === "string"
+      ? extra.kind.toLowerCase()
+      : properties.entity_type.toLowerCase();
 
   let detailUrl = "/sites";
   let typeLabel = "Elemento";
   let IconComponent = Box;
 
-  if (properties.entity_type === "site") {
+  if (entityKind === "site") {
     typeLabel = "POP / Site Central";
     IconComponent = Building2;
-    detailUrl = `/sites?q=${encodeURIComponent(properties.code)}`;
-  } else if (properties.entity_type === "cable_segment" || properties.entity_type === "cable") {
+    detailUrl = `/sites/${properties.entity_id}`;
+  } else if (entityKind === "cable_segment" || entityKind === "cable") {
     typeLabel = "Cabo Óptico";
     IconComponent = CableIcon;
-    detailUrl = `/cables?q=${encodeURIComponent(properties.code)}`;
-  } else if (properties.entity_type === "cto") {
+    detailUrl =
+      typeof extra.cable_id === "string"
+        ? `/cables/${extra.cable_id}`
+        : `/cables?q=${encodeURIComponent(properties.code)}`;
+  } else if (entityKind === "cto") {
     typeLabel = "Caixa de Terminação (CTO)";
     IconComponent = Box;
-    detailUrl = `/ctos?q=${encodeURIComponent(properties.code)}`;
-  } else if (properties.entity_type === "ceo") {
+    detailUrl = `/ctos/${properties.entity_id}`;
+  } else if (entityKind === "ceo") {
     typeLabel = "Caixa de Emenda (CEO)";
     IconComponent = Box;
-    detailUrl = `/ceos?q=${encodeURIComponent(properties.code)}`;
+    detailUrl = `/ceos/${properties.entity_id}`;
+  } else if (entityKind === "pole") {
+    typeLabel = "Poste";
+    IconComponent = Box;
+    detailUrl = `/poles/${properties.entity_id}`;
   } else {
     typeLabel = "Estrutura Física";
     IconComponent = Box;
-    detailUrl = `/poles?q=${encodeURIComponent(properties.code)}`;
+    detailUrl = `/structures/${properties.entity_id}`;
   }
+
+  const visibleExtraEntries = Object.entries(extra).filter(
+    ([key, value]) => value != null && !["kind", "site_id", "cable_id"].includes(key)
+  );
+  const extraLabels: Record<string, string> = {
+    capacity: "Capacidade",
+    condition: "Condição",
+    model: "Modelo",
+    fiber_count: "Fibras",
+    tube_count: "Tubos",
+    origin_code: "Origem",
+    destination_code: "Destino",
+    map_length_m: "Comprimento no mapa",
+    measured_length_m: "Comprimento medido",
+    slack_length_m: "Reserva técnica",
+    effective_length_m: "Comprimento efetivo",
+    length_source: "Fonte do comprimento",
+    name: "Nome",
+    address: "Endereço",
+  };
+  const formatExtraValue = (key: string, value: unknown) => {
+    if (key.endsWith("_length_m") && typeof value === "number") {
+      return `${value.toLocaleString("pt-BR", { maximumFractionDigits: 2 })} m`;
+    }
+    if (key === "length_source") {
+      return value === "measured" ? "Medição de campo" : "Calculado pelo mapa";
+    }
+    return String(value);
+  };
 
   const coordsText = isPoint
     ? `${geometry.coordinates[1].toFixed(6)}, ${geometry.coordinates[0].toFixed(6)}`
@@ -72,7 +113,7 @@ export function MapFeatureSheet({ feature, onClose }: MapFeatureSheetProps) {
     <div
       role="complementary"
       aria-label="Painel contextual do elemento selecionado"
-      className="absolute top-4 right-4 z-20 w-80 sm:w-96 rounded-xl border border-border bg-card/95 p-5 shadow-2xl backdrop-blur-md transition-all animate-in slide-in-from-right-4"
+      className="absolute top-4 right-4 left-4 z-20 max-h-[calc(100%-2rem)] w-auto overflow-y-auto rounded-xl border border-border bg-card/95 p-5 shadow-2xl backdrop-blur-md transition-all animate-in slide-in-from-right-4 sm:left-auto sm:w-96"
     >
       {/* Cabeçalho */}
       <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
@@ -166,12 +207,14 @@ export function MapFeatureSheet({ feature, onClose }: MapFeatureSheetProps) {
         )}
 
         {/* Informações adicionais da camada */}
-        {properties.extra && Object.keys(properties.extra).length > 0 && (
+        {visibleExtraEntries.length > 0 && (
           <div className="space-y-1 pt-1 border-t border-border">
-            {Object.entries(properties.extra).map(([k, v]) => (
+            {visibleExtraEntries.map(([k, v]) => (
               <div key={k} className="flex items-center justify-between text-[11px]">
-                <span className="text-muted-foreground capitalize">{k.replace(/_/g, " ")}:</span>
-                <span className="font-medium text-foreground">{String(v)}</span>
+                <span className="text-muted-foreground">{extraLabels[k] ?? k.replace(/_/g, " ")}:</span>
+                <span className="max-w-[55%] truncate text-right font-medium text-foreground">
+                  {formatExtraValue(k, v)}
+                </span>
               </div>
             ))}
           </div>

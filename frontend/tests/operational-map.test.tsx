@@ -90,6 +90,7 @@ const mockCableFeature: MapFeature = {
     code: "CAB-TRONCO-01",
     status: "installed",
     version: 1,
+    extra: { cable_id: "parent-cable-uuid-1" },
   },
 };
 
@@ -151,7 +152,8 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
       expect(screen.getByText("Camadas & Legenda")).toBeDefined();
       expect(screen.getByText("POP / Site Central")).toBeDefined();
       expect(screen.getByText("CTO (Terminação)")).toBeDefined();
-      expect(screen.getByText("Poste / CEO")).toBeDefined();
+      expect(screen.getByText("CEO (Emenda)")).toBeDefined();
+      expect(screen.getByText("Poste / Estruturas")).toBeDefined();
       expect(screen.getByText("Cabo Óptico")).toBeDefined();
 
       // Clicar no checkbox de sites dispara o toggle
@@ -200,7 +202,7 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
       expect(screen.getByText("v1")).toBeDefined();
 
       const link = screen.getByRole("link", { name: /Abrir Cadastro Completo/i });
-      expect(link.getAttribute("href")).toBe("/sites?q=POP-CENTRAL-01");
+      expect(link.getAttribute("href")).toBe("/sites/site-uuid-1");
 
       const closeBtn = screen.getByLabelText("Fechar detalhes");
       fireEvent.click(closeBtn);
@@ -218,7 +220,47 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
       expect(screen.getByText("4")).toBeDefined();  // Conectadas
 
       const link = screen.getByRole("link", { name: /Abrir Cadastro Completo/i });
-      expect(link.getAttribute("href")).toBe("/ctos?q=CTO-16P-01");
+      expect(link.getAttribute("href")).toBe("/ctos/cto-uuid-1");
+    });
+
+    it("reconhece CTO e CEO enviados pelo mapa como estruturas e abre o cadastro direto", () => {
+      const ctoAsStructure: MapFeature = {
+        ...mockCtoFeature,
+        properties: {
+          ...mockCtoFeature.properties,
+          entity_type: "structure",
+          extra: { kind: "cto", capacity: 16, condition: "ok" },
+        },
+      };
+      const ceoAsStructure: MapFeature = {
+        ...mockCtoFeature,
+        id: "feat-ceo-1",
+        properties: {
+          ...mockCtoFeature.properties,
+          entity_id: "ceo-uuid-1",
+          entity_type: "structure",
+          code: "CEO-01",
+          extra: { kind: "ceo", capacity: 24 },
+        },
+      };
+
+      const view = render(<MapFeatureSheet feature={ctoAsStructure} onClose={vi.fn()} />);
+      expect(screen.getByText("Caixa de Terminação (CTO)")).toBeDefined();
+      expect(screen.getByRole("link", { name: /Abrir Cadastro Completo/i }).getAttribute("href"))
+        .toBe("/ctos/cto-uuid-1");
+
+      view.rerender(<MapFeatureSheet feature={ceoAsStructure} onClose={vi.fn()} />);
+      expect(screen.getByText("Caixa de Emenda (CEO)")).toBeDefined();
+      expect(screen.getByRole("link", { name: /Abrir Cadastro Completo/i }).getAttribute("href"))
+        .toBe("/ceos/ceo-uuid-1");
+    });
+
+    it("abre o cadastro do cabo pai ao selecionar um trecho no mapa", () => {
+      render(<MapFeatureSheet feature={mockCableFeature} onClose={vi.fn()} />);
+
+      expect(screen.getByText("Cabo Óptico")).toBeDefined();
+      expect(screen.getByRole("link", { name: /Abrir Cadastro Completo/i }).getAttribute("href"))
+        .toBe("/cables/parent-cable-uuid-1");
     });
   });
 

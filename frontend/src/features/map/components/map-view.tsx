@@ -27,8 +27,10 @@ import { DrawingModal } from "./drawing-modal";
 import {
   findNearestSnapCandidate,
   calculateLineLength,
+  insertVertexAtNearestSegment,
   type SnapCandidate,
 } from "../utils/geometry";
+import { updateCableSegment } from "@/features/cables/api";
 import type {
   MapFeature,
   MapFeatureCollection,
@@ -115,6 +117,8 @@ export function MapView() {
   const [snapCandidate, setSnapCandidate] = React.useState<SnapCandidate | null>(null);
   const [modalOpen, setModalOpen] = React.useState<boolean>(false);
   const [activeDraft, setActiveDraft] = React.useState<DrawingDraft | null>(null);
+  const [interactionError, setInteractionError] = React.useState<string | null>(null);
+  const [isSavingGeometry, setIsSavingGeometry] = React.useState(false);
 
   // Filtros de camadas ativas
   const [layers, setLayers] = React.useState<LayerFilters>({
@@ -240,6 +244,39 @@ export function MapView() {
 
   // Manipulação de modos de desenho
   const handleSetMode = (mode: MapInteractionMode, kind?: PointKind) => {
+    if (mode === "edit_geometry") {
+      if (
+        !selectedFeature ||
+        selectedFeature.geometry.type !== "LineString" ||
+        selectedFeature.properties.entity_type !== "cable_segment"
+      ) {
+        setInteractionError("Selecione um trecho de cabo no mapa antes de usar a edição.");
+        return;
+      }
+
+      const coordinates = selectedFeature.geometry.coordinates.map(
+        (coordinate) => [...coordinate] as [number, number]
+      );
+      // Um segmento reto possui apenas extremidades protegidas; cria um ponto central editável.
+      if (coordinates.length === 2) {
+        coordinates.splice(1, 0, [
+          (coordinates[0][0] + coordinates[1][0]) / 2,
+          (coordinates[0][1] + coordinates[1][1]) / 2,
+        ]);
+      }
+
+      setInteractionError(null);
+      setInteractionMode(mode);
+      setDraftCoordinates(coordinates);
+      setHistory([coordinates]);
+      setHistoryIndex(0);
+      setSnapCandidate(null);
+      setActiveDraft(null);
+      setModalOpen(false);
+      return;
+    }
+
+    setInteractionError(null);
     setInteractionMode(mode);
     if (kind) setPointKind(kind);
     setDraftCoordinates([]);
@@ -265,11 +302,11 @@ export function MapView() {
       const newIndex = historyIndex - 1;
       setHistoryIndex(newIndex);
       setDraftCoordinates(history[newIndex]);
-    } else if (historyIndex === 0) {
+    } else if (historyIndex === 0 && interactionMode !== "edit_geometry") {
       setHistoryIndex(-1);
       setDraftCoordinates([]);
     }
-  }, [history, historyIndex]);
+  }, [history, historyIndex, interactionMode]);
 
   const handleRedo = React.useCallback(() => {
     if (historyIndex < history.length - 1) {
@@ -287,10 +324,53 @@ export function MapView() {
     setSnapCandidate(null);
     setActiveDraft(null);
     setModalOpen(false);
+    setInteractionError(null);
   }, []);
 
   // Finaliza desenho e abre modal de revisão técnica
-  const handleFinishDrawing = React.useCallback(() => {
+  const handleFinishDrawing = React.useCallback(async () => {
+    if (
+      interactionMode === "edit_geometry" &&
+      selectedFeature?.geometry.type === "LineString"
+    ) {
+      setIsSavingGeometry(true);
+      setInteractionError(null);
+      try {
+        const updated = await updateCableSegment(
+          selectedFeature.properties.entity_id,
+          {
+            geometry: {
+              type: "LineString",
+              coordinates: draftCoordinates,
+            },
+          },
+          selectedFeature.properties.version
+        );
+        setSelectedFeature({
+          ...selectedFeature,
+          geometry: updated.geometry,
+          properties: {
+            ...selectedFeature.properties,
+            version: updated.version,
+          },
+        });
+        setInteractionMode("view");
+        setDraftCoordinates([]);
+        setHistory([]);
+        setHistoryIndex(-1);
+        if (currentBBoxRef.current) {
+          loadFeatures(currentBBoxRef.current, currentZoomRef.current);
+        }
+      } catch (err: unknown) {
+        setInteractionError(
+          err instanceof Error ? err.message : "Não foi possível salvar a geometria do cabo."
+        );
+      } finally {
+        setIsSavingGeometry(false);
+      }
+      return;
+    }
+
     if (interactionMode === "draw_point" && draftCoordinates.length > 0) {
       setActiveDraft({
         mode: "draw_point",
@@ -316,7 +396,14 @@ export function MapView() {
       });
       setModalOpen(true);
     }
-  }, [interactionMode, draftCoordinates, pointKind, pointCandidates]);
+  }, [
+    interactionMode,
+    selectedFeature,
+    draftCoordinates,
+    pointKind,
+    pointCandidates,
+    loadFeatures,
+  ]);
 
   // Clique no mapa durante desenho
   const handleMapClick = (coords: [number, number]) => {
@@ -334,6 +421,26 @@ export function MapView() {
     } else if (interactionMode === "draw_cable") {
       const newCoords = [...draftCoordinates, effectiveCoord];
       pushHistory(newCoords);
+    } else if (interactionMode === "edit_geometry") {
+      pushHistory(insertVertexAtNearestSegment(draftCoordinates, coords));
+    }
+  };
+
+  const handleVertexMove = React.useCallback(
+    (index: number, coordinates: [number, number]) => {
+      setDraftCoordinates((current) =>
+        current.map((coordinate, currentIndex) =>
+          currentIndex === index ? coordinates : coordinate
+        )
+      );
+    },
+    []
+  );
+
+  const handleVertexMoveEnd = () => {
+    const lastSnapshot = history[historyIndex];
+    if (JSON.stringify(lastSnapshot) !== JSON.stringify(draftCoordinates)) {
+      pushHistory(draftCoordinates);
     }
   };
 
@@ -469,6 +576,15 @@ export function MapView() {
         </div>
       )}
 
+      {interactionError && (
+        <div
+          role="alert"
+          className="border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs font-medium text-amber-900 dark:text-amber-100"
+        >
+          {interactionError}
+        </div>
+      )}
+
       {/* Alerta de Truncamento de Features */}
       {data?.truncated && (
         <div className="flex items-center justify-between gap-3 border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-xs text-foreground shrink-0 animate-in fade-in">
@@ -498,6 +614,11 @@ export function MapView() {
                 canRedo={historyIndex < history.length - 1}
                 currentLengthMeters={currentLengthMeters}
                 snapCandidate={snapCandidate}
+                canEditGeometry={
+                  selectedFeature?.geometry.type === "LineString" &&
+                  selectedFeature.properties.entity_type === "cable_segment"
+                }
+                isFinishing={isSavingGeometry}
                 onSetMode={handleSetMode}
                 onUndo={handleUndo}
                 onRedo={handleRedo}
@@ -522,6 +643,8 @@ export function MapView() {
                 onMapClick={handleMapClick}
                 onMouseMove={handleMouseMove}
                 onDoubleClick={handleFinishDrawing}
+                onVertexMove={handleVertexMove}
+                onVertexMoveEnd={handleVertexMoveEnd}
               />
             ) : (
               <div className="flex h-full min-h-[400px] items-center justify-center bg-card">
@@ -534,7 +657,7 @@ export function MapView() {
 
             {/* Painel Contextual Lateral do Elemento Clicado */}
             <MapFeatureSheet
-              feature={selectedFeature}
+              feature={interactionMode === "view" ? selectedFeature : null}
               onClose={() => handleSelectFeature(null)}
             />
 

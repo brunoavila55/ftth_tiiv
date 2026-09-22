@@ -68,18 +68,24 @@ export function MapLegend({ layers, onToggleLayer }: MapLegendProps) {
               />
             </label>
 
-            {/* Postes / Estruturas */}
+            {/* CEOs, postes e demais estruturas compartilham o filtro, mas não a cor. */}
             <label className="flex items-center justify-between gap-2 cursor-pointer select-none">
-              <div className="flex items-center gap-2">
-                <span className="h-3 w-3 rounded-full bg-slate-500 border border-white shadow-sm" />
-                <span className="text-foreground">Poste / CEO</span>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-violet-500 border border-white shadow-sm" />
+                  <span className="text-foreground">CEO (Emenda)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="h-3 w-3 rounded-full bg-slate-500 border border-white shadow-sm" />
+                  <span className="text-foreground">Poste / Estruturas</span>
+                </div>
               </div>
               <input
                 type="checkbox"
                 checked={layers.structures}
                 onChange={() => onToggleLayer("structures")}
                 className="h-3.5 w-3.5 rounded border-border accent-primary cursor-pointer"
-                aria-label="Alternar exibição de Estruturas e Postes"
+                aria-label="Alternar exibição de CEOs, estruturas e postes"
               />
             </label>
 
