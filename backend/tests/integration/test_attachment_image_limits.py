@@ -2,7 +2,6 @@
 
 import io
 import threading
-import time
 from collections.abc import Iterator
 from pathlib import Path
 
@@ -129,32 +128,45 @@ def test_health_stays_responsive_during_slow_image_processing(
     uploader: tuple[str, str],
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Se o handler bloqueasse o event loop, /health/live esperaria o processamento (0,6 s)."""
+    """O health check deve terminar enquanto o processamento lento continua em andamento."""
     site_id, csrf = uploader
     real_thumb = attachments_service.generate_thumbnail_image
+    processing_started = threading.Event()
+    release_processing = threading.Event()
 
     def slow_thumbnail(content: bytes, mime_type: str) -> bytes | None:
-        time.sleep(0.6)
+        processing_started.set()
+        if not release_processing.wait(timeout=5):
+            raise TimeoutError("o teste não liberou o processamento da miniatura")
         return real_thumb(content, mime_type)
 
     monkeypatch.setattr(attachments_service, "generate_thumbnail_image", slow_thumbnail)
     data = png_bytes(400, 400, "RGB")
-    result: dict[str, int] = {}
-    worker = threading.Thread(
-        target=lambda: result.update(status=upload(client, site_id, csrf, data).status_code)
+    upload_result: dict[str, int] = {}
+    upload_worker = threading.Thread(
+        target=lambda: upload_result.update(status=upload(client, site_id, csrf, data).status_code)
     )
-    worker.start()
-    time.sleep(0.2)  # o upload já está dentro do processamento lento
+    health_result: dict[str, int] = {}
+    health_worker = threading.Thread(
+        target=lambda: health_result.update(status=client.get("/health/live").status_code)
+    )
 
-    latencies = []
-    for _ in range(3):
-        t0 = time.perf_counter()
-        assert client.get("/health/live").status_code == status.HTTP_200_OK
-        latencies.append(time.perf_counter() - t0)
-    worker.join()
+    upload_worker.start()
+    assert processing_started.wait(timeout=2), "o processamento da miniatura não iniciou"
 
-    assert result["status"] == status.HTTP_201_CREATED
-    assert max(latencies) < 0.1, latencies
+    health_worker.start()
+    health_worker.join(timeout=1)
+    health_completed_during_processing = not health_worker.is_alive()
+    upload_still_processing = upload_worker.is_alive()
+
+    release_processing.set()
+    health_worker.join(timeout=2)
+    upload_worker.join(timeout=2)
+
+    assert health_completed_during_processing
+    assert upload_still_processing
+    assert health_result["status"] == status.HTTP_200_OK
+    assert upload_result["status"] == status.HTTP_201_CREATED
 
 
 def test_generate_thumbnail_image_enforces_pixel_limit_on_its_own(
