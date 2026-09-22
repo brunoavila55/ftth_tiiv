@@ -19,6 +19,7 @@ import { CoordinateInput } from "@/components/ui/coordinate-input";
 import {
   createSite,
   createStructure,
+  listSites,
   listStructures,
   type StructureRead,
 } from "@/features/inventory/api";
@@ -35,6 +36,7 @@ export interface DrawingModalProps {
 }
 
 const STRUCTURES_PAGE_SIZE = 200;
+const ASSOCIATIONS_PAGE_SIZE = 200;
 
 async function loadAllStructures(): Promise<StructureRead[]> {
   const structures: StructureRead[] = [];
@@ -46,6 +48,33 @@ async function loadAllStructures(): Promise<StructureRead[]> {
   }
 
   return structures;
+}
+
+async function loadAllCables(): Promise<CableRead[]> {
+  const cables: CableRead[] = [];
+  for (let page = 1; ; page += 1) {
+    const response = await listCables({ page, page_size: ASSOCIATIONS_PAGE_SIZE });
+    cables.push(...response.items);
+    if (response.items.length < ASSOCIATIONS_PAGE_SIZE || cables.length >= response.total) break;
+  }
+  return cables;
+}
+
+async function loadAllSites(): Promise<Array<{ id: string; code: string; name: string; status: string }>> {
+  const sites: Array<{ id: string; code: string; name: string; status: string }> = [];
+  for (let page = 1; ; page += 1) {
+    const response = await listSites({ page, page_size: ASSOCIATIONS_PAGE_SIZE });
+    sites.push(
+      ...response.items.map((site) => ({
+        id: site.id,
+        code: site.code,
+        name: site.name,
+        status: site.status,
+      }))
+    );
+    if (response.items.length < ASSOCIATIONS_PAGE_SIZE || sites.length >= response.total) break;
+  }
+  return sites;
 }
 
 function structureKindLabel(kind: string): string {
@@ -69,6 +98,9 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
   const [name, setName] = React.useState("");
   const [statusVal, setStatusVal] = React.useState("installed");
   const [pointCoords, setPointCoords] = React.useState<[number, number]>([0, 0]);
+  const [pointCapacity, setPointCapacity] = React.useState("0");
+  const [sitesList, setSitesList] = React.useState<Array<{ id: string; code: string; name: string }>>([]);
+  const [selectedSiteId, setSelectedSiteId] = React.useState("");
 
   // Campos de Cabo
   const [cablesList, setCablesList] = React.useState<CableRead[]>([]);
@@ -88,18 +120,26 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
     let cancelled = false;
     setLoadingAssociations(true);
 
-    Promise.all([listCables({ page_size: 200 }), loadAllStructures()])
-      .then(([cablesResponse, structures]) => {
+    Promise.all([loadAllCables(), loadAllStructures()])
+      .then(([cables, structures]) => {
         if (cancelled) return;
-        setCablesList(cablesResponse.items);
+        const availableCables = cables.filter((cable) => cable.status !== "retired");
+        setCablesList(availableCables);
         setStructuresList(
-          structures.sort((a, b) => {
-            if (a.kind === "cto" && b.kind !== "cto") return -1;
-            if (a.kind !== "cto" && b.kind === "cto") return 1;
-            return a.code.localeCompare(b.code, "pt-BR");
-          })
+          structures
+            .filter((structure) => structure.status !== "retired")
+            .sort((a, b) => {
+              if (a.kind === "cto" && b.kind !== "cto") return -1;
+              if (a.kind !== "cto" && b.kind === "cto") return 1;
+              return a.code.localeCompare(b.code, "pt-BR");
+            })
         );
-        setSelectedCableId(cablesResponse.items[0]?.id ?? "");
+        const preferredCableId = draft.cableId;
+        setSelectedCableId(
+          preferredCableId && availableCables.some((cable) => cable.id === preferredCableId)
+            ? preferredCableId
+            : (availableCables[0]?.id ?? "")
+        );
       })
       .catch(() => {
         if (!cancelled) {
@@ -113,7 +153,31 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
     return () => {
       cancelled = true;
     };
-  }, [open, draft?.mode]);
+  }, [open, draft?.mode, draft?.cableId]);
+
+  // Estruturas criadas pelo mapa também podem ser vinculadas ao POP que as abriga.
+  React.useEffect(() => {
+    if (!open || draft?.mode !== "draw_point" || draft.pointKind === "site") return;
+
+    let cancelled = false;
+    loadAllSites()
+      .then((sites) => {
+        if (!cancelled) {
+          setSitesList(
+            sites
+              .filter((site) => site.status !== "retired")
+              .map((site) => ({ id: site.id, code: site.code, name: site.name }))
+          );
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setErrorMsg("Não foi possível carregar os POPs disponíveis.");
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, draft?.mode, draft?.pointKind]);
 
   // Inicializa dados com base no rascunho
   React.useEffect(() => {
@@ -121,6 +185,7 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
       setErrorMsg(null);
       if (draft.mode === "draw_point" && draft.coordinates.length > 0) {
         setPointCoords(draft.coordinates[0]);
+        setStatusVal("installed");
         const prefix =
           draft.pointKind === "site"
             ? "POP"
@@ -131,6 +196,10 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
             : "POSTE";
         setCode(`${prefix}-${Math.floor(100 + Math.random() * 900)}`);
         setName(draft.pointKind === "site" ? "Estação Central" : "");
+        setPointCapacity(
+          draft.pointKind === "cto" ? "16" : draft.pointKind === "ceo" ? "24" : "0"
+        );
+        setSelectedSiteId("");
       } else if (draft.mode === "draw_cable") {
         setCableVertices(draft.coordinates);
         setOriginStructureId(draft.originStructureId ?? "");
@@ -211,6 +280,8 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
               type: "Point",
               coordinates: pointCoords,
             },
+            site_id: selectedSiteId || null,
+            capacity: Math.max(0, Number.parseInt(pointCapacity, 10) || 0),
           });
           onSuccess(structure.id);
         }
@@ -329,7 +400,6 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
                   >
                     <option value="installed">Instalado / Ativo</option>
                     <option value="planned">Planejado / Projeto</option>
-                    <option value="maintenance">Manutenção</option>
                   </select>
                 </div>
               </div>
@@ -346,6 +416,25 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
                 </div>
               )}
 
+              {draft.pointKind !== "site" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="point-capacity">
+                    {draft.pointKind === "cto"
+                      ? "Capacidade de portas"
+                      : draft.pointKind === "ceo"
+                        ? "Capacidade de fusões"
+                        : "Capacidade"}
+                  </Label>
+                  <Input
+                    id="point-capacity"
+                    type="number"
+                    min="0"
+                    value={pointCapacity}
+                    onChange={(event) => setPointCapacity(event.target.value)}
+                  />
+                </div>
+              )}
+
               {/* Coordenadas com input acessível */}
               <div className="space-y-1.5 pt-1">
                 <Label>Localização Geográfica (WGS-84)</Label>
@@ -358,6 +447,28 @@ export function DrawingModal({ open, draft, onClose, onSuccess }: DrawingModalPr
                   }}
                 />
               </div>
+
+              {draft.pointKind !== "site" && (
+                <div className="space-y-1.5">
+                  <Label htmlFor="point-site">Vincular ao POP / Site</Label>
+                  <select
+                    id="point-site"
+                    value={selectedSiteId}
+                    onChange={(event) => setSelectedSiteId(event.target.value)}
+                    className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  >
+                    <option value="">Nenhum — estrutura externa</option>
+                    {sitesList.map((site) => (
+                      <option key={site.id} value={site.id}>
+                        {site.code} — {site.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-[10px] text-muted-foreground">
+                    Use este vínculo para associar a primeira CEO/CTO da rede ao POP de origem.
+                  </p>
+                </div>
+              )}
             </>
           )}
 

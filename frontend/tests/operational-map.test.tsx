@@ -9,6 +9,7 @@ import { MapFallbackTable } from "@/features/map/components/map-fallback-table";
 import { MapView } from "@/features/map/components/map-view";
 import * as mapApi from "@/features/map/api";
 import * as settingsApi from "@/features/settings/api";
+import * as cablesApi from "@/features/cables/api";
 import { api } from "@/lib/api/client";
 import type { MapFeature } from "@/features/map/types";
 
@@ -90,7 +91,13 @@ const mockCableFeature: MapFeature = {
     code: "CAB-TRONCO-01",
     status: "installed",
     version: 1,
-    extra: { cable_id: "parent-cable-uuid-1" },
+    extra: {
+      cable_id: "parent-cable-uuid-1",
+      origin_structure_id: "structure-origin-1",
+      destination_structure_id: "structure-destination-1",
+      origin_code: "CEO-ORIGEM-01",
+      destination_code: "CTO-DESTINO-01",
+    },
   },
 };
 
@@ -98,6 +105,17 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockSearchParams = new URLSearchParams("lat=-23.55052&lng=-46.633308&zoom=14");
+    Object.defineProperty(window, "WebGLRenderingContext", {
+      configurable: true,
+      value: undefined,
+    });
+    vi.stubGlobal(
+      "ResizeObserver",
+      class {
+        observe() {}
+        disconnect() {}
+      }
+    );
   });
 
   describe("Utilitários de BBox e API de Mapa", () => {
@@ -262,6 +280,46 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
       expect(screen.getByRole("link", { name: /Abrir Cadastro Completo/i }).getAttribute("href"))
         .toBe("/cables/parent-cable-uuid-1");
     });
+
+    it("oferece continuidade e exclusão para o trecho selecionado", () => {
+      const handleContinue = vi.fn();
+      const handleDelete = vi.fn();
+      render(
+        <MapFeatureSheet
+          feature={mockCableFeature}
+          onClose={vi.fn()}
+          onContinueCable={handleContinue}
+          onDelete={handleDelete}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Do destino" }));
+      expect(handleContinue).toHaveBeenCalledWith(mockCableFeature, "destination");
+
+      fireEvent.click(screen.getByRole("button", { name: "Excluir trecho do mapa" }));
+      expect(handleDelete).toHaveBeenCalledWith(mockCableFeature);
+    });
+
+    it("permite iniciar um cabo a partir de uma CTO selecionada", () => {
+      const handleStart = vi.fn();
+      render(
+        <MapFeatureSheet
+          feature={{
+            ...mockCtoFeature,
+            properties: {
+              ...mockCtoFeature.properties,
+              entity_type: "structure",
+              extra: { kind: "cto" },
+            },
+          }}
+          onClose={vi.fn()}
+          onStartCable={handleStart}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Traçar cabo a partir daqui" }));
+      expect(handleStart).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe("MapFallbackTable Component", () => {
@@ -347,6 +405,46 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
       renderMapView();
 
       expect(screen.getByRole("heading", { name: /Mapa Operacional/i })).toBeDefined();
+    });
+
+    it("exclui pelo mapa o trecho selecionado e o remove imediatamente da lista", async () => {
+      vi.spyOn(mapApi, "getMapFeatures").mockResolvedValue({
+        type: "FeatureCollection",
+        features: [mockCableFeature],
+        bbox: [-46.64, -23.56, -46.62, -23.54],
+        topology_revision: 12,
+        truncated: false,
+      });
+      const deleteSpy = vi.spyOn(cablesApi, "deleteCableSegment").mockResolvedValue();
+      vi.spyOn(window, "confirm").mockReturnValue(true);
+
+      renderMapView();
+      fireEvent.click(screen.getByRole("button", { name: /Lista/i }));
+      const cableCode = await screen.findByText("CAB-TRONCO-01");
+      fireEvent.click(cableCode.closest("tr")!);
+      fireEvent.click(await screen.findByRole("button", { name: "Excluir trecho do mapa" }));
+
+      await waitFor(() => {
+        expect(deleteSpy).toHaveBeenCalledWith("cable-uuid-1", 1);
+      });
+    });
+
+    it("continua o mesmo cabo a partir da extremidade escolhida", async () => {
+      vi.spyOn(mapApi, "getMapFeatures").mockResolvedValue({
+        type: "FeatureCollection",
+        features: [mockCableFeature],
+        bbox: [-46.64, -23.56, -46.62, -23.54],
+        topology_revision: 13,
+        truncated: false,
+      });
+
+      renderMapView();
+      fireEvent.click(screen.getByRole("button", { name: /Lista/i }));
+      const cableCode = await screen.findByText("CAB-TRONCO-01");
+      fireEvent.click(cableCode.closest("tr")!);
+      fireEvent.click(await screen.findByRole("button", { name: "Do destino" }));
+
+      expect(await screen.findByText(/Adicionando vértices \(1 pontos/i)).toBeDefined();
     });
   });
 });

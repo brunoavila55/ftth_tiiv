@@ -201,10 +201,15 @@ def delete_cable(db: Session, cable_id: str, if_match: str | None) -> None:
     cable = get_cable_by_id(db, cable_id)
     check_if_match(if_match, cable.version)
 
-    has_segments = db.execute(
-        select(CableSegment.id).where(CableSegment.cable_id == cable.id).limit(1)
+    has_active_segments = db.execute(
+        select(CableSegment.id)
+        .where(
+            CableSegment.cable_id == cable.id,
+            CableSegment.status != "retired",
+        )
+        .limit(1)
     ).scalar_one_or_none()
-    if has_segments:
+    if has_active_segments:
         raise ConflictError(
             f"Não é possível remover o cabo '{cable.code}' pois ele possui trechos físicos implantados.",
             code="cable_has_segments",

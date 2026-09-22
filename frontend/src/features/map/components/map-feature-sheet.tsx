@@ -11,18 +11,32 @@ import {
   Copy,
   Check,
   MapPin,
+  Route,
+  Trash2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { StatusBadge } from "@/components/ui/status-badge";
+import { PermissionGate } from "@/components/auth/permission-gate";
 import type { MapFeature } from "../types";
 
 export interface MapFeatureSheetProps {
   feature: MapFeature | null;
   onClose: () => void;
+  onDelete?: (feature: MapFeature) => void;
+  onContinueCable?: (feature: MapFeature, endpoint: "origin" | "destination") => void;
+  onStartCable?: (feature: MapFeature) => void;
+  deleting?: boolean;
 }
 
-export function MapFeatureSheet({ feature, onClose }: MapFeatureSheetProps) {
+export function MapFeatureSheet({
+  feature,
+  onClose,
+  onDelete,
+  onContinueCable,
+  onStartCable,
+  deleting = false,
+}: MapFeatureSheetProps) {
   const [copied, setCopied] = React.useState(false);
 
   if (!feature) return null;
@@ -69,7 +83,15 @@ export function MapFeatureSheet({ feature, onClose }: MapFeatureSheetProps) {
   }
 
   const visibleExtraEntries = Object.entries(extra).filter(
-    ([key, value]) => value != null && !["kind", "site_id", "cable_id"].includes(key)
+    ([key, value]) =>
+      value != null &&
+      ![
+        "kind",
+        "site_id",
+        "cable_id",
+        "origin_structure_id",
+        "destination_structure_id",
+      ].includes(key)
   );
   const extraLabels: Record<string, string> = {
     capacity: "Capacidade",
@@ -222,7 +244,65 @@ export function MapFeatureSheet({ feature, onClose }: MapFeatureSheetProps) {
       </div>
 
       {/* Ações */}
-      <div className="mt-5 pt-3 border-t border-border flex items-center gap-2">
+      <div className="mt-5 space-y-2 border-t border-border pt-3">
+        <PermissionGate permission="network:write">
+          {(entityKind === "cable_segment" || entityKind === "cable") && onContinueCable && (
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => onContinueCable(feature, "origin")}
+              >
+                <Route className="h-3.5 w-3.5" />
+                Da origem
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-xs"
+                onClick={() => onContinueCable(feature, "destination")}
+              >
+                <Route className="h-3.5 w-3.5" />
+                Do destino
+              </Button>
+            </div>
+          )}
+
+          {properties.entity_type === "structure" && onStartCable && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-full gap-1.5 text-xs"
+              onClick={() => onStartCable(feature)}
+            >
+              <Route className="h-3.5 w-3.5" />
+              Traçar cabo a partir daqui
+            </Button>
+          )}
+
+          {onDelete && (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={deleting}
+              className="w-full gap-1.5 border-destructive/40 text-xs text-destructive hover:bg-destructive/10 hover:text-destructive"
+              onClick={() => onDelete(feature)}
+            >
+              {deleting ? (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              ) : (
+                <Trash2 className="h-3.5 w-3.5" />
+              )}
+              {entityKind === "cable_segment" ? "Excluir trecho do mapa" : "Excluir elemento"}
+            </Button>
+          )}
+        </PermissionGate>
+
         <Button asChild size="sm" className="w-full gap-1.5 text-xs">
           <Link href={detailUrl}>
             <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />

@@ -27,8 +27,18 @@ vi.mock("@/features/cables/api", () => ({
         status: "installed",
         version: 1,
       },
+      {
+        id: "cable-uuid-2",
+        code: "CAB-DISTRIBUICAO-24",
+        model: "Cabo ASU 24FO",
+        fiber_count: 24,
+        tube_count: 2,
+        color_standard: "NBR",
+        status: "installed",
+        version: 1,
+      },
     ],
-    total: 1,
+    total: 2,
   }),
   createCableSegment: vi.fn().mockResolvedValue({
     id: "segment-uuid-1",
@@ -79,6 +89,22 @@ vi.mock("@/features/inventory/api", () => ({
     page: 1,
     page_size: 200,
   }),
+  listSites: vi.fn().mockResolvedValue({
+    items: [
+      {
+        id: "site-pop-1",
+        code: "POP-CENTRAL-01",
+        name: "POP Central",
+        kind: "pop",
+        location: { type: "Point", coordinates: [-46.633, -23.55] },
+        status: "installed",
+        version: 1,
+      },
+    ],
+    total: 1,
+    page: 1,
+    page_size: 200,
+  }),
   createSite: vi.fn().mockResolvedValue({
     id: "site-uuid-new",
     code: "POP-NOVO",
@@ -122,6 +148,14 @@ describe("Desenho e Edição Geográfica (F07)", () => {
       const totalLen = calculateLineLength(coords);
       expect(totalLen).toBeGreaterThan(150);
       expect(totalLen).toBeLessThan(250);
+    });
+
+    it("ignora o segundo clique praticamente idêntico do duplo clique", async () => {
+      const { appendDistinctCoordinate } = await import("@/features/map/utils/geometry");
+      const coordinates: [number, number][] = [[-51.2, -30.1]];
+
+      expect(appendDistinctCoordinate(coordinates, [-51.2, -30.1])).toBe(coordinates);
+      expect(appendDistinctCoordinate(coordinates, [-51.19, -30.11])).toHaveLength(2);
     });
 
     it("identifica snap magnético à estrutura mais próxima dentro do raio limite", () => {
@@ -323,6 +357,31 @@ describe("Desenho e Edição Geográfica (F07)", () => {
       });
     });
 
+    it("vincula uma CEO criada no mapa ao POP selecionado", async () => {
+      const draft: DrawingDraft = {
+        mode: "draw_point",
+        pointKind: "ceo",
+        coordinates: [[-46.6335, -23.5505]],
+      };
+
+      render(
+        <DrawingModal open={true} draft={draft} onClose={vi.fn()} onSuccess={vi.fn()} />
+      );
+
+      const siteSelect = await screen.findByLabelText("Vincular ao POP / Site");
+      fireEvent.change(siteSelect, { target: { value: "site-pop-1" } });
+      fireEvent.click(screen.getByRole("button", { name: /Confirmar e Salvar/i }));
+
+      await waitFor(() => {
+        expect(inventoryApi.createStructure).toHaveBeenCalledWith(
+          expect.objectContaining({
+            kind: "ceo",
+            site_id: "site-pop-1",
+          })
+        );
+      });
+    });
+
     it("renderiza métricas tripartidas de comprimento óptico para traçado de cabos", async () => {
       const handleSuccess = vi.fn();
       const draft: DrawingDraft = {
@@ -430,6 +489,29 @@ describe("Desenho e Edição Geográfica (F07)", () => {
             },
           })
         );
+      });
+    });
+
+    it("mantém o mesmo cabo selecionado ao continuar um trecho existente", async () => {
+      const draft: DrawingDraft = {
+        mode: "draw_cable",
+        cableId: "cable-uuid-2",
+        coordinates: [
+          [-46.633308, -23.55052],
+          [-46.634, -23.551],
+        ],
+        originStructureId: "struct-orig-1",
+        destinationStructureId: "struct-dest-2",
+      };
+
+      render(
+        <DrawingModal open={true} draft={draft} onClose={vi.fn()} onSuccess={vi.fn()} />
+      );
+
+      await screen.findByText(/CAB-DISTRIBUICAO-24/);
+      await waitFor(() => {
+        const cableSelect = screen.getByLabelText("Cabo Óptico Pertencente *");
+        expect((cableSelect as HTMLSelectElement).value).toBe("cable-uuid-2");
       });
     });
   });

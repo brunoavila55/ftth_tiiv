@@ -187,8 +187,21 @@ def test_spatial_bbox_query_and_gist_index(
         kind="pole",
         location=point_geometry_to_wkb(PointGeometry(coordinates=struct_pt2)),
     )
+    retired_site = Site(
+        code="POP-MAP-RETIRADO",
+        name="POP retirado",
+        kind="pop",
+        status="retired",
+        location=point_geometry_to_wkb(PointGeometry(coordinates=(-46.6336, -23.5506))),
+    )
+    retired_structure = Structure(
+        code="CEO-MAP-RETIRADA",
+        kind="ceo",
+        status="retired",
+        location=point_geometry_to_wkb(PointGeometry(coordinates=(-46.6337, -23.5507))),
+    )
     cable = Cable(code="CAB-MAP-01", model="SM-12F", fiber_count=12)
-    db_session.add_all([site, struct1, struct2, cable])
+    db_session.add_all([site, struct1, struct2, retired_site, retired_structure, cable])
     db_session.commit()
 
     # Cria trecho de cabo ligando as duas estruturas
@@ -203,6 +216,17 @@ def test_spatial_bbox_query_and_gist_index(
         length_source="calculated",
     )
     db_session.add(seg)
+    retired_seg = CableSegment(
+        cable_id=cable.id,
+        origin_structure_id=struct1.id,
+        destination_structure_id=struct2.id,
+        geometry=linestring_geometry_to_wkb(line_geom),
+        map_length_m=50.0,
+        effective_length_m=50.0,
+        length_source="calculated",
+        status="retired",
+    )
+    db_session.add(retired_seg)
     db_session.commit()
 
     # 2. Faz requisição HTTP com bbox cobrindo a região
@@ -224,6 +248,10 @@ def test_spatial_bbox_query_and_gist_index(
     assert "site" in feature_types
     assert "structure" in feature_types
     assert "cable_segment" in feature_types
+    feature_codes = {f["properties"]["code"] for f in data["features"]}
+    assert "POP-MAP-RETIRADO" not in feature_codes
+    assert "CEO-MAP-RETIRADA" not in feature_codes
+    assert all(f["properties"]["status"] != "retired" for f in data["features"])
 
     # 3. Bbox em outra região (ex: Rio de Janeiro) não retorna features
     res_empty = client.get(

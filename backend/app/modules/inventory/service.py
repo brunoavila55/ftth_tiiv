@@ -12,6 +12,7 @@ from app.core.errors import (
     UnprocessableEntityError,
 )
 from app.core.search import contains
+from app.modules.cables.models import CableSegment
 from app.modules.connectivity.models import Connection, Splitter, Terminal, TerminalReservation
 from app.modules.customers.models import ServiceLink
 from app.modules.gis.helpers import point_geometry_to_wkb, wkb_to_point_geometry
@@ -162,14 +163,31 @@ def delete_site(session: Session, site_id: str, if_match: str | None) -> None:
     has_structures = (
         session.scalar(select(func.count(Structure.id)).where(Structure.site_id == site.id)) or 0
     )
+    has_active_structures = (
+        session.scalar(
+            select(func.count(Structure.id)).where(
+                Structure.site_id == site.id,
+                Structure.status != "retired",
+            )
+        )
+        or 0
+    )
     has_devices = (
         session.scalar(select(func.count(Device.id)).where(Device.site_id == site.id)) or 0
     )
-    if has_structures > 0 or has_devices > 0:
+    if has_active_structures > 0 or has_devices > 0:
         raise ConflictError(
             "Não é possível excluir o site pois existem estruturas ou dispositivos vinculados a ele.",
             code="referenced_entity_conflict",
         )
+
+    # Preserva o histórico quando ainda existem estruturas desativadas referenciando o POP.
+    if has_structures > 0:
+        site.status = "retired"
+        site.version += 1
+        site.updated_at = datetime.now(UTC)
+        session.commit()
+        return
 
     try:
         session.delete(site)
@@ -403,14 +421,19 @@ def update_structure(
 
     if payload.location is not None:
         structure.location = point_geometry_to_wkb(payload.location)
-    if payload.site_id is not None:
-        try:
-            site_uuid = uuid.UUID(payload.site_id)
-        except ValueError:
-            raise NotFoundError("Site informado não encontrado.", code="site_not_found") from None
-        if not session.scalar(select(Site.id).where(Site.id == site_uuid)):
-            raise NotFoundError("Site informado não encontrado.", code="site_not_found")
-        structure.site_id = site_uuid
+    if "site_id" in payload.model_fields_set:
+        if not payload.site_id:
+            structure.site_id = None
+        else:
+            try:
+                site_uuid = uuid.UUID(payload.site_id)
+            except ValueError:
+                raise NotFoundError(
+                    "Site informado não encontrado.", code="site_not_found"
+                ) from None
+            if not session.scalar(select(Site.id).where(Site.id == site_uuid)):
+                raise NotFoundError("Site informado não encontrado.", code="site_not_found")
+            structure.site_id = site_uuid
     if payload.capacity is not None:
         structure.capacity = payload.capacity
     if payload.status is not None:
@@ -438,11 +461,33 @@ def delete_structure(session: Session, structure_id: str, if_match: str | None) 
     has_ports = (
         session.scalar(select(func.count(Port.id)).where(Port.structure_id == structure.id)) or 0
     )
-    if has_devices > 0 or has_ports > 0:
+    segment_reference = or_(
+        CableSegment.origin_structure_id == structure.id,
+        CableSegment.destination_structure_id == structure.id,
+    )
+    has_segments = session.scalar(select(func.count(CableSegment.id)).where(segment_reference)) or 0
+    has_active_segments = (
+        session.scalar(
+            select(func.count(CableSegment.id)).where(
+                segment_reference,
+                CableSegment.status != "retired",
+            )
+        )
+        or 0
+    )
+    if has_devices > 0 or has_ports > 0 or has_active_segments > 0:
         raise ConflictError(
-            "Não é possível excluir a estrutura pois há dispositivos ou portas vinculados a ela.",
+            "Não é possível excluir a estrutura pois há dispositivos, portas ou trechos de cabo ativos vinculados a ela.",
             code="referenced_entity_conflict",
         )
+
+    # Trechos retirados continuam referenciando suas antigas extremidades para fins de auditoria.
+    if has_segments > 0:
+        structure.status = "retired"
+        structure.version += 1
+        structure.updated_at = datetime.now(UTC)
+        session.commit()
+        return
 
     try:
         session.delete(structure)

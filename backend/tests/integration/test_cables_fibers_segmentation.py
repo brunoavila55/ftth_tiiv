@@ -175,6 +175,39 @@ def test_cable_24f_generation_and_48_terminals(
     assert fibers_page["total"] == 24
     assert len(fibers_page["items"]) == 24
 
+    # 6. O mapa deve impedir a remoção da estrutura enquanto o trecho estiver ativo.
+    blocked_structure_delete = client.delete(
+        f"/api/v1/structures/{st_orig.id}",
+        headers={"X-CSRF-Token": csrf_token, "If-Match": '"1"'},
+    )
+    assert blocked_structure_delete.status_code == status.HTTP_409_CONFLICT
+
+    # Depois de retirar o trecho, suas estruturas e o cabo podem ser retirados sem
+    # apagar o histórico físico referenciado pelas fibras.
+    delete_segment_resp = client.delete(
+        f"/api/v1/cable-segments/{seg_id}",
+        headers={"X-CSRF-Token": csrf_token, "If-Match": '"1"'},
+    )
+    assert delete_segment_resp.status_code == status.HTTP_204_NO_CONTENT
+
+    delete_structure_resp = client.delete(
+        f"/api/v1/structures/{st_orig.id}",
+        headers={"X-CSRF-Token": csrf_token, "If-Match": '"1"'},
+    )
+    assert delete_structure_resp.status_code == status.HTTP_204_NO_CONTENT
+    db_session.refresh(st_orig)
+    assert st_orig.status == "retired"
+
+    delete_cable_resp = client.delete(
+        f"/api/v1/cables/{cable_id}",
+        headers={"X-CSRF-Token": csrf_token, "If-Match": '"1"'},
+    )
+    assert delete_cable_resp.status_code == status.HTTP_204_NO_CONTENT
+    stored_cable = db_session.get(Cable, cable_id)
+    assert stored_cable is not None
+    db_session.refresh(stored_cable)
+    assert stored_cable.status == "retired"
+
 
 def test_segment_split_at_access_structure(
     client: TestClient,

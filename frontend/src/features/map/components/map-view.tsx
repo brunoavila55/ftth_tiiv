@@ -28,9 +28,12 @@ import {
   findNearestSnapCandidate,
   calculateLineLength,
   insertVertexAtNearestSegment,
+  appendDistinctCoordinate,
   type SnapCandidate,
 } from "../utils/geometry";
-import { updateCableSegment } from "@/features/cables/api";
+import { deleteCableSegment, updateCableSegment } from "@/features/cables/api";
+import { deleteSite, deleteStructure } from "@/features/inventory/api";
+import { ApiError } from "@/lib/api/types";
 import type {
   MapFeature,
   MapFeatureCollection,
@@ -119,6 +122,13 @@ export function MapView() {
   const [activeDraft, setActiveDraft] = React.useState<DrawingDraft | null>(null);
   const [interactionError, setInteractionError] = React.useState<string | null>(null);
   const [isSavingGeometry, setIsSavingGeometry] = React.useState(false);
+  const [isDeletingFeature, setIsDeletingFeature] = React.useState(false);
+  const [draftCableId, setDraftCableId] = React.useState<string | null>(null);
+  const [presetOrigin, setPresetOrigin] = React.useState<{
+    id: string;
+    code: string;
+    coordinates: [number, number];
+  } | null>(null);
 
   // Filtros de camadas ativas
   const [layers, setLayers] = React.useState<LayerFilters>({
@@ -277,6 +287,8 @@ export function MapView() {
     }
 
     setInteractionError(null);
+    setDraftCableId(null);
+    setPresetOrigin(null);
     setInteractionMode(mode);
     if (kind) setPointKind(kind);
     setDraftCoordinates([]);
@@ -325,6 +337,8 @@ export function MapView() {
     setActiveDraft(null);
     setModalOpen(false);
     setInteractionError(null);
+    setDraftCableId(null);
+    setPresetOrigin(null);
   }, []);
 
   // Finaliza desenho e abre modal de revisão técnica
@@ -383,7 +397,8 @@ export function MapView() {
       const firstCoord = draftCoordinates[0];
       const lastCoord = draftCoordinates[draftCoordinates.length - 1];
 
-      const snapOrigin = findNearestSnapCandidate(firstCoord, pointCandidates, 15);
+      const snapOrigin =
+        presetOrigin ?? findNearestSnapCandidate(firstCoord, pointCandidates, 15);
       const snapDest = findNearestSnapCandidate(lastCoord, pointCandidates, 15);
 
       setActiveDraft({
@@ -393,6 +408,7 @@ export function MapView() {
         originStructureCode: snapOrigin?.code ?? null,
         destinationStructureId: snapDest?.id ?? null,
         destinationStructureCode: snapDest?.code ?? null,
+        cableId: draftCableId,
       });
       setModalOpen(true);
     }
@@ -402,6 +418,8 @@ export function MapView() {
     draftCoordinates,
     pointKind,
     pointCandidates,
+    draftCableId,
+    presetOrigin,
     loadFeatures,
   ]);
 
@@ -419,10 +437,130 @@ export function MapView() {
       });
       setModalOpen(true);
     } else if (interactionMode === "draw_cable") {
-      const newCoords = [...draftCoordinates, effectiveCoord];
-      pushHistory(newCoords);
+      const newCoords = appendDistinctCoordinate(draftCoordinates, effectiveCoord);
+      if (newCoords !== draftCoordinates) pushHistory(newCoords);
     } else if (interactionMode === "edit_geometry") {
       pushHistory(insertVertexAtNearestSegment(draftCoordinates, coords));
+    }
+  };
+
+  const beginCableDrawing = (
+    origin: {
+      id: string;
+      code: string;
+      coordinates: [number, number];
+    },
+    cableId: string | null
+  ) => {
+    handleSelectFeature(null);
+    setInteractionError(null);
+    setInteractionMode("draw_cable");
+    setDraftCableId(cableId);
+    setPresetOrigin(origin);
+    setDraftCoordinates([origin.coordinates]);
+    setHistory([[origin.coordinates]]);
+    setHistoryIndex(0);
+    setSnapCandidate(null);
+    setActiveDraft(null);
+    setModalOpen(false);
+  };
+
+  const handleStartCable = (feature: MapFeature) => {
+    if (feature.geometry.type !== "Point" || feature.properties.entity_type !== "structure") {
+      setInteractionError("O cabo precisa iniciar em uma CTO, CEO, poste ou estrutura física.");
+      return;
+    }
+    beginCableDrawing(
+      {
+        id: feature.properties.entity_id,
+        code: feature.properties.code,
+        coordinates: feature.geometry.coordinates,
+      },
+      null
+    );
+  };
+
+  const handleContinueCable = (
+    feature: MapFeature,
+    endpoint: "origin" | "destination"
+  ) => {
+    if (feature.geometry.type !== "LineString") return;
+    const extra = feature.properties.extra ?? {};
+    const structureId = extra[`${endpoint}_structure_id`];
+    const cableId = extra.cable_id;
+    const structureCode = extra[`${endpoint}_code`];
+    const coordinate =
+      endpoint === "origin"
+        ? feature.geometry.coordinates[0]
+        : feature.geometry.coordinates.at(-1);
+
+    if (
+      typeof structureId !== "string" ||
+      typeof cableId !== "string" ||
+      !coordinate
+    ) {
+      setInteractionError("Não foi possível identificar a extremidade deste trecho. Recarregue o mapa.");
+      return;
+    }
+
+    beginCableDrawing(
+      {
+        id: structureId,
+        code: typeof structureCode === "string" ? structureCode : feature.properties.code,
+        coordinates: coordinate,
+      },
+      cableId
+    );
+  };
+
+  const handleDeleteFeature = async (feature: MapFeature) => {
+    const extra = feature.properties.extra ?? {};
+    const kind =
+      feature.properties.entity_type === "structure" && typeof extra.kind === "string"
+        ? extra.kind.toUpperCase()
+        : feature.properties.entity_type === "site"
+          ? "POP"
+          : "trecho de cabo";
+    if (
+      !window.confirm(
+        `Excluir ${kind} ${feature.properties.code}? Esta operação respeitará os vínculos existentes da rede.`
+      )
+    ) {
+      return;
+    }
+
+    setIsDeletingFeature(true);
+    setInteractionError(null);
+    try {
+      if (feature.properties.entity_type === "site") {
+        await deleteSite(feature.properties.entity_id, feature.properties.version);
+      } else if (feature.properties.entity_type === "structure") {
+        await deleteStructure(feature.properties.entity_id, feature.properties.version);
+      } else if (feature.properties.entity_type === "cable_segment") {
+        await deleteCableSegment(feature.properties.entity_id, feature.properties.version);
+      } else {
+        throw new Error("Este tipo de elemento não pode ser excluído pelo mapa.");
+      }
+
+      setData((current) =>
+        current
+          ? { ...current, features: current.features.filter((item) => item.id !== feature.id) }
+          : current
+      );
+      handleSelectFeature(null);
+      if (currentBBoxRef.current) {
+        loadFeatures(currentBBoxRef.current, currentZoomRef.current);
+      }
+    } catch (err: unknown) {
+      setInteractionError(
+        err instanceof ApiError
+          ? err.detail || err.message
+          : err instanceof Error
+            ? err.message
+            : "Não foi possível excluir o elemento."
+      );
+    } finally {
+      setIsDeletingFeature(false);
     }
   };
 
@@ -659,6 +797,10 @@ export function MapView() {
             <MapFeatureSheet
               feature={interactionMode === "view" ? selectedFeature : null}
               onClose={() => handleSelectFeature(null)}
+              onDelete={handleDeleteFeature}
+              onContinueCable={handleContinueCable}
+              onStartCable={handleStartCable}
+              deleting={isDeletingFeature}
             />
 
             {/* Modal de Revisão Técnica e Cadastro */}

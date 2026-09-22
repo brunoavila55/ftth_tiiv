@@ -225,6 +225,45 @@ def test_site_referenced_deletion_protection(
     assert client.get(f"/api/v1/sites/{site_id}").status_code == status.HTTP_200_OK
 
 
+def test_structure_can_be_unlinked_from_site(
+    client: TestClient,
+    engineer_user: User,
+) -> None:
+    auth_csrf = auth_client_login(client, engineer_user.email)
+    site_resp = client.post(
+        "/api/v1/sites",
+        json={
+            "code": "POP-DESVINCULAR",
+            "name": "POP para desvincular",
+            "kind": "pop",
+            "location": {"type": "Point", "coordinates": [-51.2, -30.1]},
+        },
+        headers={"X-CSRF-Token": auth_csrf},
+    )
+    site_id = site_resp.json()["id"]
+    structure_resp = client.post(
+        "/api/v1/structures",
+        json={
+            "code": "CEO-DESVINCULAR",
+            "kind": "ceo",
+            "location": {"type": "Point", "coordinates": [-51.2, -30.1]},
+            "site_id": site_id,
+            "capacity": 24,
+        },
+        headers={"X-CSRF-Token": auth_csrf},
+    )
+    structure = structure_resp.json()
+
+    unlink_resp = client.patch(
+        f"/api/v1/structures/{structure['id']}",
+        json={"site_id": None},
+        headers={"X-CSRF-Token": auth_csrf, "If-Match": f'"{structure["version"]}"'},
+    )
+
+    assert unlink_resp.status_code == status.HTTP_200_OK, unlink_resp.text
+    assert unlink_resp.json()["site_id"] is None
+
+
 def test_site_rbac_permissions(
     client: TestClient,
     viewer_user: User,

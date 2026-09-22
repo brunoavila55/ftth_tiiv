@@ -52,6 +52,22 @@ export function calculateLineLength(coordinates: [number, number][]): number {
   return Math.round(totalMeters * 10) / 10;
 }
 
+/** Evita vértices consecutivos praticamente idênticos, comuns no duplo clique do mapa. */
+export function appendDistinctCoordinate(
+  coordinates: [number, number][],
+  nextCoordinate: [number, number],
+  minimumDistanceMeters: number = 0.5
+): [number, number][] {
+  const lastCoordinate = coordinates.at(-1);
+  if (
+    lastCoordinate &&
+    haversineDistance(lastCoordinate, nextCoordinate) < minimumDistanceMeters
+  ) {
+    return coordinates;
+  }
+  return [...coordinates, nextCoordinate];
+}
+
 /** Insere um vértice no trecho mais próximo, preservando a ordem do LineString. */
 export function insertVertexAtNearestSegment(
   coordinates: [number, number][],

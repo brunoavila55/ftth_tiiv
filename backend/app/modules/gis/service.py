@@ -4,7 +4,7 @@ from sqlalchemy import cast, func, select, text
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.config import get_settings
-from app.modules.cables.models import CableSegment
+from app.modules.cables.models import Cable, CableSegment
 from app.modules.gis.helpers import (
     parse_and_validate_bbox,
     wkb_to_linestring_geometry,
@@ -103,7 +103,7 @@ def query_map_features(
     if "sites" in layers:
         site_stmt = (
             select(Site)
-            .where(func.ST_Intersects(Site.location, envelope))
+            .where(Site.status != "retired", func.ST_Intersects(Site.location, envelope))
             .order_by(Site.code)
             .limit(max_limit + 1)
         )
@@ -129,7 +129,10 @@ def query_map_features(
         remaining = max_limit + 1 - len(features)
         struct_stmt = (
             select(Structure)
-            .where(func.ST_Intersects(Structure.location, envelope))
+            .where(
+                Structure.status != "retired",
+                func.ST_Intersects(Structure.location, envelope),
+            )
             .order_by(Structure.code)
             .limit(remaining)
         )
@@ -162,6 +165,10 @@ def query_map_features(
                 joinedload(CableSegment.destination_structure),
             )
             .where(func.ST_Intersects(CableSegment.geometry, envelope))
+            .where(
+                CableSegment.status != "retired",
+                CableSegment.cable.has(Cable.status != "retired"),
+            )
             .order_by(CableSegment.created_at)
             .limit(remaining)
         )
@@ -177,12 +184,12 @@ def query_map_features(
                 version=seg.version,
                 extra={
                     "cable_id": str(seg.cable_id),
+                    "origin_structure_id": str(seg.origin_structure_id),
+                    "destination_structure_id": str(seg.destination_structure_id),
                     "model": seg.cable.model if seg.cable else None,
                     "fiber_count": seg.cable.fiber_count if seg.cable else None,
                     "tube_count": seg.cable.tube_count if seg.cable else None,
-                    "origin_code": (
-                        seg.origin_structure.code if seg.origin_structure else None
-                    ),
+                    "origin_code": (seg.origin_structure.code if seg.origin_structure else None),
                     "destination_code": (
                         seg.destination_structure.code if seg.destination_structure else None
                     ),

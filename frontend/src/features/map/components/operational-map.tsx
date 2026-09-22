@@ -134,17 +134,10 @@ export function OperationalMap({
     onVertexMoveEnd,
     onSelectFeature,
   });
-  const [webglSupported, setWebglSupported] = React.useState<boolean>(true);
+  const [webglSupported] = React.useState<boolean>(checkWebGLSupport);
   const [locating, setLocating] = React.useState<boolean>(false);
   const [geoError, setGeoError] = React.useState<string | null>(null);
   const [isFullscreen, setIsFullscreen] = React.useState<boolean>(false);
-
-  // 1. Verificação de suporte a WebGL
-  React.useEffect(() => {
-    if (!checkWebGLSupport()) {
-      setWebglSupported(false);
-    }
-  }, []);
 
   // Monitora mudanças no modo de tela cheia
   React.useEffect(() => {

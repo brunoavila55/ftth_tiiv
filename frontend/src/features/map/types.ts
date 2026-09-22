@@ -62,5 +62,5 @@ export interface DrawingDraft {
   destinationStructureId?: string | null;
   originStructureCode?: string | null;
   destinationStructureCode?: string | null;
+  cableId?: string | null;
 }
-
