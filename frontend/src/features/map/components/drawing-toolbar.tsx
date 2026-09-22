@@ -79,12 +79,15 @@ export function DrawingToolbar({
       className="absolute top-4 left-1/2 z-20 flex max-w-[calc(100vw-1rem)] -translate-x-1/2 flex-col items-center gap-1.5"
     >
       {/* Barra principal de botões */}
-      <div className="flex max-w-full items-center gap-1.5 overflow-x-auto rounded-xl border border-border bg-card/95 p-1.5 text-xs shadow-2xl backdrop-blur-md">
+      <div className="flex max-w-full flex-wrap items-center justify-center gap-1.5 overflow-visible rounded-xl border border-border bg-card/95 p-1.5 text-xs shadow-2xl backdrop-blur-md">
         {/* Botão Modo Navegar */}
         <Button
           variant={mode === "view" ? "secondary" : "ghost"}
           size="sm"
-          onClick={() => onSetMode("view")}
+          onClick={() => {
+            setPointMenuOpen(false);
+            onSetMode("view");
+          }}
           className="h-8 px-2.5 gap-1.5 font-medium"
           aria-pressed={mode === "view"}
           title="Modo de navegação e inspeção"
@@ -101,6 +104,8 @@ export function DrawingToolbar({
             onClick={() => setPointMenuOpen(!pointMenuOpen)}
             className="h-8 px-2.5 gap-1 font-medium"
             aria-pressed={mode === "draw_point"}
+            aria-haspopup="menu"
+            aria-expanded={pointMenuOpen}
             title="Adicionar POP, CTO, Poste ou CEO"
           >
             <MapPin className="h-3.5 w-3.5 text-primary" />
@@ -111,9 +116,14 @@ export function DrawingToolbar({
           </Button>
 
           {pointMenuOpen && (
-            <div className="absolute top-full left-0 mt-1.5 w-40 rounded-lg border border-border bg-card p-1 shadow-xl z-30 animate-in fade-in-0 zoom-in-95">
+            <div
+              role="menu"
+              aria-label="Tipo de ponto"
+              className="absolute top-full left-0 mt-1.5 w-40 rounded-lg border border-border bg-card p-1 shadow-xl z-30 animate-in fade-in-0 zoom-in-95"
+            >
               <button
                 type="button"
+                role="menuitem"
                 onClick={() => {
                   onSetMode("draw_point", "cto");
                   setPointMenuOpen(false);
@@ -125,6 +135,7 @@ export function DrawingToolbar({
               </button>
               <button
                 type="button"
+                role="menuitem"
                 onClick={() => {
                   onSetMode("draw_point", "pole");
                   setPointMenuOpen(false);
@@ -136,6 +147,7 @@ export function DrawingToolbar({
               </button>
               <button
                 type="button"
+                role="menuitem"
                 onClick={() => {
                   onSetMode("draw_point", "site");
                   setPointMenuOpen(false);
@@ -147,6 +159,7 @@ export function DrawingToolbar({
               </button>
               <button
                 type="button"
+                role="menuitem"
                 onClick={() => {
                   onSetMode("draw_point", "ceo");
                   setPointMenuOpen(false);
@@ -164,7 +177,10 @@ export function DrawingToolbar({
         <Button
           variant={mode === "draw_cable" ? "secondary" : "ghost"}
           size="sm"
-          onClick={() => onSetMode("draw_cable")}
+          onClick={() => {
+            setPointMenuOpen(false);
+            onSetMode("draw_cable");
+          }}
           className="h-8 px-2.5 gap-1.5 font-medium"
           aria-pressed={mode === "draw_cable"}
           title="Desenhar trecho de cabo óptico"
@@ -177,7 +193,10 @@ export function DrawingToolbar({
         <Button
           variant={mode === "edit_geometry" ? "secondary" : "ghost"}
           size="sm"
-          onClick={() => onSetMode("edit_geometry")}
+          onClick={() => {
+            setPointMenuOpen(false);
+            onSetMode("edit_geometry");
+          }}
           className="h-8 px-2.5 gap-1.5 font-medium"
           aria-pressed={mode === "edit_geometry"}
           title="Editar vértices de geometria"

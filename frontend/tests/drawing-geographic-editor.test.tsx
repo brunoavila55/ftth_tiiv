@@ -166,6 +166,38 @@ describe("Desenho e Edição Geográfica (F07)", () => {
   });
 
   describe("DrawingToolbar Component", () => {
+    it("exibe o menu sem recorte e ativa a criação do tipo de ponto escolhido", () => {
+      const handleSetMode = vi.fn();
+
+      render(
+        <DrawingToolbar
+          mode="view"
+          verticesCount={0}
+          canUndo={false}
+          canRedo={false}
+          currentLengthMeters={0}
+          snapCandidate={null}
+          onSetMode={handleSetMode}
+          onUndo={vi.fn()}
+          onRedo={vi.fn()}
+          onCancel={vi.fn()}
+          onFinish={vi.fn()}
+        />
+      );
+
+      const toolbar = screen.getByRole("toolbar");
+      const actionBar = toolbar.firstElementChild;
+      expect(actionBar?.className).toContain("overflow-visible");
+      expect(actionBar?.className).not.toContain("overflow-x-auto");
+
+      fireEvent.click(screen.getByTitle("Adicionar POP, CTO, Poste ou CEO"));
+      expect(screen.getByRole("menu", { name: "Tipo de ponto" })).toBeDefined();
+
+      fireEvent.click(screen.getByRole("menuitem", { name: /CTO \(Terminação\)/i }));
+      expect(handleSetMode).toHaveBeenCalledWith("draw_point", "cto");
+      expect(screen.queryByRole("menu", { name: "Tipo de ponto" })).toBeNull();
+    });
+
     it("renderiza modo ativo, instruções e botões de ação", () => {
       const handleSetMode = vi.fn();
       const handleUndo = vi.fn();

@@ -84,6 +84,8 @@ export function OperationalMap({
 
   const mapContainerRef = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<maplibregl.Map | null>(null);
+  const appliedStyleUrlRef = React.useRef<string | null>(null);
+  const onViewportChangeRef = React.useRef(onViewportChange);
   const [webglSupported, setWebglSupported] = React.useState<boolean>(true);
   const [locating, setLocating] = React.useState<boolean>(false);
   const [geoError, setGeoError] = React.useState<string | null>(null);
@@ -221,18 +223,37 @@ export function OperationalMap({
     };
   }, [snapCandidate]);
 
+  // O MapLibre remove fontes e camadas customizadas ao trocar o style. Mantemos a versão mais
+  // recente dos GeoJSONs em uma ref para reconstruí-las sem perder filtros, seleção ou rascunho.
+  const geoJsonRef = React.useRef({
+    lines: lineGeoJson,
+    points: pointGeoJson,
+    draftLine: draftLineGeoJson,
+    draftPoints: draftPointsGeoJson,
+    snap: snapGeoJson,
+  });
+  geoJsonRef.current = {
+    lines: lineGeoJson,
+    points: pointGeoJson,
+    draftLine: draftLineGeoJson,
+    draftPoints: draftPointsGeoJson,
+    snap: snapGeoJson,
+  };
+  onViewportChangeRef.current = onViewportChange;
+
+  const desiredStyleUrl =
+    process.env.NEXT_PUBLIC_MAP_STYLE_URL ||
+    (isDark ? MAP_STYLE_DARK_URL : MAP_STYLE_LIGHT_URL);
+
   // 3. Inicialização do MapLibre
   React.useEffect(() => {
     if (!webglSupported || !mapContainerRef.current || mapRef.current) return;
-
-    const styleUrl: string | maplibregl.StyleSpecification =
-      process.env.NEXT_PUBLIC_MAP_STYLE_URL || (isDark ? MAP_STYLE_DARK_URL : MAP_STYLE_LIGHT_URL);
 
     let map: maplibregl.Map;
     try {
       map = new maplibregl.Map({
         container: mapContainerRef.current,
-        style: styleUrl,
+        style: desiredStyleUrl,
         center: [initialLng, initialLat],
         zoom: initialZoom,
         attributionControl: false,
@@ -241,6 +262,7 @@ export function OperationalMap({
       console.warn("Falha ao instanciar MapLibre GL:", err);
       return;
     }
+    appliedStyleUrlRef.current = desiredStyleUrl;
 
     map.addControl(
       new maplibregl.AttributionControl({
@@ -258,14 +280,17 @@ export function OperationalMap({
       "bottom-left"
     );
 
+    let viewportSynchronized = false;
     const setupSourcesAndLayers = () => {
       if (!map || map.getSource("ftth-lines-source")) return;
+
+      const currentGeoJson = geoJsonRef.current;
 
       try {
         // Fontes e layers da rede cadastrada
         map.addSource("ftth-lines-source", {
           type: "geojson",
-          data: lineGeoJson,
+          data: currentGeoJson.lines,
         });
 
         map.addLayer({
@@ -297,7 +322,7 @@ export function OperationalMap({
 
         map.addSource("ftth-points-source", {
           type: "geojson",
-          data: pointGeoJson,
+          data: currentGeoJson.points,
         });
 
         map.addLayer({
@@ -338,7 +363,7 @@ export function OperationalMap({
         // Fontes e layers para rascunho de desenho (F07)
         map.addSource("ftth-draft-line-source", {
           type: "geojson",
-          data: draftLineGeoJson,
+          data: currentGeoJson.draftLine,
         });
 
         map.addLayer({
@@ -358,7 +383,7 @@ export function OperationalMap({
 
         map.addSource("ftth-draft-points-source", {
           type: "geojson",
-          data: draftPointsGeoJson,
+          data: currentGeoJson.draftPoints,
         });
 
         map.addLayer({
@@ -376,7 +401,7 @@ export function OperationalMap({
         // Fonte e layer para indicador de snap magnético
         map.addSource("ftth-snap-source", {
           type: "geojson",
-          data: snapGeoJson,
+          data: currentGeoJson.snap,
         });
 
         map.addLayer({
@@ -394,26 +419,29 @@ export function OperationalMap({
         console.warn("Aviso ao carregar camadas no mapa:", err);
       }
 
-      // Dispara primeira sincronização de viewport
-      try {
-        const bounds = map.getBounds();
-        onViewportChange(
-          {
-            west: bounds.getWest(),
-            south: bounds.getSouth(),
-            east: bounds.getEast(),
-            north: bounds.getNorth(),
-          },
-          Math.round(map.getZoom())
-        );
-      } catch {}
+      // Dispara a sincronização inicial uma única vez; trocar apenas o tema não altera a viewport.
+      if (!viewportSynchronized) {
+        try {
+          const bounds = map.getBounds();
+          onViewportChangeRef.current(
+            {
+              west: bounds.getWest(),
+              south: bounds.getSouth(),
+              east: bounds.getEast(),
+              north: bounds.getNorth(),
+            },
+            Math.round(map.getZoom())
+          );
+          viewportSynchronized = true;
+        } catch {}
+      }
 
       // Garante que o canvas ocupe as dimensões completas do elemento
       map.resize();
     };
 
-    // Dispara tanto em style.load quanto em load para garantir renderização imediata
-    map.once("style.load", setupSourcesAndLayers);
+    // `style.load` também dispara após setStyle; nesse momento as camadas FTTH são reconstruídas.
+    map.on("style.load", setupSourcesAndLayers);
     map.once("load", setupSourcesAndLayers);
 
     map.on("error", (e) => {
@@ -433,11 +461,27 @@ export function OperationalMap({
 
     return () => {
       clearTimeout(timer);
+      map.off("style.load", setupSourcesAndLayers);
       map.remove();
       mapRef.current = null;
+      appliedStyleUrlRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [webglSupported]);
+
+  // Alterna o mapa base imediatamente quando o tema da aplicação muda, sem recriar a instância
+  // (e sem perder centro, zoom ou modo de desenho). O listener de style.load restaura as camadas.
+  React.useEffect(() => {
+    const map = mapRef.current;
+    if (!map || appliedStyleUrlRef.current === desiredStyleUrl) return;
+
+    try {
+      map.setStyle(desiredStyleUrl);
+      appliedStyleUrlRef.current = desiredStyleUrl;
+    } catch (err) {
+      console.warn("Não foi possível alternar o tema do mapa:", err);
+    }
+  }, [desiredStyleUrl]);
 
   // Atualização das fontes de desenho e rede
   React.useEffect(() => {
