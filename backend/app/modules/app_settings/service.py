@@ -15,9 +15,9 @@ def _default_record() -> AppSettingsRecord:
         id=APP_SETTINGS_ID,
         organization_name="Operação FTTH",
         timezone="America/Sao_Paulo",
-        default_map_longitude=-46.633308,
-        default_map_latitude=-23.550520,
-        default_map_zoom=14,
+        default_map_longitude=-53.0,
+        default_map_latitude=-30.0,
+        default_map_zoom=7,
         excess_loss_tolerance_db=2.0,
         version=1,
     )

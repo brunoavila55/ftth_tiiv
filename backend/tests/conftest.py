@@ -61,7 +61,7 @@ def clean_identity_tables(db_session: Session) -> Generator[None, None, None]:
         "(id, organization_name, timezone, default_map_longitude, default_map_latitude, "
         "default_map_zoom, excess_loss_tolerance_db, version) VALUES "
         "('00000000-0000-0000-0000-000000000001', 'Operação FTTH', "
-        "'America/Sao_Paulo', -46.633308, -23.550520, 14, 2.0, 1);"
+        "'America/Sao_Paulo', -53.0, -30.0, 7, 2.0, 1);"
     )
     db_session.rollback()
     db_session.execute(truncate_sql)

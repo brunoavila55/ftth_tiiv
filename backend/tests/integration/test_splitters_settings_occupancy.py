@@ -173,6 +173,8 @@ def test_app_settings_are_persistent_versioned_and_validate_timezone(
     assert initial.status_code == status.HTTP_200_OK
     assert initial.headers["etag"] == '"1"'
     assert initial.json()["organization_name"] == "Operação FTTH"
+    assert initial.json()["default_map_center"] == [-53.0, -30.0]
+    assert initial.json()["default_map_zoom"] == 7
 
     missing_if_match = client.patch(
         "/api/v1/settings",

@@ -6,10 +6,10 @@ class AppSettingsRead(BaseModel):
     organization_name: str = "Operação FTTH"
     timezone: str = "America/Sao_Paulo"
     default_map_center: tuple[float, float] = Field(
-        default=(-46.633308, -23.550520),
+        default=(-53.0, -30.0),
         description="Coordenadas [lon, lat] padrão para inicialização do mapa",
     )
-    default_map_zoom: int = 14
+    default_map_zoom: int = 7
     max_upload_size_bytes: int = 10_485_760
     trace_max_depth: int = 100
     excess_loss_tolerance_db: float = Field(

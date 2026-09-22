@@ -8,6 +8,7 @@ import { Plus, Minus, Maximize2, Locate, AlertTriangle, Fullscreen, Minimize2 } 
 import { Button } from "@/components/ui/button";
 import type { MapFeature, LayerFilters, MapInteractionMode } from "../types";
 import type { SnapCandidate } from "../utils/geometry";
+import { DEFAULT_MAP_VIEW } from "../constants";
 
 export interface OperationalMapProps {
   features: MapFeature[];
@@ -68,9 +69,9 @@ export function OperationalMap({
   selectedFeatureId,
   onSelectFeature,
   onViewportChange,
-  initialLat = -23.55052,
-  initialLng = -46.633308,
-  initialZoom = 14,
+  initialLat = DEFAULT_MAP_VIEW.latitude,
+  initialLng = DEFAULT_MAP_VIEW.longitude,
+  initialZoom = DEFAULT_MAP_VIEW.zoom,
   mode = "view",
   draftCoordinates = [],
   snapCandidate = null,

@@ -1352,8 +1352,8 @@ export interface components {
              * Default Map Center
              * @description Coordenadas [lon, lat] padrão para inicialização do mapa
              * @default [
-             *       -46.633308,
-             *       -23.55052
+             *       -53,
+             *       -30
              *     ]
              */
             default_map_center: [
@@ -1362,7 +1362,7 @@ export interface components {
             ];
             /**
              * Default Map Zoom
-             * @default 14
+             * @default 7
              */
             default_map_zoom: number;
             /**

@@ -3,6 +3,7 @@
 import * as React from "react";
 import dynamic from "next/dynamic";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useQuery } from "@tanstack/react-query";
 import {
   Map as MapIcon,
   Table as TableIcon,
@@ -16,6 +17,8 @@ import { Badge } from "@/components/ui/badge";
 import { LoadingState, ErrorState } from "@/components/ui/state-displays";
 import { PermissionGate } from "@/components/auth/permission-gate";
 import { getMapFeatures, formatBBox } from "../api";
+import { getAppSettings } from "@/features/settings/api";
+import { DEFAULT_MAP_VIEW } from "../constants";
 import { MapLegend } from "./map-legend";
 import { MapFeatureSheet } from "./map-feature-sheet";
 import { MapFallbackTable } from "./map-fallback-table";
@@ -55,10 +58,45 @@ export function MapView() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
-  // Coordenadas iniciais da URL (ou fallback padrão)
-  const initialLat = Number(searchParams.get("lat")) || -23.55052;
-  const initialLng = Number(searchParams.get("lng")) || -46.633308;
-  const initialZoom = Number(searchParams.get("zoom")) || 14;
+  const urlLat = searchParams.get("lat");
+  const urlLng = searchParams.get("lng");
+  const urlZoom = searchParams.get("zoom");
+  const parsedUrlLat = urlLat === null ? null : Number(urlLat);
+  const parsedUrlLng = urlLng === null ? null : Number(urlLng);
+  const parsedUrlZoom = urlZoom === null ? null : Number(urlZoom);
+  const validUrlLat =
+    parsedUrlLat !== null &&
+    Number.isFinite(parsedUrlLat) &&
+    parsedUrlLat >= -90 &&
+    parsedUrlLat <= 90;
+  const validUrlLng =
+    parsedUrlLng !== null &&
+    Number.isFinite(parsedUrlLng) &&
+    parsedUrlLng >= -180 &&
+    parsedUrlLng <= 180;
+  const validUrlZoom =
+    parsedUrlZoom !== null &&
+    Number.isFinite(parsedUrlZoom) &&
+    parsedUrlZoom >= 1 &&
+    parsedUrlZoom <= 22;
+  const needsAppSettings = !validUrlLat || !validUrlLng || !validUrlZoom;
+  const settingsQuery = useQuery({
+    queryKey: ["app-settings"],
+    queryFn: getAppSettings,
+    enabled: needsAppSettings,
+  });
+
+  // A URL tem prioridade; na navegação comum, usa a preferência persistida da instalação.
+  const initialLat = validUrlLat
+    ? parsedUrlLat
+    : (settingsQuery.data?.default_map_center[1] ?? DEFAULT_MAP_VIEW.latitude);
+  const initialLng = validUrlLng
+    ? parsedUrlLng
+    : (settingsQuery.data?.default_map_center[0] ?? DEFAULT_MAP_VIEW.longitude);
+  const initialZoom = validUrlZoom
+    ? parsedUrlZoom
+    : (settingsQuery.data?.default_map_zoom ?? DEFAULT_MAP_VIEW.zoom);
+  const initialViewReady = !needsAppSettings || !settingsQuery.isPending;
   const initialSelectedId = searchParams.get("selected");
 
   // Estados locais
@@ -468,22 +506,28 @@ export function MapView() {
               />
             </PermissionGate>
 
-            <OperationalMap
-              features={features}
-              layers={layers}
-              selectedFeatureId={selectedFeature?.id ?? null}
-              onSelectFeature={handleSelectFeature}
-              onViewportChange={handleViewportChange}
-              initialLat={initialLat}
-              initialLng={initialLng}
-              initialZoom={initialZoom}
-              mode={interactionMode}
-              draftCoordinates={draftCoordinates}
-              snapCandidate={snapCandidate}
-              onMapClick={handleMapClick}
-              onMouseMove={handleMouseMove}
-              onDoubleClick={handleFinishDrawing}
-            />
+            {initialViewReady ? (
+              <OperationalMap
+                features={features}
+                layers={layers}
+                selectedFeatureId={selectedFeature?.id ?? null}
+                onSelectFeature={handleSelectFeature}
+                onViewportChange={handleViewportChange}
+                initialLat={initialLat}
+                initialLng={initialLng}
+                initialZoom={initialZoom}
+                mode={interactionMode}
+                draftCoordinates={draftCoordinates}
+                snapCandidate={snapCandidate}
+                onMapClick={handleMapClick}
+                onMouseMove={handleMouseMove}
+                onDoubleClick={handleFinishDrawing}
+              />
+            ) : (
+              <div className="flex h-full min-h-[400px] items-center justify-center bg-card">
+                <LoadingState message="Carregando centro padrão do mapa..." />
+              </div>
+            )}
 
             {/* Legenda e Filtro de Camadas */}
             <MapLegend layers={layers} onToggleLayer={toggleLayer} />

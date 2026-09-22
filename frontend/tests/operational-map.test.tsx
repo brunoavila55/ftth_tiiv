@@ -1,12 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import * as React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { formatBBox, getMapFeatures } from "@/features/map/api";
 import { MapLegend } from "@/features/map/components/map-legend";
 import { MapFeatureSheet } from "@/features/map/components/map-feature-sheet";
 import { MapFallbackTable } from "@/features/map/components/map-fallback-table";
 import { MapView } from "@/features/map/components/map-view";
 import * as mapApi from "@/features/map/api";
+import * as settingsApi from "@/features/settings/api";
 import { api } from "@/lib/api/client";
 import type { MapFeature } from "@/features/map/types";
 
@@ -14,14 +16,26 @@ vi.mock("@/features/auth/auth-context", () => import("./support/auth-context-moc
 
 // Mock do router do Next.js
 const mockReplace = vi.fn();
+let mockSearchParams = new URLSearchParams("lat=-23.55052&lng=-46.633308&zoom=14");
 vi.mock("next/navigation", () => ({
   useRouter: () => ({
     push: vi.fn(),
     replace: mockReplace,
     prefetch: vi.fn(),
   }),
-  useSearchParams: () => new URLSearchParams("lat=-23.55052&lng=-46.633308&zoom=14"),
+  useSearchParams: () => mockSearchParams,
 }));
+
+function renderMapView() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <MapView />
+    </QueryClientProvider>
+  );
+}
 
 const mockSiteFeature: MapFeature = {
   id: "feat-site-1",
@@ -82,6 +96,7 @@ const mockCableFeature: MapFeature = {
 describe("Mapa Operacional e Camadas GIS (F06)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchParams = new URLSearchParams("lat=-23.55052&lng=-46.633308&zoom=14");
   });
 
   describe("Utilitários de BBox e API de Mapa", () => {
@@ -237,6 +252,25 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
   });
 
   describe("MapView Component", () => {
+    it("carrega o centro persistido quando a URL não informa uma posição", async () => {
+      mockSearchParams = new URLSearchParams();
+      const settingsSpy = vi.spyOn(settingsApi, "getAppSettings").mockResolvedValue({
+        app_name: "FTTH Manager",
+        organization_name: "Operação FTTH",
+        timezone: "America/Sao_Paulo",
+        default_map_center: [-53, -30],
+        default_map_zoom: 7,
+        max_upload_size_bytes: 10_485_760,
+        trace_max_depth: 100,
+        excess_loss_tolerance_db: 2,
+        version: 2,
+      });
+
+      renderMapView();
+
+      await waitFor(() => expect(settingsSpy).toHaveBeenCalledTimes(1));
+    });
+
     it("renderiza cabeçalho, controles de modo e alterna para visão em tabela", async () => {
       vi.spyOn(mapApi, "getMapFeatures").mockResolvedValue({
         type: "FeatureCollection",
@@ -246,7 +280,7 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
         truncated: false,
       });
 
-      render(<MapView />);
+      renderMapView();
 
       expect(screen.getByRole("heading", { name: /Mapa Operacional/i })).toBeDefined();
 
@@ -268,7 +302,7 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
         truncated: true,
       });
 
-      render(<MapView />);
+      renderMapView();
 
       expect(screen.getByRole("heading", { name: /Mapa Operacional/i })).toBeDefined();
     });

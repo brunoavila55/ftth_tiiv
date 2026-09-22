@@ -18,8 +18,8 @@
           },
           "default_map_center": {
             "default": [
-              -46.633308,
-              -23.55052
+              -53.0,
+              -30.0
             ],
             "description": "Coordenadas [lon, lat] padrão para inicialização do mapa",
             "maxItems": 2,
@@ -36,7 +36,7 @@
             "type": "array"
           },
           "default_map_zoom": {
-            "default": 14,
+            "default": 7,
             "title": "Default Map Zoom",
             "type": "integer"
           },
