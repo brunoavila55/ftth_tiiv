@@ -154,6 +154,15 @@ export const NAVIGATION_GROUPS: NavigationGroup[] = [
         implemented: true,
         description: "POPs, torres, rádios e enlaces wireless",
       },
+      {
+        title: "Mapa Wireless",
+        label: "Mapa Wireless",
+        href: "/wireless/map",
+        permission: "network:read",
+        icon: Map,
+        implemented: true,
+        description: "Mapa exclusivo de POPs, torres e enlaces de rádio",
+      },
     ],
   },
   {
@@ -341,7 +350,9 @@ export function parseBreadcrumbs(pathname: string): BreadcrumbItem[] {
     accumulatedPath += `/${segment}`;
     const isLast = i === segments.length - 1;
 
-    let label = ROUTE_SEGMENT_LABELS[segment];
+    let label = accumulatedPath === "/wireless/map"
+      ? "Mapa Wireless"
+      : ROUTE_SEGMENT_LABELS[segment];
     if (!label) {
       if (UUID_REGEX.test(segment)) {
         label = `#${segment.slice(0, 8)}…`;

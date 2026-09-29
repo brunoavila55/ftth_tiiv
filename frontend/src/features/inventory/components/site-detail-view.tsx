@@ -143,7 +143,7 @@ export function SiteDetailView({ siteId }: SiteDetailViewProps) {
         <div className="flex items-center gap-2">
           {lat !== null && lon !== null && (
             <Button variant="outline" size="sm" asChild className="gap-1.5 text-xs">
-              <Link href={`/map?lat=${lat}&lng=${lon}&zoom=17&selected=${site.id}`}>
+              <Link href={`${site.kind === "wireless_pop" || site.kind === "radio_tower" ? "/wireless/map" : "/map"}?lat=${lat}&lng=${lon}&zoom=17&selected=${site.id}`}>
                 <Map className="h-3.5 w-3.5" />
                 <span>Ver no Mapa</span>
               </Link>

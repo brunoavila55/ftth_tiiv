@@ -706,6 +706,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/map/wireless/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Consultar POPs, torres e enlaces do mapa wireless */
+        get: operations["api_v1_map_wireless_features_get_wireless_map_features"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/measurements": {
         parameters: {
             query?: never;
@@ -6158,6 +6175,38 @@ export interface operations {
                 layers?: string | null;
                 /** @description Nível de zoom do cliente */
                 zoom?: number | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MapFeatureCollection"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_v1_map_wireless_features_get_wireless_map_features: {
+        parameters: {
+            query: {
+                /** @description Envelope geográfico no formato minLon,minLat,maxLon,maxLat em EPSG:4326 */
+                bbox: string;
             };
             header?: never;
             path?: never;

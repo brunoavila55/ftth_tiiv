@@ -5,6 +5,8 @@ import { RadioLinkFormDialog } from "@/features/wireless/components/radio-link-f
 import type { SiteRead } from "@/lib/api/types";
 import type { DeviceRead } from "@/features/inventory/api";
 import * as wirelessApi from "@/features/wireless/api";
+import { getWirelessMapFeatures } from "@/features/wireless/map-api";
+import { api } from "@/lib/api/client";
 
 vi.mock("@/features/wireless/api", () => ({
   createRadioLink: vi.fn(),
@@ -21,6 +23,17 @@ const radios = [
 ] as DeviceRead[];
 
 describe("Cadastro de enlace wireless", () => {
+  it("consulta as feições na API exclusiva do mapa wireless", async () => {
+    const response = { type: "FeatureCollection", features: [], bbox: [-53.01, -30.01, -52.99, -29.99], topology_revision: 1, truncated: false };
+    const get = vi.spyOn(api, "get").mockResolvedValueOnce(response);
+
+    await expect(getWirelessMapFeatures("-53.01,-30.01,-52.99,-29.99")).resolves.toEqual(response);
+    expect(get).toHaveBeenCalledWith("/map/wireless/features", {
+      params: { bbox: "-53.01,-30.01,-52.99,-29.99" },
+      signal: undefined,
+    });
+  });
+
   it("associa cada rádio ao site da sua ponta e envia frequência em MHz", async () => {
     vi.mocked(wirelessApi.createRadioLink).mockResolvedValueOnce({ id: "link-1" } as Awaited<ReturnType<typeof wirelessApi.createRadioLink>>);
     const onSuccess = vi.fn();

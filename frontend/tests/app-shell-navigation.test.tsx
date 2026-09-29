@@ -47,6 +47,7 @@ describe("Navegação e Breadcrumbs (F02 Design System & Shell)", () => {
     // Rotas chave do FTTH Manager
     expect(hrefs).toContain("/dashboard");
     expect(hrefs).toContain("/map");
+    expect(hrefs).toContain("/wireless/map");
     expect(hrefs).toContain("/sites");
     expect(hrefs).toContain("/poles");
     expect(hrefs).toContain("/ceos");

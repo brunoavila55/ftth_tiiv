@@ -1,7 +1,7 @@
 from geoalchemy2 import Geography
 from geoalchemy2.elements import WKBElement
 from sqlalchemy import cast, func, select, text
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, aliased, joinedload
 
 from app.core.config import get_settings
 from app.modules.cables.models import Cable, CableSegment
@@ -10,9 +10,15 @@ from app.modules.gis.helpers import (
     wkb_to_linestring_geometry,
     wkb_to_point_geometry,
 )
-from app.modules.inventory.models import Site, Structure
+from app.modules.inventory.models import RadioLink, Site, Structure
+from app.modules.inventory.wireless_service import WIRELESS_SITE_KINDS
 from app.modules.topology.models import NetworkTopologyState
-from app.schemas.geojson import FeatureProperties, MapFeature, MapFeatureCollection
+from app.schemas.geojson import (
+    FeatureProperties,
+    LineStringGeometry,
+    MapFeature,
+    MapFeatureCollection,
+)
 
 
 def get_topology_revision(db: Session) -> int:
@@ -103,7 +109,11 @@ def query_map_features(
     if "sites" in layers:
         site_stmt = (
             select(Site)
-            .where(Site.status != "retired", func.ST_Intersects(Site.location, envelope))
+            .where(
+                Site.status != "retired",
+                Site.kind.notin_(WIRELESS_SITE_KINDS),
+                func.ST_Intersects(Site.location, envelope),
+            )
             .order_by(Site.code)
             .limit(max_limit + 1)
         )
@@ -217,5 +227,93 @@ def query_map_features(
         features=features,
         bbox=[min_lon, min_lat, max_lon, max_lat],
         topology_revision=current_rev,
+        truncated=truncated,
+    )
+
+
+def query_wireless_map_features(
+    db: Session, bbox_str: str, limit: int | None = None
+) -> MapFeatureCollection:
+    """Retorna apenas POPs, torres e enlaces de rádio visíveis no mapa wireless."""
+    max_limit = limit if limit is not None else get_settings().MAP_MAX_FEATURES
+    min_lon, min_lat, max_lon, max_lat = parse_and_validate_bbox(bbox_str)
+    envelope = func.ST_MakeEnvelope(min_lon, min_lat, max_lon, max_lat, 4326)
+
+    sites = db.scalars(
+        select(Site)
+        .where(
+            Site.kind.in_(WIRELESS_SITE_KINDS),
+            Site.status != "retired",
+            func.ST_Intersects(Site.location, envelope),
+        )
+        .order_by(Site.code)
+        .limit(max_limit + 1)
+    ).all()
+    features = [
+        MapFeature(
+            id=f"site:{site.id}",
+            geometry=wkb_to_point_geometry(site.location),
+            properties=FeatureProperties(
+                entity_id=str(site.id),
+                entity_type="site",
+                code=site.code,
+                status=site.status,
+                version=site.version,
+                extra={"kind": site.kind, "name": site.name},
+            ),
+        )
+        for site in sites
+    ]
+
+    if len(features) <= max_limit:
+        site_a = aliased(Site)
+        site_b = aliased(Site)
+        links = db.execute(
+            select(RadioLink, site_a, site_b)
+            .join(site_a, RadioLink.site_a_id == site_a.id)
+            .join(site_b, RadioLink.site_b_id == site_b.id)
+            .where(
+                RadioLink.status != "retired",
+                site_a.status != "retired",
+                site_b.status != "retired",
+                func.ST_Intersects(func.ST_MakeLine(site_a.location, site_b.location), envelope),
+            )
+            .order_by(RadioLink.code)
+            .limit(max_limit + 1 - len(features))
+        ).all()
+        for link, origin, destination in links:
+            features.append(
+                MapFeature(
+                    id=f"radio_link:{link.id}",
+                    geometry=LineStringGeometry(
+                        coordinates=[
+                            wkb_to_point_geometry(origin.location).coordinates,
+                            wkb_to_point_geometry(destination.location).coordinates,
+                        ]
+                    ),
+                    properties=FeatureProperties(
+                        entity_id=str(link.id),
+                        entity_type="radio_link",
+                        code=link.code,
+                        status=link.status,
+                        version=link.version,
+                        extra={
+                            "name": link.name,
+                            "site_a_id": str(origin.id),
+                            "site_b_id": str(destination.id),
+                            "site_a_code": origin.code,
+                            "site_b_code": destination.code,
+                            "frequency_mhz": link.frequency_mhz,
+                            "channel_width_mhz": link.channel_width_mhz,
+                        },
+                    ),
+                )
+            )
+
+    truncated = len(features) > max_limit
+    return MapFeatureCollection(
+        features=features[:max_limit],
+        bbox=[min_lon, min_lat, max_lon, max_lat],
+        topology_revision=get_topology_revision(db),
         truncated=truncated,
     )

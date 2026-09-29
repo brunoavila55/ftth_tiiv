@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { RadioTower } from "lucide-react";
+import { Map, RadioTower } from "lucide-react";
 import { SitesTable } from "@/features/inventory/components/sites-table";
 import { DevicesTable } from "@/features/inventory/components/devices-table";
 import { RadioLinksPanel } from "@/features/wireless/components/radio-links-panel";
@@ -16,17 +16,18 @@ function WirelessContent() {
 
   return (
     <div className="space-y-6 max-w-7xl mx-auto">
-      <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
             <RadioTower className="h-4 w-4" aria-hidden="true" />
           </div>
           <h1 className="text-xl font-bold tracking-tight text-foreground">Wireless</h1>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
-          Inventário de POPs, torres, rádios e enlaces entre pontos wireless.
-        </p>
+        <Link href="/wireless/map" className="inline-flex h-9 items-center gap-2 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90">
+          <Map className="h-4 w-4" /> Abrir Mapa Wireless
+        </Link>
       </div>
+      <p className="text-xs text-muted-foreground">Inventário de POPs, torres, rádios e enlaces entre pontos wireless.</p>
 
       <nav aria-label="Tipos de pontos wireless" className="flex gap-2 border-b border-border">
         <Link

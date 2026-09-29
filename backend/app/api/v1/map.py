@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.core.dependencies import require_permission
 from app.db.session import get_db
-from app.modules.gis.service import query_map_features
+from app.modules.gis.service import query_map_features, query_wireless_map_features
 from app.modules.identity.models import User
 from app.schemas.geojson import MapFeatureCollection
 
@@ -41,3 +41,20 @@ def get_map_features(
         layers_str=layers,
         zoom=zoom,
     )
+
+
+@map_router.get(
+    "/wireless/features",
+    response_model=MapFeatureCollection,
+    summary="Consultar POPs, torres e enlaces do mapa wireless",
+)
+def get_wireless_map_features(
+    bbox: str = Query(
+        ...,
+        description="Envelope geográfico no formato minLon,minLat,maxLon,maxLat em EPSG:4326",
+        examples=["-53.01,-30.01,-52.99,-29.99"],
+    ),
+    current_user: User = Depends(require_permission("network:read")),
+    db: Session = Depends(get_db),
+) -> MapFeatureCollection:
+    return query_wireless_map_features(db, bbox)

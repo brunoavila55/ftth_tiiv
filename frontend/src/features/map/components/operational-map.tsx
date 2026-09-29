@@ -9,6 +9,9 @@ import { Button } from "@/components/ui/button";
 import type { MapFeature, LayerFilters, MapInteractionMode } from "../types";
 import type { SnapCandidate } from "../utils/geometry";
 import { DEFAULT_MAP_VIEW } from "../constants";
+import { MAP_ATTRIBUTION, MAP_STYLE_DARK_URL, MAP_STYLE_LIGHT_URL } from "../map-style";
+
+export { MAP_STYLE_DARK_URL, MAP_STYLE_LIGHT_URL } from "../map-style";
 
 export interface OperationalMapProps {
   features: MapFeature[];
@@ -33,8 +36,6 @@ export interface OperationalMapProps {
 // Estilos vetoriais OpenFreeMap (CDN público, sem API key/cadastro; hospeda tiles, sprites e
 // glyphs num único domínio — ver TILE_HOSTS em middleware.ts). Substituem o CARTO Voyager/Dark
 // Matter, que passou a exigir API key (basemaps.cartocdn.com/apikey).
-export const MAP_STYLE_LIGHT_URL = "https://tiles.openfreemap.org/styles/positron";
-export const MAP_STYLE_DARK_URL = "https://tiles.openfreemap.org/styles/dark";
 export const MAP_POINT_COLORS = {
   site: "#0284c7",
   cto: "#f59e0b",
@@ -45,9 +46,6 @@ export const MAP_POINT_COLORS = {
 
 // OpenFreeMap não embute atribuição nas fontes do style.json; o mapa é derivado de dados OSM
 // (licença ODbL), então a atribuição é obrigatória e precisa ser adicionada manualmente.
-const MAP_ATTRIBUTION =
-  '© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noreferrer">OpenStreetMap</a> contributors · <a href="https://openfreemap.org" target="_blank" rel="noreferrer">OpenFreeMap</a>';
-
 const INTERACTIVE_LAYER_IDS = [
   "ftth-points-layer",
   "ftth-cables-layer",

@@ -9757,6 +9757,53 @@
         ]
       }
     },
+    "/api/v1/map/wireless/features": {
+      "get": {
+        "operationId": "api_v1_map_wireless_features_get_wireless_map_features",
+        "parameters": [
+          {
+            "description": "Envelope geográfico no formato minLon,minLat,maxLon,maxLat em EPSG:4326",
+            "in": "query",
+            "name": "bbox",
+            "required": true,
+            "schema": {
+              "description": "Envelope geográfico no formato minLon,minLat,maxLon,maxLat em EPSG:4326",
+              "examples": [
+                "-53.01,-30.01,-52.99,-29.99"
+              ],
+              "title": "Bbox",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MapFeatureCollection"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Consultar POPs, torres e enlaces do mapa wireless",
+        "tags": [
+          "Mapa e Camadas GIS"
+        ]
+      }
+    },
     "/api/v1/measurements": {
       "get": {
         "operationId": "api_v1_measurements_list_measurements_endpoint",

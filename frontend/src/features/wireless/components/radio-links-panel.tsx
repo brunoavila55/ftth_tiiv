@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
-import { Edit, Plus, Trash2 } from "lucide-react";
+import { Edit, Map as MapIcon, Plus, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ErrorState, LoadingState } from "@/components/ui/state-displays";
@@ -43,6 +43,16 @@ export function RadioLinksPanel() {
   const radios = radiosQuery.data ?? [];
   const siteById = new Map(sites.map((site) => [site.id, site]));
   const radioById = new Map(radios.map((radio) => [radio.id, radio]));
+  const mapHref = (link: RadioLinkRead) => {
+    const coordinates = siteById.get(link.site_a_id)?.location?.coordinates;
+    const params = new URLSearchParams({ selected: link.id });
+    if (coordinates) {
+      params.set("lat", String(coordinates[1]));
+      params.set("lng", String(coordinates[0]));
+      params.set("zoom", "12");
+    }
+    return `/wireless/map?${params.toString()}`;
+  };
 
   const remove = async (link: RadioLinkRead) => {
     if (!window.confirm(`Excluir o enlace ${link.code}?`)) return;
@@ -105,6 +115,11 @@ export function RadioLinksPanel() {
               <td className="px-3 py-3">{link.channel_width_mhz} MHz</td>
               <td className="px-3 py-3">{link.status === "installed" ? "Instalado" : link.status === "planned" ? "Planejado" : "Desativado"}</td>
               <td className="px-3 py-3"><div className="flex gap-1">
+                <Button variant="ghost" size="sm" asChild aria-label={`Ver ${link.code} no mapa`}>
+                  <Link href={mapHref(link)}>
+                    <MapIcon className="h-4 w-4" />
+                  </Link>
+                </Button>
                 {canWrite && <Button variant="ghost" size="sm" aria-label={`Editar ${link.code}`} onClick={() => { setEditing(link); setFormOpen(true); }}><Edit className="h-4 w-4" /></Button>}
                 {canWrite && <Button variant="ghost" size="sm" aria-label={`Excluir ${link.code}`} disabled={deletingId === link.id} onClick={() => void remove(link)}><Trash2 className="h-4 w-4" /></Button>}
               </div></td>
