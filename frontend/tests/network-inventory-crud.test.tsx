@@ -329,7 +329,7 @@ describe("Cadastros de Rede Física e Inventário (F08)", () => {
       fireEvent.click(confirmBtn);
 
       await waitFor(() => {
-        expect(screen.getByText(/Operação bloqueada por integridade referencial/i)).toBeTruthy();
+        expect(screen.getByText(/Não é possível excluir o site pois existem estruturas ou dispositivos vinculados/i)).toBeTruthy();
         expect(
           screen.getByText(/Desvincule ou transfira os elementos vinculados antes de desativar/i)
         ).toBeTruthy();

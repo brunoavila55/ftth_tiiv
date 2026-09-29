@@ -190,6 +190,14 @@ def test_cable_24f_generation_and_48_terminals(
     )
     assert delete_segment_resp.status_code == status.HTTP_204_NO_CONTENT
 
+    active_segments = client.get(f"/api/v1/cable-segments?cable_id={cable_id}")
+    assert active_segments.status_code == 200
+    assert active_segments.json()["total"] == 0
+    historical_segments = client.get(
+        f"/api/v1/cable-segments?cable_id={cable_id}&include_retired=true"
+    )
+    assert historical_segments.json()["total"] == 1
+
     delete_structure_resp = client.delete(
         f"/api/v1/structures/{st_orig.id}",
         headers={"X-CSRF-Token": csrf_token, "If-Match": '"1"'},
@@ -207,6 +215,53 @@ def test_cable_24f_generation_and_48_terminals(
     assert stored_cable is not None
     db_session.refresh(stored_cable)
     assert stored_cable.status == "retired"
+
+    assert client.get("/api/v1/cables").json()["total"] == 0
+    assert client.get("/api/v1/cables?include_retired=true").json()["total"] == 1
+    active_structures = client.get("/api/v1/structures?kind=pole").json()
+    assert {item["id"] for item in active_structures["items"]} == {str(st_dest.id)}
+    historical_structures = client.get("/api/v1/structures?kind=pole&include_retired=true").json()
+    assert {item["id"] for item in historical_structures["items"]} == {
+        str(st_orig.id),
+        str(st_dest.id),
+    }
+
+
+def test_cable_without_segments_is_removed_and_code_can_be_reused(
+    client: TestClient, db_session: Session
+) -> None:
+    user = User(
+        email="eng_delete_cable@provedor.com.br",
+        name="Cable Engineer",
+        password_hash=hash_password("EngineerPass123!"),
+        role=UserRole.ENGINEER.value,
+        is_active=True,
+        version=1,
+    )
+    db_session.add(user)
+    db_session.commit()
+    csrf_token = auth_client_login(client, user.email)
+    payload = {
+        "code": "CAB-SEM-TRECHO",
+        "model": "CFOA-12F",
+        "fiber_count": 12,
+        "tube_count": 1,
+        "color_standard": "NBR",
+    }
+    created = client.post("/api/v1/cables", json=payload, headers={"X-CSRF-Token": csrf_token})
+    assert created.status_code == 201, created.text
+    cable_id = created.json()["id"]
+
+    removed = client.delete(
+        f"/api/v1/cables/{cable_id}",
+        headers={"X-CSRF-Token": csrf_token, "If-Match": '"1"'},
+    )
+    assert removed.status_code == 204, removed.text
+    assert client.get(f"/api/v1/cables/{cable_id}").status_code == 404
+    assert client.get("/api/v1/cables?include_retired=true").json()["total"] == 0
+
+    recreated = client.post("/api/v1/cables", json=payload, headers={"X-CSRF-Token": csrf_token})
+    assert recreated.status_code == 201, recreated.text
 
 
 def test_segment_split_at_access_structure(

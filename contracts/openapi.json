@@ -7559,6 +7559,18 @@
             }
           },
           {
+            "description": "Incluir trechos retirados do inventário ativo",
+            "in": "query",
+            "name": "include_retired",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Incluir trechos retirados do inventário ativo",
+              "title": "Include Retired",
+              "type": "boolean"
+            }
+          },
+          {
             "in": "query",
             "name": "page",
             "required": false,
@@ -8041,6 +8053,18 @@
               ],
               "description": "Busca por código ou modelo do cabo",
               "title": "Q"
+            }
+          },
+          {
+            "description": "Incluir cabos retirados do inventário ativo",
+            "in": "query",
+            "name": "include_retired",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Incluir cabos retirados do inventário ativo",
+              "title": "Include Retired",
+              "type": "boolean"
             }
           },
           {
@@ -11898,6 +11922,18 @@
             }
           },
           {
+            "description": "Incluir sites retirados do inventário ativo",
+            "in": "query",
+            "name": "include_retired",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Incluir sites retirados do inventário ativo",
+              "title": "Include Retired",
+              "type": "boolean"
+            }
+          },
+          {
             "in": "query",
             "name": "page",
             "required": false,
@@ -12489,6 +12525,18 @@
               ],
               "description": "Busca por código",
               "title": "Q"
+            }
+          },
+          {
+            "description": "Incluir estruturas retiradas do inventário ativo",
+            "in": "query",
+            "name": "include_retired",
+            "required": false,
+            "schema": {
+              "default": false,
+              "description": "Incluir estruturas retiradas do inventário ativo",
+              "title": "Include Retired",
+              "type": "boolean"
             }
           },
           {

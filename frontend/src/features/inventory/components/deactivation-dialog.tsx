@@ -65,7 +65,7 @@ export function DeactivationDialog({
       if (err instanceof ApiError) {
         if (err.code === "referenced_entity_conflict" || err.status === 409) {
           setErrorMessage(
-            `Operação bloqueada por integridade referencial: Este ${entityTypeLabel.toLowerCase()} possui dependências ativas associadas. Desvincule ou transfira os elementos vinculados antes de desativar.`
+            `${err.detail || `Este ${entityTypeLabel.toLowerCase()} possui vínculos que impedem a exclusão.`} Desvincule ou transfira os elementos vinculados antes de desativar.`
           );
         } else if (err.status === 412) {
           setErrorMessage(

@@ -33,6 +33,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { PermissionGate } from "@/components/auth/permission-gate";
+import { ApiError } from "@/lib/api/types";
 
 export interface CableDetailViewProps {
   cableId: string;
@@ -47,6 +48,8 @@ export function CableDetailView({ cableId }: CableDetailViewProps) {
   const [deactivateDialogOpen, setDeactivateDialogOpen] = React.useState(false);
   const [splitDialogOpen, setSplitDialogOpen] = React.useState(false);
   const [splittingSegment, setSplittingSegment] = React.useState<CableSegmentRead | null>(null);
+  const [deletingSegmentId, setDeletingSegmentId] = React.useState<string | null>(null);
+  const [segmentDeleteError, setSegmentDeleteError] = React.useState<string | null>(null);
 
   const {
     data: cable,
@@ -111,11 +114,24 @@ export function CableDetailView({ cableId }: CableDetailViewProps) {
   ];
 
   const handleDeleteSegment = async (segmentId: string, version: number) => {
+    if (!window.confirm("Retirar este trecho do mapa? Conexões ópticas ativas impedem a operação.")) {
+      return;
+    }
+    setDeletingSegmentId(segmentId);
+    setSegmentDeleteError(null);
     try {
       await deleteCableSegment(segmentId, version);
-      refetchSegments();
-    } catch {
-      // Erro gerenciado pela API
+      await refetchSegments();
+    } catch (err: unknown) {
+      setSegmentDeleteError(
+        err instanceof ApiError
+          ? err.detail || err.message
+          : err instanceof Error
+            ? err.message
+            : "Não foi possível retirar o trecho."
+      );
+    } finally {
+      setDeletingSegmentId(null);
     }
   };
 
@@ -305,6 +321,11 @@ export function CableDetailView({ cableId }: CableDetailViewProps) {
       {/* Conteúdo da Aba: Segmentos */}
       {activeTab === "segments" && (
         <div className="space-y-4">
+          {segmentDeleteError && (
+            <p role="alert" className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+              {segmentDeleteError}
+            </p>
+          )}
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-sm font-semibold">Trechos Físicos do Cabo Óptico</h3>
@@ -373,6 +394,7 @@ export function CableDetailView({ cableId }: CableDetailViewProps) {
                           variant="ghost"
                           size="sm"
                           onClick={() => handleDeleteSegment(seg.id, seg.version)}
+                          disabled={deletingSegmentId !== null}
                           className="h-8 px-2 text-xs text-destructive hover:bg-destructive/10"
                         >
                           <Trash2 className="h-3.5 w-3.5" />

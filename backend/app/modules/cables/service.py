@@ -2,6 +2,7 @@ import math
 import uuid
 
 from sqlalchemy import func, select, text
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, selectinload
 
 from app.core.concurrency import check_if_match
@@ -164,9 +165,12 @@ def list_cables(
     limit: int = 20,
     offset: int = 0,
     q: str | None = None,
+    include_retired: bool = False,
 ) -> tuple[list[Cable], int]:
     """Lista cabos ópticos com busca textual e paginação."""
     query = select(Cable)
+    if not include_retired:
+        query = query.where(Cable.status != "retired")
     if q:
         query = query.where(contains(Cable.code, q) | contains(Cable.model, q))
 
@@ -197,7 +201,7 @@ def update_cable(
 
 
 def delete_cable(db: Session, cable_id: str, if_match: str | None) -> None:
-    """Desativa ou remove um cabo óptico garantindo integridade referencial."""
+    """Remove cabos sem trechos e arquiva os que possuem histórico físico."""
     cable = get_cable_by_id(db, cable_id)
     check_if_match(if_match, cable.version)
 
@@ -214,6 +218,21 @@ def delete_cable(db: Session, cable_id: str, if_match: str | None) -> None:
             f"Não é possível remover o cabo '{cable.code}' pois ele possui trechos físicos implantados.",
             code="cable_has_segments",
         )
+
+    has_historical_segments = db.scalar(
+        select(CableSegment.id).where(CableSegment.cable_id == cable.id).limit(1)
+    )
+    if not has_historical_segments:
+        try:
+            db.delete(cable)
+            db.commit()
+        except IntegrityError:
+            db.rollback()
+            raise ConflictError(
+                f"Não é possível remover o cabo '{cable.code}' pois ele é referenciado por outros elementos da rede.",
+                code="referenced_entity_conflict",
+            ) from None
+        return
 
     cable.status = "retired"
     cable.version += 1
@@ -378,9 +397,12 @@ def list_cable_segments(
     limit: int = 20,
     offset: int = 0,
     cable_id: str | None = None,
+    include_retired: bool = False,
 ) -> tuple[list[CableSegment], int]:
     """Lista trechos de cabos com filtro opcional por cabo e paginação."""
     query = select(CableSegment)
+    if not include_retired:
+        query = query.where(CableSegment.status != "retired")
     if cable_id:
         try:
             c_uuid = uuid.UUID(cable_id)

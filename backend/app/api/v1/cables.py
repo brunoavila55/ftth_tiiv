@@ -35,11 +35,16 @@ cables_router = APIRouter(tags=["Cabos e Fibras"])
 def list_cables(
     pagination: PaginationParams = Depends(),
     q: str | None = Query(default=None, description="Busca por código ou modelo do cabo"),
+    include_retired: bool = Query(
+        default=False, description="Incluir cabos retirados do inventário ativo"
+    ),
     current_user: User = Depends(require_permission("network:read")),
     db: Session = Depends(get_db),
 ) -> Any:
     offset = (pagination.page - 1) * pagination.page_size
-    items, total = service.list_cables(db=db, limit=pagination.page_size, offset=offset, q=q)
+    items, total = service.list_cables(
+        db=db, limit=pagination.page_size, offset=offset, q=q, include_retired=include_retired
+    )
     return PaginatedResponse[CableRead](
         items=[service.cable_to_schema(c) for c in items],
         total=total,
@@ -121,12 +126,19 @@ def delete_cable(
 def list_cable_segments(
     pagination: PaginationParams = Depends(),
     cable_id: UuidStr | None = Query(default=None, description="Filtrar por UUID do cabo"),
+    include_retired: bool = Query(
+        default=False, description="Incluir trechos retirados do inventário ativo"
+    ),
     current_user: User = Depends(require_permission("network:read")),
     db: Session = Depends(get_db),
 ) -> Any:
     offset = (pagination.page - 1) * pagination.page_size
     items, total = service.list_cable_segments(
-        db=db, limit=pagination.page_size, offset=offset, cable_id=cable_id
+        db=db,
+        limit=pagination.page_size,
+        offset=offset,
+        cable_id=cable_id,
+        include_retired=include_retired,
     )
     return PaginatedResponse[CableSegmentRead](
         items=[service.cable_segment_to_schema(s) for s in items],

@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   getStructure,
   deleteStructure,
+  deletePort,
   listPorts,
   listDevices,
   getStructureConnectivity,
@@ -37,6 +38,7 @@ import {
 import { CopyableCoordinates } from "@/components/ui/copyable-coordinates";
 import Link from "next/link";
 import { PermissionGate } from "@/components/auth/permission-gate";
+import { ApiError } from "@/lib/api/types";
 
 export interface StructureDetailViewProps {
   structureId: string;
@@ -53,6 +55,7 @@ const KIND_TITLES: Record<string, string> = {
 
 export function StructureDetailView({ structureId, kindOverride }: StructureDetailViewProps) {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = React.useState<"overview" | "connectivity" | "devices" | "map">(
     "overview"
   );
@@ -60,6 +63,9 @@ export function StructureDetailView({ structureId, kindOverride }: StructureDeta
   const [portDialogOpen, setPortDialogOpen] = React.useState(false);
   const [deactivateDialogOpen, setDeactivateDialogOpen] = React.useState(false);
   const [copiedCoords, setCopiedCoords] = React.useState(false);
+  const [deletingPortId, setDeletingPortId] = React.useState<string | null>(null);
+  const [portDeleteError, setPortDeleteError] = React.useState<string | null>(null);
+  const [portPage, setPortPage] = React.useState(1);
 
   const {
     data: structure,
@@ -73,8 +79,8 @@ export function StructureDetailView({ structureId, kindOverride }: StructureDeta
 
   // Consulta de portas da estrutura (para CTOs ou caixas)
   const { data: portsData, refetch: refetchPorts } = useQuery({
-    queryKey: ["inventory", "ports", "by-structure", structureId],
-    queryFn: () => listPorts({ structure_id: structureId, page_size: 100 }),
+    queryKey: ["inventory", "ports", "by-structure", structureId, portPage],
+    queryFn: () => listPorts({ structure_id: structureId, page: portPage, page_size: 50 }),
     enabled: Boolean(structure),
   });
 
@@ -136,6 +142,33 @@ export function StructureDetailView({ structureId, kindOverride }: StructureDeta
 
   const structureKind = structure.kind || kindOverride || "pole";
   const backHref = `/${structureKind === "pole" ? "poles" : structureKind === "ceo" ? "ceos" : structureKind === "cto" ? "ctos" : "structures"}`;
+
+  const handleDeletePort = async (portId: string, portName: string, version: number) => {
+    if (!window.confirm(`Excluir a porta ${portName}? Portas em uso não podem ser removidas.`)) {
+      return;
+    }
+    setDeletingPortId(portId);
+    setPortDeleteError(null);
+    try {
+      await deletePort(portId, version);
+      if (portPage > 1 && portsData?.items.length === 1) {
+        setPortPage(portPage - 1);
+      } else {
+        await refetchPorts();
+      }
+      await queryClient.invalidateQueries({ queryKey: ["structures", structureId, "cto-occupancy"] });
+    } catch (err: unknown) {
+      setPortDeleteError(
+        err instanceof ApiError
+          ? err.detail || err.message
+          : err instanceof Error
+            ? err.message
+            : "Não foi possível excluir a porta."
+      );
+    } finally {
+      setDeletingPortId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -386,6 +419,48 @@ export function StructureDetailView({ structureId, kindOverride }: StructureDeta
             </div>
           )}
 
+          {portsCount > 0 && (
+            <details className="rounded-md border border-border bg-card p-4">
+              <summary className="cursor-pointer text-sm font-medium">Gerenciar portas cadastradas ({portsCount})</summary>
+              {portDeleteError && (
+                <p role="alert" className="mt-3 rounded-md border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive">
+                  {portDeleteError}
+                </p>
+              )}
+              <ul className="mt-3 divide-y divide-border text-xs">
+                {portsData?.items.map((port) => (
+                  <li key={port.id} className="flex items-center justify-between gap-3 py-2">
+                    <span>{port.name}</span>
+                    <PermissionGate permission="network:write">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={deletingPortId !== null}
+                        onClick={() => handleDeletePort(port.id, port.name, port.version)}
+                        className="text-destructive hover:text-destructive"
+                        aria-label={`Excluir porta ${port.name}`}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </PermissionGate>
+                  </li>
+                ))}
+              </ul>
+              {portsCount > 50 && (
+                <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+                  <Button variant="outline" size="sm" disabled={portPage === 1} onClick={() => setPortPage(portPage - 1)}>
+                    Anterior
+                  </Button>
+                  <span>Página {portPage} de {Math.ceil(portsCount / 50)}</span>
+                  <Button variant="outline" size="sm" disabled={portPage >= Math.ceil(portsCount / 50)} onClick={() => setPortPage(portPage + 1)}>
+                    Próxima
+                  </Button>
+                </div>
+              )}
+            </details>
+          )}
+
           {/* Editor Transacional de Fusões, Terminais e Splitters */}
           <PermissionGate permission="network:write">
             <FusionEditor
@@ -446,7 +521,10 @@ export function StructureDetailView({ structureId, kindOverride }: StructureDeta
         onOpenChange={setPortDialogOpen}
         structureId={structureId}
         defaultRole="client_access"
-        onSuccess={() => refetchPorts()}
+        onSuccess={() => {
+          refetchPorts();
+          queryClient.invalidateQueries({ queryKey: ["structures", structureId, "cto-occupancy"] });
+        }}
       />
 
       {/* Dialog de Desativação */}

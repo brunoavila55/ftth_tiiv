@@ -74,6 +74,9 @@ def list_sites(
     pagination: PaginationParams = Depends(),
     kind: SiteKind | None = Query(default=None),
     q: str | None = Query(default=None, description="Busca por código ou nome"),
+    include_retired: bool = Query(
+        default=False, description="Incluir sites retirados do inventário ativo"
+    ),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[SiteRead]:
     items, total = list_sites_paginated(
@@ -82,6 +85,7 @@ def list_sites(
         page_size=pagination.page_size,
         kind=kind,
         q=q,
+        include_retired=include_retired,
     )
     return PaginatedResponse[SiteRead](
         items=[site_to_site_read(s) for s in items],
@@ -175,6 +179,9 @@ def list_structures(
         default=None, description="Filtrar por tipo (ex: cto, ceo, pole)"
     ),
     q: str | None = Query(default=None, description="Busca por código"),
+    include_retired: bool = Query(
+        default=False, description="Incluir estruturas retiradas do inventário ativo"
+    ),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[StructureRead]:
     items, total = list_structures_paginated(
@@ -183,6 +190,7 @@ def list_structures(
         page_size=pagination.page_size,
         kind=kind,
         q=q,
+        include_retired=include_retired,
     )
     return PaginatedResponse[StructureRead](
         items=[structure_to_structure_read(s) for s in items],

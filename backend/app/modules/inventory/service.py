@@ -65,9 +65,13 @@ def list_sites_paginated(
     page_size: int = 50,
     kind: SiteKind | None = None,
     q: str | None = None,
+    include_retired: bool = False,
 ) -> tuple[list[Site], int]:
     query = select(Site)
     count_query = select(func.count(Site.id))
+    if not include_retired:
+        query = query.where(Site.status != "retired")
+        count_query = count_query.where(Site.status != "retired")
 
     if kind:
         query = query.where(Site.kind == kind.value)
@@ -147,9 +151,9 @@ def update_site(
                     code="site_has_radios",
                 )
             has_radio_links = session.scalar(
-                select(RadioLink.id).where(
-                    or_(RadioLink.site_a_id == site.id, RadioLink.site_b_id == site.id)
-                ).limit(1)
+                select(RadioLink.id)
+                .where(or_(RadioLink.site_a_id == site.id, RadioLink.site_b_id == site.id))
+                .limit(1)
             )
             if has_radio_links:
                 raise ConflictError(
@@ -246,9 +250,13 @@ def list_structures_paginated(
     page_size: int = 50,
     kind: StructureKind | None = None,
     q: str | None = None,
+    include_retired: bool = False,
 ) -> tuple[list[Structure], int]:
     query = select(Structure)
     count_query = select(func.count(Structure.id))
+    if not include_retired:
+        query = query.where(Structure.status != "retired")
+        count_query = count_query.where(Structure.status != "retired")
 
     if kind:
         query = query.where(Structure.kind == kind.value)
@@ -707,9 +715,9 @@ def update_device(
                 code="device_has_splitters",
             )
         if location_changed and session.scalar(
-            select(RadioLink.id).where(
-                or_(RadioLink.radio_a_id == device.id, RadioLink.radio_b_id == device.id)
-            ).limit(1)
+            select(RadioLink.id)
+            .where(or_(RadioLink.radio_a_id == device.id, RadioLink.radio_b_id == device.id))
+            .limit(1)
         ):
             raise ConflictError(
                 "Remova os enlaces antes de mover este rádio.",

@@ -4884,6 +4884,8 @@ export interface operations {
             query?: {
                 /** @description Filtrar por UUID do cabo */
                 cable_id?: string | null;
+                /** @description Incluir trechos retirados do inventário ativo */
+                include_retired?: boolean;
                 page?: number;
                 page_size?: number;
             };
@@ -5159,6 +5161,8 @@ export interface operations {
             query?: {
                 /** @description Busca por código ou modelo do cabo */
                 q?: string | null;
+                /** @description Incluir cabos retirados do inventário ativo */
+                include_retired?: boolean;
                 page?: number;
                 page_size?: number;
             };
@@ -7357,6 +7361,8 @@ export interface operations {
                 kind?: components["schemas"]["SiteKind"] | null;
                 /** @description Busca por código ou nome */
                 q?: string | null;
+                /** @description Incluir sites retirados do inventário ativo */
+                include_retired?: boolean;
                 page?: number;
                 page_size?: number;
             };
@@ -7695,6 +7701,8 @@ export interface operations {
                 kind?: components["schemas"]["StructureKind"] | null;
                 /** @description Busca por código */
                 q?: string | null;
+                /** @description Incluir estruturas retiradas do inventário ativo */
+                include_retired?: boolean;
                 page?: number;
                 page_size?: number;
             };
