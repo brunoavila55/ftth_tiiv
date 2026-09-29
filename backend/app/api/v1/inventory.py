@@ -302,6 +302,8 @@ def list_devices(
     pagination: PaginationParams = Depends(),
     kind: DeviceKind | None = Query(default=None),
     q: str | None = Query(default=None, description="Busca por código, serial ou fabricante"),
+    site_id: UuidStr | None = Query(default=None),
+    structure_id: UuidStr | None = Query(default=None),
     db: Session = Depends(get_db),
 ) -> PaginatedResponse[DeviceRead]:
     items, total = list_devices_paginated(
@@ -310,6 +312,8 @@ def list_devices(
         page_size=pagination.page_size,
         kind=kind,
         q=q,
+        site_id=uuid.UUID(site_id) if site_id else None,
+        structure_id=uuid.UUID(structure_id) if structure_id else None,
     )
     return PaginatedResponse[DeviceRead](
         items=[device_to_device_read(d) for d in items],

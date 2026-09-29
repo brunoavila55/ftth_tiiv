@@ -168,7 +168,7 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
       render(<MapLegend layers={layers} onToggleLayer={handleToggle} />);
 
       expect(screen.getByText("Camadas & Legenda")).toBeDefined();
-      expect(screen.getByText("POP / Site Central")).toBeDefined();
+      expect(screen.getByText("POPs / Torres / Sites")).toBeDefined();
       expect(screen.getByText("CTO (Terminação)")).toBeDefined();
       expect(screen.getByText("CEO (Emenda)")).toBeDefined();
       expect(screen.getByText("Poste / Estruturas")).toBeDefined();
@@ -194,12 +194,12 @@ describe("Mapa Operacional e Camadas GIS (F06)", () => {
       fireEvent.click(toggleBtn);
 
       // Itens internos somem ao recolher
-      expect(screen.queryByText("POP / Site Central")).toBeNull();
+      expect(screen.queryByText("POPs / Torres / Sites")).toBeNull();
 
       const expandBtn = screen.getByLabelText("Expandir legenda");
       fireEvent.click(expandBtn);
 
-      expect(screen.getByText("POP / Site Central")).toBeDefined();
+      expect(screen.getByText("POPs / Torres / Sites")).toBeDefined();
     });
   });
 

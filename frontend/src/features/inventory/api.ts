@@ -92,7 +92,7 @@ export interface StructureRead {
   };
   capacity: number;
   status: "planned" | "installed" | "retired" | string;
-  condition: "ok" | "degraded" | "damaged" | string;
+  condition: "ok" | "unknown" | "damaged" | string;
   notes?: string | null;
   site_id?: string | null;
   version: number;
@@ -262,25 +262,12 @@ export async function listDevices(
   if (params?.page_size) queryParams.page_size = params.page_size;
   if (params?.kind) queryParams.kind = params.kind;
   if (params?.q) queryParams.q = params.q;
+  if (params?.site_id) queryParams.site_id = params.site_id;
+  if (params?.structure_id) queryParams.structure_id = params.structure_id;
 
   const result = await api.get<PaginatedResult<DeviceRead>>("/devices", {
     params: queryParams,
   });
-
-  // Filtragem no cliente para site_id e structure_id caso fornecido
-  if (params?.site_id || params?.structure_id) {
-    const filteredItems = result.items.filter((d) => {
-      if (params.site_id && d.site_id !== params.site_id) return false;
-      if (params.structure_id && d.structure_id !== params.structure_id) return false;
-      return true;
-    });
-    return {
-      ...result,
-      items: filteredItems,
-      total: filteredItems.length,
-    };
-  }
-
   return result;
 }
 

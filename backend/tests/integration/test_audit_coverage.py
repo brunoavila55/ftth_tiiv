@@ -170,6 +170,60 @@ def test_every_mutating_route_writes_exactly_one_audit_event(
     )
     assert tracker.last_event.action == "site:deleted"
 
+    # ---- wireless: dois pontos, rádios e enlace -------------------------------------------
+    wireless_sites: list[str] = []
+    wireless_radios: list[str] = []
+    for code, kind, coords in (
+        ("WPOP-AUD", "wireless_pop", POINT_B),
+        ("TORRE-AUD", "radio_tower", POINT_C),
+    ):
+        wireless_site = tracker.call(
+            "POST",
+            "/api/v1/sites",
+            json_body={"code": code, "name": code, "kind": kind, "location": point(coords)},
+        )
+        wireless_sites.append(wireless_site.json()["id"])
+        radio = tracker.call(
+            "POST",
+            "/api/v1/devices",
+            json_body={
+                "code": f"RADIO-{code}",
+                "kind": "radio",
+                "manufacturer": "Fabricante",
+                "model": "Modelo",
+                "site_id": wireless_site.json()["id"],
+            },
+        )
+        wireless_radios.append(radio.json()["id"])
+    radio_link = tracker.call(
+        "POST",
+        "/api/v1/radio-links",
+        json_body={
+            "code": "ENLACE-AUD",
+            "name": "Enlace auditado",
+            "site_a_id": wireless_sites[0],
+            "site_b_id": wireless_sites[1],
+            "radio_a_id": wireless_radios[0],
+            "radio_b_id": wireless_radios[1],
+            "frequency_mhz": 5800,
+            "channel_width_mhz": 40,
+        },
+    )
+    radio_link_id = radio_link.json()["id"]
+    radio_link = tracker.call(
+        "PATCH",
+        "/api/v1/radio-links/{link_id}",
+        link_id=radio_link_id,
+        json_body={"channel_width_mhz": 20},
+        headers=tracker.etag(radio_link),
+    )
+    tracker.call(
+        "DELETE",
+        "/api/v1/radio-links/{link_id}",
+        link_id=radio_link_id,
+        headers=tracker.etag(radio_link),
+    )
+
     # ---- structures (postes A/C, CEO B, CTO) -----------------------------------------------
     def new_structure(code: str, kind: str, coords: list[float]) -> str:
         r = tracker.call(

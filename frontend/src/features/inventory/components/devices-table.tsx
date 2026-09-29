@@ -16,20 +16,24 @@ import { DeviceFormDialog } from "@/features/inventory/components/device-form-di
 import { Plus, Eye, Edit, Building2, Box } from "lucide-react";
 import Link from "next/link";
 import { PermissionGate } from "@/components/auth/permission-gate";
+import { useAuth } from "@/features/auth/auth-context";
 
 const DEVICE_KIND_LABELS: Record<string, string> = {
   olt: "OLT (Terminal Óptico)",
   dio: "DIO (Distribuidor Óptico)",
   switch: "Switch de Borda",
   onu: "ONU / ONT",
+  radio: "Rádio",
 };
 
 export interface DevicesTableProps {
   siteId?: string;
   structureId?: string;
+  fixedKind?: "radio";
 }
 
-export function DevicesTable({ siteId, structureId }: DevicesTableProps) {
+export function DevicesTable({ siteId, structureId, fixedKind }: DevicesTableProps) {
+  const { hasPermission } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -37,7 +41,7 @@ export function DevicesTable({ siteId, structureId }: DevicesTableProps) {
   const page = Number(searchParams.get("page")) || 1;
   const pageSize = Number(searchParams.get("page_size")) || 20;
   const searchQuery = searchParams.get("q") || "";
-  const kindFilter = searchParams.get("kind") || "";
+  const kindFilter = fixedKind ?? searchParams.get("kind") ?? "";
 
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [formDialogOpen, setFormDialogOpen] = React.useState(false);
@@ -236,7 +240,7 @@ export function DevicesTable({ siteId, structureId }: DevicesTableProps) {
     [siteId, structureId, siteNames, structureCodes]
   );
 
-  const isFiltered = Boolean(searchQuery || kindFilter);
+  const isFiltered = Boolean(searchQuery || (!fixedKind && kindFilter));
 
   if (error) {
     return (
@@ -261,7 +265,7 @@ export function DevicesTable({ siteId, structureId }: DevicesTableProps) {
           isFiltered={isFiltered}
           onClearFilters={() => updateQueryParams({ q: null, kind: null, page: 1 })}
         >
-          <select
+          {!fixedKind && <select
             value={kindFilter}
             onChange={(e) => updateQueryParams({ kind: e.target.value || null, page: 1 })}
             className="h-9 rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -272,7 +276,8 @@ export function DevicesTable({ siteId, structureId }: DevicesTableProps) {
             <option value="dio">DIOs (Distribuidores Ópticos)</option>
             <option value="switch">Switches de Borda / Agregação</option>
             <option value="onu">ONUs / ONTs</option>
-          </select>
+            <option value="radio">Rádios</option>
+          </select>}
         </DataTableFilterBar>
 
         <PermissionGate permission="network:write">
@@ -285,7 +290,7 @@ export function DevicesTable({ siteId, structureId }: DevicesTableProps) {
             }}
           >
             <Plus className="h-4 w-4" />
-            <span>Novo Dispositivo</span>
+            <span>{fixedKind === "radio" ? "Novo Rádio" : "Novo Dispositivo"}</span>
           </Button>
         </PermissionGate>
       </div>
@@ -305,13 +310,13 @@ export function DevicesTable({ siteId, structureId }: DevicesTableProps) {
         idAccessor={(d) => d.id}
         isFiltered={isFiltered}
         onClearFilters={() => updateQueryParams({ q: null, kind: null, page: 1 })}
-        emptyTitle="Nenhum dispositivo ou OLT cadastrado"
-        emptyDescription="Cadastre o primeiro equipamento ativo ou passivo de rede."
-        emptyActionLabel="Cadastrar Novo Dispositivo"
-        onEmptyAction={() => {
+        emptyTitle={fixedKind === "radio" ? "Nenhum rádio cadastrado" : "Nenhum dispositivo ou OLT cadastrado"}
+        emptyDescription={fixedKind === "radio" ? "Cadastre um rádio em um POP wireless ou torre de rádio." : "Cadastre o primeiro equipamento ativo ou passivo de rede."}
+        emptyActionLabel={hasPermission("network:write") ? fixedKind === "radio" ? "Cadastrar Rádio" : "Cadastrar Novo Dispositivo" : undefined}
+        onEmptyAction={hasPermission("network:write") ? () => {
           setEditingDevice(null);
           setFormDialogOpen(true);
-        }}
+        } : undefined}
       />
 
       {/* Modal de Criação / Edição */}
@@ -319,6 +324,8 @@ export function DevicesTable({ siteId, structureId }: DevicesTableProps) {
         open={formDialogOpen}
         onOpenChange={setFormDialogOpen}
         device={editingDevice}
+        defaultKind={fixedKind}
+        wirelessOnly={fixedKind === "radio"}
         defaultSiteId={siteId}
         defaultStructureId={structureId}
         onSuccess={() => refetch()}

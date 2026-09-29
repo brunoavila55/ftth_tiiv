@@ -94,6 +94,8 @@ export function SiteDetailView({ siteId }: SiteDetailViewProps) {
   }
 
   const coords = site.location?.coordinates;
+  const siteKindLabel = site.kind === "radio_tower" ? "Torre de Rádio" : site.kind === "wireless_pop" ? "POP Wireless" : site.kind === "pop" ? "POP de Telecom" : site.kind === "cabinet" ? "Armário Técnico" : "Instalação Técnica";
+  const backHref = site.kind === "radio_tower" ? "/wireless?type=towers" : site.kind === "wireless_pop" ? "/wireless?type=pops" : "/sites";
   const lat = coords ? coords[1] : null;
   const lon = coords ? coords[0] : null;
 
@@ -116,9 +118,9 @@ export function SiteDetailView({ siteId }: SiteDetailViewProps) {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-border pb-4">
         <div className="flex items-center gap-3">
           <Button variant="ghost" size="icon" asChild className="h-9 w-9">
-            <Link href="/sites">
+            <Link href={backHref}>
               <ArrowLeft className="h-4 w-4" />
-              <span className="sr-only">Voltar para Sites</span>
+              <span className="sr-only">Voltar para lista de sites</span>
             </Link>
           </Button>
           <div>
@@ -127,7 +129,7 @@ export function SiteDetailView({ siteId }: SiteDetailViewProps) {
                 {site.code}
               </h1>
               <Badge variant="outline" className="text-xs uppercase">
-                {site.kind}
+                {siteKindLabel}
               </Badge>
               <StatusBadge status={site.status === "installed" ? "free" : "reserved"} />
               <Badge variant="secondary" className="font-mono text-[10px]">
@@ -144,6 +146,14 @@ export function SiteDetailView({ siteId }: SiteDetailViewProps) {
               <Link href={`/map?lat=${lat}&lng=${lon}&zoom=17&selected=${site.id}`}>
                 <Map className="h-3.5 w-3.5" />
                 <span>Ver no Mapa</span>
+              </Link>
+            </Button>
+          )}
+
+          {(site.kind === "wireless_pop" || site.kind === "radio_tower") && (
+            <Button variant="outline" size="sm" asChild className="gap-1.5 text-xs">
+              <Link href={`/wireless?type=links&site_id=${site.id}`}>
+                <span>Ver Enlaces</span>
               </Link>
             </Button>
           )}
@@ -243,7 +253,7 @@ export function SiteDetailView({ siteId }: SiteDetailViewProps) {
               </div>
               <div>
                 <dt className="text-muted-foreground">Tipo de Estação</dt>
-                <dd className="capitalize text-foreground">{site.kind.replace("_", " ")}</dd>
+                <dd className="text-foreground">{siteKindLabel}</dd>
               </div>
               <div>
                 <dt className="text-muted-foreground">Situação</dt>
@@ -386,7 +396,7 @@ export function SiteDetailView({ siteId }: SiteDetailViewProps) {
         version={site.version}
         dependencies={dependencies}
         onConfirm={() => deleteSite(site.id, site.version)}
-        onSuccess={() => router.push("/sites")}
+        onSuccess={() => router.push(backHref)}
       />
     </div>
   );

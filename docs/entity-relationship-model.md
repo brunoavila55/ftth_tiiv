@@ -69,10 +69,11 @@ erDiagram
 - **`LoginAttempt` (`login_attempts`)**: Registro distribuído de tentativas de login para rate-limiting distribuído (máximo 5 tentativas consecutivas por IP/e-mail em 15 minutos).
 
 ### 3.2. Inventário Físico e Espacial (`inventory`)
-- **`Site` (`sites`)**: Instalações de grande porte (POP, Central Office, Datacenter). Geometria pontual PostGIS `Point(lon, lat)` EPSG:4326.
+- **`Site` (`sites`)**: Instalações técnicas, incluindo POPs wireless e torres de rádio. Geometria pontual PostGIS `Point(lon, lat)` EPSG:4326.
 - **`Structure` (`structures`)**: Estruturas físicas pontuais da planta externa (Poste, CEO, CTO, Rack, Caixa Subterrânea).
   - Restrição: Coordenadas geodésicas obrigatórias e código unívoco (`code`).
-- **`Device` (`devices`)**: Equipamentos ativos ou passivos de rede (OLT, ONU, DIO, Switch).
+- **`Device` (`devices`)**: Equipamentos ativos ou passivos de rede (OLT, ONU, DIO, Switch e rádio).
+- **`RadioLink` (`radio_links`)**: Enlace entre dois sites wireless e seus rádios, com frequência e largura de canal em MHz. Chaves estrangeiras compostas garantem que cada rádio pertence ao site da sua ponta; `If-Match` protege edições concorrentes.
   - Restrição de Integridade (`chk_device_single_location`): O dispositivo deve pertencer exclusivamente a um `Site` **OU** a uma `Structure`, nunca a ambos nem a nenhum.
 - **`Port` (`ports`)**: Portas físicas ópticas ou elétricas (`pon`, `client_drop`, `uplink`, `ethernet`).
   - Restrição de Integridade (`chk_port_single_owner`): Pertence exclusivamente a um `Device` **OU** a uma `Structure` (ex: porta direta de painel CTO).

@@ -9,6 +9,8 @@ from app.schemas.geojson import PointGeometry
 
 class SiteKind(StrEnum):
     POP = "pop"
+    WIRELESS_POP = "wireless_pop"
+    RADIO_TOWER = "radio_tower"
     CABINET = "cabinet"
     TECHNICAL_FACILITY = "technical_facility"
 
@@ -27,6 +29,7 @@ class DeviceKind(StrEnum):
     DIO = "dio"
     ONU = "onu"
     SWITCH = "switch"
+    RADIO = "radio"
 
 
 class PortRole(StrEnum):
@@ -133,7 +136,7 @@ class DeviceCreate(BaseModel):
     code: str = Field(
         ..., min_length=2, max_length=50, description="Código único do dispositivo (ex: OLT-01)"
     )
-    kind: DeviceKind = Field(..., description="Tipo do dispositivo (olt, dio, onu, switch)")
+    kind: DeviceKind = Field(..., description="Tipo do dispositivo (olt, dio, onu, switch, radio)")
     manufacturer: str = Field(..., min_length=1, max_length=100)
     model: str = Field(..., min_length=1, max_length=100)
     serial_number: str | None = Field(default=None, max_length=100)

@@ -897,6 +897,43 @@ export interface paths {
         patch: operations["api_v1_ports_port_id_update_port_endpoint"];
         trace?: never;
     };
+    "/api/v1/radio-links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Radio Links */
+        get: operations["api_v1_radio_links_list_radio_links"];
+        put?: never;
+        /** Create Radio Link */
+        post: operations["api_v1_radio_links_create_radio_link"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/radio-links/{link_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Radio Link */
+        get: operations["api_v1_radio_links_link_id_get_radio_link"];
+        put?: never;
+        post?: never;
+        /** Delete Radio Link */
+        delete: operations["api_v1_radio_links_link_id_delete_radio_link"];
+        options?: never;
+        head?: never;
+        /** Update Radio Link */
+        patch: operations["api_v1_radio_links_link_id_update_radio_link"];
+        trace?: never;
+    };
     "/api/v1/reports/cables": {
         parameters: {
             query?: never;
@@ -2173,7 +2210,7 @@ export interface components {
             code: string;
             /** @default ok */
             condition: components["schemas"]["PhysicalCondition"];
-            /** @description Tipo do dispositivo (olt, dio, onu, switch) */
+            /** @description Tipo do dispositivo (olt, dio, onu, switch, radio) */
             kind: components["schemas"]["DeviceKind"];
             /** Manufacturer */
             manufacturer: string;
@@ -2200,7 +2237,7 @@ export interface components {
          * DeviceKind
          * @enum {string}
          */
-        DeviceKind: "olt" | "dio" | "onu" | "switch";
+        DeviceKind: "olt" | "dio" | "onu" | "switch" | "radio";
         /** DeviceRead */
         DeviceRead: {
             /** Code */
@@ -3330,6 +3367,29 @@ export interface components {
              */
             total: number;
         };
+        /** PaginatedResponse[RadioLinkRead] */
+        PaginatedResponse_RadioLinkRead_: {
+            /**
+             * Items
+             * @description Lista de itens da página atual
+             */
+            items: components["schemas"]["RadioLinkRead"][];
+            /**
+             * Page
+             * @description Página retornada
+             */
+            page: number;
+            /**
+             * Page Size
+             * @description Tamanho de página aplicado
+             */
+            page_size: number;
+            /**
+             * Total
+             * @description Total global de registros correspondentes
+             */
+            total: number;
+        };
         /** PaginatedResponse[ServiceLinkRead] */
         PaginatedResponse_ServiceLinkRead_: {
             /**
@@ -3549,6 +3609,89 @@ export interface components {
             /** Notes */
             notes?: string | null;
             role?: components["schemas"]["PortRole"] | null;
+        };
+        /** RadioLinkCreate */
+        RadioLinkCreate: {
+            /** Channel Width Mhz */
+            channel_width_mhz: number;
+            /** Code */
+            code: string;
+            /** Frequency Mhz */
+            frequency_mhz: number;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes?: string | null;
+            /**
+             * Radio A Id
+             * Format: uuid
+             */
+            radio_a_id: string;
+            /**
+             * Radio B Id
+             * Format: uuid
+             */
+            radio_b_id: string;
+            /**
+             * Site A Id
+             * Format: uuid
+             */
+            site_a_id: string;
+            /**
+             * Site B Id
+             * Format: uuid
+             */
+            site_b_id: string;
+            /** @default planned */
+            status: components["schemas"]["AdministrativeStatus"];
+        };
+        /** RadioLinkRead */
+        RadioLinkRead: {
+            /** Channel Width Mhz */
+            channel_width_mhz: number;
+            /** Code */
+            code: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Frequency Mhz */
+            frequency_mhz: number;
+            /** Id */
+            id: string;
+            /** Name */
+            name: string;
+            /** Notes */
+            notes?: string | null;
+            /** Radio A Id */
+            radio_a_id: string;
+            /** Radio B Id */
+            radio_b_id: string;
+            /** Site A Id */
+            site_a_id: string;
+            /** Site B Id */
+            site_b_id: string;
+            status: components["schemas"]["AdministrativeStatus"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version: number;
+        };
+        /** RadioLinkUpdate */
+        RadioLinkUpdate: {
+            /** Channel Width Mhz */
+            channel_width_mhz?: number | null;
+            /** Frequency Mhz */
+            frequency_mhz?: number | null;
+            /** Name */
+            name?: string | null;
+            /** Notes */
+            notes?: string | null;
+            status?: components["schemas"]["AdministrativeStatus"] | null;
         };
         /** ReadyResponse */
         ReadyResponse: {
@@ -3772,7 +3915,7 @@ export interface components {
          * SiteKind
          * @enum {string}
          */
-        SiteKind: "pop" | "cabinet" | "technical_facility";
+        SiteKind: "pop" | "wireless_pop" | "radio_tower" | "cabinet" | "technical_facility";
         /** SiteRead */
         SiteRead: {
             /** Address */
@@ -5538,6 +5681,8 @@ export interface operations {
                 kind?: components["schemas"]["DeviceKind"] | null;
                 /** @description Busca por código, serial ou fabricante */
                 q?: string | null;
+                site_id?: string | null;
+                structure_id?: string | null;
                 page?: number;
                 page_size?: number;
             };
@@ -6661,6 +6806,172 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PortRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_v1_radio_links_list_radio_links: {
+        parameters: {
+            query?: {
+                site_id?: string | null;
+                q?: string | null;
+                page?: number;
+                page_size?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PaginatedResponse_RadioLinkRead_"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_v1_radio_links_create_radio_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RadioLinkCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioLinkRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_v1_radio_links_link_id_get_radio_link: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioLinkRead"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_v1_radio_links_link_id_delete_radio_link: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    api_v1_radio_links_link_id_update_radio_link: {
+        parameters: {
+            query?: never;
+            header?: {
+                "if-match"?: string | null;
+            };
+            path: {
+                link_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RadioLinkUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RadioLinkRead"];
                 };
             };
             /** @description Validation Error */

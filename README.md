@@ -1,6 +1,6 @@
 # FTTH Manager
 
-Sistema open source e self-hosted para gestão técnica e operacional de redes de fibra óptica (FTTH), cobrindo inventário de infraestrutura, GIS geodésico, conectividade fibra a fibra, splitters, clientes, rastreamento óptico, cálculo de potência e auditoria completa.
+Sistema open source e self-hosted para gestão técnica e operacional de redes de fibra óptica (FTTH) e pontos wireless, cobrindo inventário de infraestrutura, GIS geodésico, conectividade fibra a fibra, POPs e torres de rádio, enlaces, splitters, clientes, rastreamento óptico, cálculo de potência e auditoria completa.
 
 ---
 
@@ -61,6 +61,10 @@ O frontend foi construído seguindo as etapas de uma especificação inicial (`f
 ---
 
 ## 🛠️ Stack Tecnológica
+
+### Wireless
+
+A seção **Wireless** cadastra POPs wireless, torres de rádio e rádios instalados nesses sites. Os enlaces vinculam dois sites e um rádio em cada ponta, com frequência e largura de canal em MHz, situação operacional, controle de versão e trilha de auditoria. A migração `0018_wireless_links` cria a tabela de enlaces e protege a correspondência entre cada rádio e seu site no banco de dados.
 
 ### Backend
 - **Linguagem & Runtime**: Python 3.12 gerenciado via `uv`

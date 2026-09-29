@@ -519,7 +519,11 @@ export function MapView() {
       feature.properties.entity_type === "structure" && typeof extra.kind === "string"
         ? extra.kind.toUpperCase()
         : feature.properties.entity_type === "site"
-          ? "POP"
+          ? extra.kind === "radio_tower"
+            ? "Torre de Rádio"
+            : extra.kind === "wireless_pop"
+              ? "POP Wireless"
+              : "POP"
           : "trecho de cabo";
     if (
       !window.confirm(

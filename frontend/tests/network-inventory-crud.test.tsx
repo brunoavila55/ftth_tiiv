@@ -131,6 +131,43 @@ describe("Cadastros de Rede Física e Inventário (F08)", () => {
       });
       expect(onSuccess).toHaveBeenCalledWith(mockCreated);
     });
+
+    it("cadastra torre de rádio com o tipo wireless correto", async () => {
+      vi.mocked(inventoryApi.createSite).mockResolvedValueOnce({
+        id: "tower-uuid",
+        code: "TORRE-01",
+        name: "Torre Central",
+        kind: "radio_tower",
+        location: { type: "Point", coordinates: [-46.633308, -23.55052] },
+        status: "installed",
+        version: 1,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      });
+
+      renderWithQueryClient(
+        <SiteFormDialog
+          open={true}
+          onOpenChange={vi.fn()}
+          onSuccess={vi.fn()}
+          defaultKind="radio_tower"
+          allowedKinds={["radio_tower"]}
+        />
+      );
+
+      const kindSelect = screen.getByLabelText(/Tipo de Site/i) as HTMLSelectElement;
+      expect(kindSelect.value).toBe("radio_tower");
+      expect(kindSelect.options.length).toBe(1);
+      fireEvent.change(screen.getByLabelText(/Código Único/i), { target: { value: "TORRE-01" } });
+      fireEvent.change(screen.getByLabelText(/Nome do Local Técnico/i), { target: { value: "Torre Central" } });
+      fireEvent.click(screen.getByRole("button", { name: /Cadastrar Torre/i }));
+
+      await waitFor(() => {
+        expect(inventoryApi.createSite).toHaveBeenCalledWith(
+          expect.objectContaining({ code: "TORRE-01", kind: "radio_tower" })
+        );
+      });
+    });
   });
 
   describe("StructureFormDialog", () => {

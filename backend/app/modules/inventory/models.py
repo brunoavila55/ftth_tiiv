@@ -5,11 +5,14 @@ from geoalchemy2 import Geometry
 from sqlalchemy import (
     Boolean,
     CheckConstraint,
+    Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
     Text,
+    UniqueConstraint,
     text,
 )
 from sqlalchemy.dialects.postgresql import UUID
@@ -86,6 +89,7 @@ class Device(Base, VersionedModelMixin):
             "((site_id IS NOT NULL AND structure_id IS NULL) OR (site_id IS NULL AND structure_id IS NOT NULL))",
             name="chk_device_single_location",
         ),
+        UniqueConstraint("id", "site_id", name="uq_devices_id_site_id"),
     )
 
     code: Mapped[str] = mapped_column(String(50), unique=True, index=True, nullable=False)
@@ -115,6 +119,53 @@ class Device(Base, VersionedModelMixin):
         back_populates="device",
         passive_deletes="all",
     )
+
+
+class RadioLink(Base, VersionedModelMixin):
+    """Enlace de rádio entre dois sites wireless e seus rádios de ponta."""
+
+    __tablename__ = "radio_links"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            ["radio_a_id", "site_a_id"],
+            ["devices.id", "devices.site_id"],
+            name="fk_radio_link_a_device_site",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["radio_b_id", "site_b_id"],
+            ["devices.id", "devices.site_id"],
+            name="fk_radio_link_b_device_site",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("site_a_id <> site_b_id", name="chk_radio_link_distinct_sites"),
+        CheckConstraint("radio_a_id <> radio_b_id", name="chk_radio_link_distinct_radios"),
+        CheckConstraint(
+            "frequency_mhz > 0 AND frequency_mhz <= 100000", name="chk_radio_link_frequency"
+        ),
+        CheckConstraint(
+            "channel_width_mhz > 0 AND channel_width_mhz <= 10000", name="chk_radio_link_width"
+        ),
+    )
+
+    code: Mapped[str] = mapped_column(String(50), unique=True, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(100), nullable=False)
+    site_a_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sites.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    site_b_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("sites.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    radio_a_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    radio_b_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), nullable=False, index=True
+    )
+    frequency_mhz: Mapped[float] = mapped_column(Float, nullable=False)
+    channel_width_mhz: Mapped[float] = mapped_column(Float, nullable=False)
+    status: Mapped[str] = mapped_column(String(50), nullable=False, default="planned")
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class Port(Base, VersionedModelMixin):

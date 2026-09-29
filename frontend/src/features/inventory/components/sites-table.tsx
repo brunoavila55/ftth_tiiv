@@ -18,9 +18,13 @@ import { Plus, Eye, Edit } from "lucide-react";
 import Link from "next/link";
 import { SiteFormDialog } from "@/features/inventory/components/site-form-dialog";
 import { PermissionGate } from "@/components/auth/permission-gate";
+import { useAuth } from "@/features/auth/auth-context";
 
 const SITE_KIND_LABELS: Record<string, string> = {
   pop: "POP de Telecom",
+  wireless_pop: "POP Wireless",
+  radio_tower: "Torre de Rádio",
+  technical_facility: "Instalação Técnica",
   central_office: "Central Telefônica",
   datacenter: "Data Center",
   cabinet: "Armário de Rua",
@@ -28,7 +32,12 @@ const SITE_KIND_LABELS: Record<string, string> = {
   customer_building: "Edifício do Assinante",
 };
 
-export function SitesTable() {
+export interface SitesTableProps {
+  fixedKind?: "wireless_pop" | "radio_tower";
+}
+
+export function SitesTable({ fixedKind }: SitesTableProps = {}) {
+  const { hasPermission } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -37,7 +46,7 @@ export function SitesTable() {
   const page = Number(searchParams.get("page")) || 1;
   const pageSize = Number(searchParams.get("page_size")) || 20;
   const searchQuery = searchParams.get("q") || "";
-  const kindFilter = searchParams.get("kind") || "";
+  const kindFilter = fixedKind ?? searchParams.get("kind") ?? "";
 
   const [selectedIds, setSelectedIds] = React.useState<string[]>([]);
   const [formDialogOpen, setFormDialogOpen] = React.useState(false);
@@ -170,7 +179,7 @@ export function SitesTable() {
     []
   );
 
-  const isFiltered = Boolean(searchQuery || kindFilter);
+  const isFiltered = Boolean(searchQuery || (!fixedKind && kindFilter));
 
   if (error) {
     return (
@@ -191,12 +200,12 @@ export function SitesTable() {
         <DataTableFilterBar
           searchValue={searchQuery}
           onSearchChange={(newQ) => updateQueryParams({ q: newQ, page: 1 })}
-          searchPlaceholder="Buscar por código ou nome do POP..."
+          searchPlaceholder={fixedKind === "radio_tower" ? "Buscar torre por código ou nome..." : "Buscar por código ou nome do POP..."}
           isFiltered={isFiltered}
           onClearFilters={() => updateQueryParams({ q: null, kind: null, page: 1 })}
         >
           {/* Seletor de Tipo de Site */}
-          <select
+          {!fixedKind && <select
             value={kindFilter}
             onChange={(e) => updateQueryParams({ kind: e.target.value || null, page: 1 })}
             className="h-9 rounded-md border border-input bg-background px-2.5 py-1 text-xs text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
@@ -204,12 +213,11 @@ export function SitesTable() {
           >
             <option value="">Todos os tipos</option>
             <option value="pop">POP de Telecom</option>
-            <option value="central_office">Central Telefônica</option>
-            <option value="datacenter">Data Center</option>
+            <option value="wireless_pop">POP Wireless</option>
+            <option value="radio_tower">Torre de Rádio</option>
             <option value="cabinet">Armário de Rua</option>
-            <option value="pole_box">Caixa em Poste</option>
-            <option value="customer_building">Edifício do Assinante</option>
-          </select>
+            <option value="technical_facility">Instalação Técnica</option>
+          </select>}
         </DataTableFilterBar>
 
         <PermissionGate permission="network:write">
@@ -222,7 +230,7 @@ export function SitesTable() {
             }}
           >
             <Plus className="h-4 w-4" />
-            <span>Novo Site</span>
+            <span>{fixedKind === "radio_tower" ? "Nova Torre" : fixedKind ? "Novo POP Wireless" : "Novo Site"}</span>
           </Button>
         </PermissionGate>
       </div>
@@ -242,13 +250,13 @@ export function SitesTable() {
         idAccessor={(site) => site.id}
         isFiltered={isFiltered}
         onClearFilters={() => updateQueryParams({ q: null, kind: null, page: 1 })}
-        emptyTitle="Nenhum POP ou Site cadastrado"
-        emptyDescription="Comece cadastrando a primeira estação de telecomunicações ou central técnica."
-        emptyActionLabel="Cadastrar Novo Site"
-        onEmptyAction={() => {
+        emptyTitle={fixedKind === "radio_tower" ? "Nenhuma torre de rádio cadastrada" : fixedKind ? "Nenhum POP wireless cadastrado" : "Nenhum POP ou Site cadastrado"}
+        emptyDescription={fixedKind ? "Cadastre a localização e os dados deste ponto wireless." : "Comece cadastrando a primeira estação de telecomunicações ou central técnica."}
+        emptyActionLabel={hasPermission("network:write") ? fixedKind === "radio_tower" ? "Cadastrar Torre" : fixedKind ? "Cadastrar POP Wireless" : "Cadastrar Novo Site" : undefined}
+        onEmptyAction={hasPermission("network:write") ? () => {
           setEditingSite(null);
           setFormDialogOpen(true);
-        }}
+        } : undefined}
       />
 
       {/* Modal de Criação / Edição */}
@@ -256,6 +264,8 @@ export function SitesTable() {
         open={formDialogOpen}
         onOpenChange={setFormDialogOpen}
         site={editingSite}
+        defaultKind={fixedKind}
+        allowedKinds={fixedKind ? [fixedKind] : undefined}
         onSuccess={() => refetch()}
       />
     </div>

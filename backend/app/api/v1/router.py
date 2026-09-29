@@ -17,6 +17,7 @@ from app.api.v1.settings import settings_router
 from app.api.v1.splitters import splitters_router
 from app.api.v1.topology import topology_router
 from app.api.v1.users import users_router
+from app.api.v1.wireless import wireless_router
 from app.core.dependencies import get_current_user
 from app.modules.audit.hooks import audit_mutation
 
@@ -35,6 +36,7 @@ api_v1_router.include_router(health_router, prefix="/health")
 api_v1_router.include_router(auth_router)
 api_v1_router.include_router(users_router, dependencies=authenticated)
 api_v1_router.include_router(inventory_router, dependencies=authenticated)
+api_v1_router.include_router(wireless_router, dependencies=authenticated)
 api_v1_router.include_router(cables_router, dependencies=authenticated)
 api_v1_router.include_router(splitters_router, dependencies=authenticated)
 api_v1_router.include_router(connectivity_router, dependencies=authenticated)

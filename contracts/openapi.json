@@ -1851,7 +1851,7 @@
           },
           "kind": {
             "$ref": "#/components/schemas/DeviceKind",
-            "description": "Tipo do dispositivo (olt, dio, onu, switch)"
+            "description": "Tipo do dispositivo (olt, dio, onu, switch, radio)"
           },
           "manufacturer": {
             "maxLength": 100,
@@ -1940,7 +1940,8 @@
           "olt",
           "dio",
           "onu",
-          "switch"
+          "switch",
+          "radio"
         ],
         "title": "DeviceKind",
         "type": "string"
@@ -4250,6 +4251,45 @@
         "title": "PaginatedResponse[PortRead]",
         "type": "object"
       },
+      "PaginatedResponse_RadioLinkRead_": {
+        "properties": {
+          "items": {
+            "description": "Lista de itens da página atual",
+            "items": {
+              "$ref": "#/components/schemas/RadioLinkRead"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "page": {
+            "description": "Página retornada",
+            "minimum": 1.0,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "description": "Tamanho de página aplicado",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total": {
+            "description": "Total global de registros correspondentes",
+            "minimum": 0.0,
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size"
+        ],
+        "title": "PaginatedResponse[RadioLinkRead]",
+        "type": "object"
+      },
       "PaginatedResponse_ServiceLinkRead_": {
         "properties": {
           "items": {
@@ -4711,6 +4751,246 @@
           }
         },
         "title": "PortUpdate",
+        "type": "object"
+      },
+      "RadioLinkCreate": {
+        "properties": {
+          "channel_width_mhz": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 10000.0,
+            "title": "Channel Width Mhz",
+            "type": "number"
+          },
+          "code": {
+            "maxLength": 50,
+            "minLength": 2,
+            "title": "Code",
+            "type": "string"
+          },
+          "frequency_mhz": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100000.0,
+            "title": "Frequency Mhz",
+            "type": "number"
+          },
+          "name": {
+            "maxLength": 100,
+            "minLength": 2,
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "radio_a_id": {
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "title": "Radio A Id",
+            "type": "string"
+          },
+          "radio_b_id": {
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "title": "Radio B Id",
+            "type": "string"
+          },
+          "site_a_id": {
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "title": "Site A Id",
+            "type": "string"
+          },
+          "site_b_id": {
+            "format": "uuid",
+            "maxLength": 36,
+            "minLength": 36,
+            "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+            "title": "Site B Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AdministrativeStatus",
+            "default": "planned"
+          }
+        },
+        "required": [
+          "code",
+          "name",
+          "site_a_id",
+          "site_b_id",
+          "radio_a_id",
+          "radio_b_id",
+          "frequency_mhz",
+          "channel_width_mhz"
+        ],
+        "title": "RadioLinkCreate",
+        "type": "object"
+      },
+      "RadioLinkRead": {
+        "properties": {
+          "channel_width_mhz": {
+            "title": "Channel Width Mhz",
+            "type": "number"
+          },
+          "code": {
+            "title": "Code",
+            "type": "string"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "frequency_mhz": {
+            "title": "Frequency Mhz",
+            "type": "number"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "radio_a_id": {
+            "title": "Radio A Id",
+            "type": "string"
+          },
+          "radio_b_id": {
+            "title": "Radio B Id",
+            "type": "string"
+          },
+          "site_a_id": {
+            "title": "Site A Id",
+            "type": "string"
+          },
+          "site_b_id": {
+            "title": "Site B Id",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AdministrativeStatus"
+          },
+          "updated_at": {
+            "format": "date-time",
+            "title": "Updated At",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "site_a_id",
+          "site_b_id",
+          "radio_a_id",
+          "radio_b_id",
+          "frequency_mhz",
+          "channel_width_mhz",
+          "status",
+          "version",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "RadioLinkRead",
+        "type": "object"
+      },
+      "RadioLinkUpdate": {
+        "properties": {
+          "channel_width_mhz": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel Width Mhz"
+          },
+          "frequency_mhz": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 100000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Frequency Mhz"
+          },
+          "name": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 2,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Name"
+          },
+          "notes": {
+            "anyOf": [
+              {
+                "maxLength": 5000,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Notes"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AdministrativeStatus"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "title": "RadioLinkUpdate",
         "type": "object"
       },
       "ReadyResponse": {
@@ -5237,6 +5517,8 @@
       "SiteKind": {
         "enum": [
           "pop",
+          "wireless_pop",
+          "radio_tower",
           "cabinet",
           "technical_facility"
         ],
@@ -8638,6 +8920,46 @@
           },
           {
             "in": "query",
+            "name": "site_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "structure_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Structure Id"
+            }
+          },
+          {
+            "in": "query",
             "name": "page",
             "required": false,
             "schema": {
@@ -10508,6 +10830,306 @@
         "summary": "Atualizar porta",
         "tags": [
           "Inventário"
+        ]
+      }
+    },
+    "/api/v1/radio-links": {
+      "get": {
+        "operationId": "api_v1_radio_links_list_radio_links",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "site_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "format": "uuid",
+                  "maxLength": 36,
+                  "minLength": 36,
+                  "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Site Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page_size",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 200,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PaginatedResponse_RadioLinkRead_"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "List Radio Links",
+        "tags": [
+          "Wireless"
+        ]
+      },
+      "post": {
+        "operationId": "api_v1_radio_links_create_radio_link",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RadioLinkCreate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RadioLinkRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Create Radio Link",
+        "tags": [
+          "Wireless"
+        ]
+      }
+    },
+    "/api/v1/radio-links/{link_id}": {
+      "delete": {
+        "operationId": "api_v1_radio_links_link_id_delete_radio_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "title": "Link Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Delete Radio Link",
+        "tags": [
+          "Wireless"
+        ]
+      },
+      "get": {
+        "operationId": "api_v1_radio_links_link_id_get_radio_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "title": "Link Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RadioLinkRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Radio Link",
+        "tags": [
+          "Wireless"
+        ]
+      },
+      "patch": {
+        "operationId": "api_v1_radio_links_link_id_update_radio_link",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "link_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "maxLength": 36,
+              "minLength": 36,
+              "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$",
+              "title": "Link Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "if-match",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "If-Match"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RadioLinkUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RadioLinkRead"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Update Radio Link",
+        "tags": [
+          "Wireless"
         ]
       }
     },

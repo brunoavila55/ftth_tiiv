@@ -16,7 +16,7 @@ from app.modules.cables.models import CableSegment
 from app.modules.connectivity.models import Connection, Splitter, Terminal, TerminalReservation
 from app.modules.customers.models import ServiceLink
 from app.modules.gis.helpers import point_geometry_to_wkb, wkb_to_point_geometry
-from app.modules.inventory.models import Device, Port, Site, Structure
+from app.modules.inventory.models import Device, Port, RadioLink, Site, Structure
 from app.schemas.common import AdministrativeStatus, PhysicalCondition
 from app.schemas.inventory import (
     DeviceCreate,
@@ -138,6 +138,24 @@ def update_site(
     if payload.name is not None:
         site.name = payload.name.strip()
     if payload.kind is not None:
+        if payload.kind not in (SiteKind.WIRELESS_POP, SiteKind.RADIO_TOWER):
+            if session.scalar(
+                select(Device.id).where(Device.site_id == site.id, Device.kind == "radio").limit(1)
+            ):
+                raise ConflictError(
+                    "Remova os rádios antes de alterar o tipo do site.",
+                    code="site_has_radios",
+                )
+            has_radio_links = session.scalar(
+                select(RadioLink.id).where(
+                    or_(RadioLink.site_a_id == site.id, RadioLink.site_b_id == site.id)
+                ).limit(1)
+            )
+            if has_radio_links:
+                raise ConflictError(
+                    "Remova os enlaces de rádio antes de alterar o tipo do site.",
+                    code="site_has_radio_links",
+                )
         site.kind = payload.kind.value
     if payload.location is not None:
         site.location = point_geometry_to_wkb(payload.location)
@@ -530,6 +548,8 @@ def list_devices_paginated(
     page_size: int = 50,
     kind: DeviceKind | None = None,
     q: str | None = None,
+    site_id: uuid.UUID | None = None,
+    structure_id: uuid.UUID | None = None,
 ) -> tuple[list[Device], int]:
     query = select(Device)
     count_query = select(func.count(Device.id))
@@ -537,6 +557,13 @@ def list_devices_paginated(
     if kind:
         query = query.where(Device.kind == kind.value)
         count_query = count_query.where(Device.kind == kind.value)
+
+    if site_id:
+        query = query.where(Device.site_id == site_id)
+        count_query = count_query.where(Device.site_id == site_id)
+    if structure_id:
+        query = query.where(Device.structure_id == structure_id)
+        count_query = count_query.where(Device.structure_id == structure_id)
 
     if q and q.strip():
         filter_clause = (
@@ -596,10 +623,20 @@ def create_device(session: Session, payload: DeviceCreate) -> Device:
             site_uuid = uuid.UUID(payload.site_id)
         except ValueError:
             raise NotFoundError("Site informado não encontrado.", code="site_not_found") from None
-        if not session.scalar(select(Site.id).where(Site.id == site_uuid)):
+        site = session.get(Site, site_uuid)
+        if not site:
             raise NotFoundError("Site informado não encontrado.", code="site_not_found")
+        if payload.kind == DeviceKind.RADIO and site.kind not in ("wireless_pop", "radio_tower"):
+            raise UnprocessableEntityError(
+                "Rádios devem ser alocados em um POP wireless ou torre de rádio.",
+                field="site_id",
+            )
 
     if payload.structure_id:
+        if payload.kind == DeviceKind.RADIO:
+            raise UnprocessableEntityError(
+                "Rádios devem ser alocados em um site wireless.", field="structure_id"
+            )
         try:
             structure_uuid = uuid.UUID(payload.structure_id)
         except ValueError:
@@ -669,6 +706,15 @@ def update_device(
                 "Desvincule ou remova os splitters alojados antes de mover o dispositivo.",
                 code="device_has_splitters",
             )
+        if location_changed and session.scalar(
+            select(RadioLink.id).where(
+                or_(RadioLink.radio_a_id == device.id, RadioLink.radio_b_id == device.id)
+            ).limit(1)
+        ):
+            raise ConflictError(
+                "Remova os enlaces antes de mover este rádio.",
+                code="radio_has_links",
+            )
         if (new_site_id and new_struct_id) or (not new_site_id and not new_struct_id):
             raise UnprocessableEntityError(
                 "O dispositivo deve estar alocado exclusivamente em um site OU em uma estrutura.",
@@ -682,8 +728,14 @@ def update_device(
                     raise NotFoundError(
                         "Site informado não encontrado.", code="site_not_found"
                     ) from None
-                if not session.scalar(select(Site.id).where(Site.id == s_uuid)):
+                site = session.get(Site, s_uuid)
+                if not site:
                     raise NotFoundError("Site informado não encontrado.", code="site_not_found")
+                if device.kind == "radio" and site.kind not in ("wireless_pop", "radio_tower"):
+                    raise UnprocessableEntityError(
+                        "Rádios devem ser alocados em um POP wireless ou torre de rádio.",
+                        field="site_id",
+                    )
                 device.site_id = s_uuid
                 device.structure_id = None
             else:
@@ -691,6 +743,11 @@ def update_device(
 
         if payload.structure_id is not None:
             if payload.structure_id:
+                if device.kind == "radio":
+                    raise UnprocessableEntityError(
+                        "Rádios devem ser alocados em um site wireless.",
+                        field="structure_id",
+                    )
                 try:
                     st_uuid = uuid.UUID(payload.structure_id)
                 except ValueError:

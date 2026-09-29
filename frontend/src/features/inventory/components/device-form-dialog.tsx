@@ -18,6 +18,7 @@ import { Label } from "@/components/ui/label";
 import { ApiError } from "@/lib/api/types";
 import type { DeviceRead } from "@/features/inventory/api";
 import { createDevice, updateDevice, listSites, listStructures } from "@/features/inventory/api";
+import { loadWirelessSites } from "@/features/wireless/load-options";
 import { Loader2, AlertCircle } from "lucide-react";
 
 const deviceSchema = z
@@ -27,7 +28,7 @@ const deviceSchema = z
       .min(2, "Código deve ter pelo menos 2 caracteres")
       .max(50, "Código deve ter no máximo 50 caracteres")
       .regex(/^[A-Z0-9_-]+$/i, "Código deve conter apenas letras, números, hífens ou underlines"),
-    kind: z.enum(["olt", "dio", "onu", "switch"]),
+    kind: z.enum(["olt", "dio", "onu", "switch", "radio"]),
     manufacturer: z.string().min(1, "Fabricante é obrigatório").max(100),
     model: z.string().min(1, "Modelo é obrigatório").max(100),
     serial_number: z.string().max(100).optional().nullable(),
@@ -35,7 +36,7 @@ const deviceSchema = z
     site_id: z.string().optional().nullable(),
     structure_id: z.string().optional().nullable(),
     status: z.enum(["planned", "installed", "retired"]),
-    condition: z.enum(["ok", "degraded", "damaged"]),
+    condition: z.enum(["ok", "unknown", "damaged"]),
     notes: z.string().max(1000).optional().nullable(),
   })
   .refine(
@@ -60,7 +61,8 @@ export interface DeviceFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   device?: DeviceRead | null;
-  defaultKind?: "olt" | "dio" | "onu" | "switch";
+  defaultKind?: "olt" | "dio" | "onu" | "switch" | "radio";
+  wirelessOnly?: boolean;
   defaultSiteId?: string | null;
   defaultStructureId?: string | null;
   onSuccess: (device: DeviceRead) => void;
@@ -71,6 +73,7 @@ export function DeviceFormDialog({
   onOpenChange,
   device,
   defaultKind = "olt",
+  wirelessOnly = false,
   defaultSiteId = null,
   defaultStructureId = null,
   onSuccess,
@@ -114,15 +117,20 @@ export function DeviceFormDialog({
   // Carrega listas de sites e estruturas para o seletor de localização
   React.useEffect(() => {
     if (open) {
-      listSites({ page_size: 100 })
-        .then((res) => setSitesList(res.items.map((s) => ({ id: s.id, code: s.code, name: s.name }))))
+      const sitesPromise = wirelessOnly
+        ? loadWirelessSites()
+        : listSites({ page_size: 100 }).then((res) => res.items);
+      sitesPromise
+        .then((sites) => setSitesList(sites.map((s) => ({ id: s.id, code: s.code, name: s.name }))))
         .catch(() => {});
 
-      listStructures({ page_size: 100 })
-        .then((res) => setStructuresList(res.items.map((st) => ({ id: st.id, code: st.code, kind: st.kind }))))
-        .catch(() => {});
+      if (!wirelessOnly) {
+        listStructures({ page_size: 100 })
+          .then((res) => setStructuresList(res.items.map((st) => ({ id: st.id, code: st.code, kind: st.kind }))))
+          .catch(() => {});
+      }
     }
-  }, [open]);
+  }, [open, wirelessOnly]);
 
   // Sincroniza formulário ao abrir ou alterar entidade
   React.useEffect(() => {
@@ -161,6 +169,10 @@ export function DeviceFormDialog({
   }, [device, defaultKind, defaultSiteId, defaultStructureId, reset, open]);
 
   const onSubmit = async (values: DeviceFormValues) => {
+    if (wirelessOnly && (values.kind !== "radio" || values.location_type !== "site")) {
+      setServerError("Rádios wireless devem ser alocados em um POP ou torre de rádio.");
+      return;
+    }
     setIsSubmitting(true);
     setServerError(null);
 
@@ -223,12 +235,14 @@ export function DeviceFormDialog({
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            {isEditing ? `Editar Dispositivo — ${device?.code}` : "Cadastrar Novo Dispositivo"}
+            {isEditing ? `Editar ${wirelessOnly ? "Rádio" : "Dispositivo"} — ${device?.code}` : wirelessOnly ? "Cadastrar Novo Rádio" : "Cadastrar Novo Dispositivo"}
           </DialogTitle>
           <DialogDescription>
             {isEditing
               ? "Atualize o modelo, número de série, localização física e situação operacional do equipamento."
-              : "Cadastre um elemento de rede (OLT, DIO, Switch, ONU) alocado estritamente em um Site ou Estrutura."}
+              : wirelessOnly
+                ? "Cadastre o rádio em um POP wireless ou torre de rádio."
+                : "Cadastre um elemento de rede alocado em um Site ou Estrutura."}
           </DialogDescription>
         </DialogHeader>
 
@@ -262,10 +276,11 @@ export function DeviceFormDialog({
                 disabled={isEditing || isSubmitting}
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="olt">OLT (Terminal Óptico de Linha)</option>
-                <option value="dio">DIO (Distribuidor Interno Óptico)</option>
-                <option value="switch">Switch de Agregação / Borda</option>
-                <option value="onu">ONU / ONT</option>
+                {!wirelessOnly && <option value="olt">OLT (Terminal Óptico de Linha)</option>}
+                {!wirelessOnly && <option value="dio">DIO (Distribuidor Interno Óptico)</option>}
+                {!wirelessOnly && <option value="switch">Switch de Agregação / Borda</option>}
+                {!wirelessOnly && <option value="onu">ONU / ONT</option>}
+                <option value="radio">Rádio</option>
               </select>
             </div>
           </div>
@@ -322,11 +337,11 @@ export function DeviceFormDialog({
             <div className="space-y-1">
               <Label className="text-xs font-semibold">Alocação Física do Dispositivo *</Label>
               <p className="text-[11px] text-muted-foreground">
-                Equipamentos devem residir em um POP/Site ou em uma Estrutura (poste, armário, caixa).
+                {wirelessOnly ? "Selecione o POP wireless ou a torre onde o rádio está instalado." : "Equipamentos devem residir em um POP/Site ou em uma Estrutura (poste, armário, caixa)."}
               </p>
             </div>
 
-            <div className="flex items-center gap-4 text-xs">
+            {!wirelessOnly && <div className="flex items-center gap-4 text-xs">
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
                   type="radio"
@@ -356,7 +371,7 @@ export function DeviceFormDialog({
                 />
                 <span>Alocado em Estrutura Externa</span>
               </label>
-            </div>
+            </div>}
 
             {locationType === "site" ? (
               <div className="space-y-1.5 pt-1">
@@ -424,7 +439,7 @@ export function DeviceFormDialog({
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
                 <option value="ok">Operacional (OK)</option>
-                <option value="degraded">Degradado</option>
+                <option value="unknown">Não Avaliado</option>
                 <option value="damaged">Danificado / Com Falha</option>
               </select>
             </div>
@@ -454,7 +469,7 @@ export function DeviceFormDialog({
             </Button>
             <Button type="submit" disabled={isSubmitting} className="gap-1.5">
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isEditing ? "Salvar Alterações" : "Cadastrar Dispositivo"}
+              {isEditing ? "Salvar Alterações" : wirelessOnly ? "Cadastrar Rádio" : "Cadastrar Dispositivo"}
             </Button>
           </DialogFooter>
         </form>

@@ -42,7 +42,7 @@ export function MapLegend({ layers, onToggleLayer }: MapLegendProps) {
             <label className="flex items-center justify-between gap-2 cursor-pointer select-none">
               <div className="flex items-center gap-2">
                 <span className="h-3 w-3 rounded-full bg-sky-600 border border-white shadow-sm" />
-                <span className="text-foreground">POP / Site Central</span>
+                <span className="text-foreground">POPs / Torres / Sites</span>
               </div>
               <input
                 type="checkbox"

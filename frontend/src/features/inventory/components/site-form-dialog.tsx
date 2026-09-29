@@ -31,7 +31,7 @@ const siteSchema = z.object({
     .string()
     .min(2, "Nome deve ter pelo menos 2 caracteres")
     .max(100, "Nome deve ter no máximo 100 caracteres"),
-  kind: z.enum(["pop", "cabinet", "technical_facility"]),
+  kind: z.enum(["pop", "wireless_pop", "radio_tower", "cabinet", "technical_facility"]),
   status: z.enum(["planned", "installed", "retired"]),
   address: z.string().max(255).optional().nullable(),
   notes: z.string().max(1000).optional().nullable(),
@@ -39,11 +39,21 @@ const siteSchema = z.object({
 
 type SiteFormValues = z.infer<typeof siteSchema>;
 
+const SITE_KIND_OPTIONS: { value: SiteFormValues["kind"]; label: string }[] = [
+  { value: "pop", label: "POP de Telecom" },
+  { value: "wireless_pop", label: "POP Wireless" },
+  { value: "radio_tower", label: "Torre de Rádio" },
+  { value: "cabinet", label: "Armário Técnico" },
+  { value: "technical_facility", label: "Instalação Técnica" },
+];
+
 export interface SiteFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   site?: SiteRead | null;
   onSuccess: (site: SiteRead) => void;
+  defaultKind?: SiteFormValues["kind"];
+  allowedKinds?: SiteFormValues["kind"][];
 }
 
 export function SiteFormDialog({
@@ -51,6 +61,8 @@ export function SiteFormDialog({
   onOpenChange,
   site,
   onSuccess,
+  defaultKind = "pop",
+  allowedKinds,
 }: SiteFormDialogProps) {
   const isEditing = Boolean(site);
   const [coordinates, setCoordinates] = React.useState<{ lat: number | null; lon: number | null }>({
@@ -70,7 +82,7 @@ export function SiteFormDialog({
     defaultValues: {
       code: site?.code || "",
       name: site?.name || "",
-      kind: (site?.kind as SiteFormValues["kind"]) || "pop",
+      kind: (site?.kind as SiteFormValues["kind"]) || defaultKind,
       status: (site?.status as SiteFormValues["status"]) || "installed",
       address: site?.address || "",
       notes: site?.notes || "",
@@ -83,7 +95,7 @@ export function SiteFormDialog({
       reset({
         code: site.code,
         name: site.name,
-        kind: (site.kind as SiteFormValues["kind"]) || "pop",
+        kind: (site.kind as SiteFormValues["kind"]) || defaultKind,
         status: (site.status as SiteFormValues["status"]) || "installed",
         address: site.address || "",
         notes: site.notes || "",
@@ -98,7 +110,7 @@ export function SiteFormDialog({
       reset({
         code: "",
         name: "",
-        kind: "pop",
+        kind: defaultKind,
         status: "installed",
         address: "",
         notes: "",
@@ -106,9 +118,13 @@ export function SiteFormDialog({
       setCoordinates({ lat: -23.55052, lon: -46.633308 });
     }
     setServerError(null);
-  }, [site, reset, open]);
+  }, [site, reset, open, defaultKind]);
 
   const onSubmit = async (values: SiteFormValues) => {
+    if (allowedKinds && !allowedKinds.includes(values.kind)) {
+      setServerError("Tipo de site inválido para esta seção.");
+      return;
+    }
     if (coordinates.lat === null || coordinates.lon === null) {
       setServerError("Coordenadas geográficas válidas são obrigatórias.");
       return;
@@ -173,7 +189,15 @@ export function SiteFormDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{isEditing ? `Editar Site — ${site?.code}` : "Cadastrar Novo Site / POP"}</DialogTitle>
+          <DialogTitle>
+            {isEditing
+              ? `Editar Site — ${site?.code}`
+              : defaultKind === "radio_tower"
+                ? "Cadastrar Nova Torre de Rádio"
+                : defaultKind === "wireless_pop"
+                  ? "Cadastrar Novo POP Wireless"
+                  : "Cadastrar Novo Site / POP"}
+          </DialogTitle>
           <DialogDescription>
             {isEditing
               ? "Atualize as informações cadastrais e geográficas da estação técnica."
@@ -224,9 +248,9 @@ export function SiteFormDialog({
                 disabled={isSubmitting}
                 className="h-9 w-full rounded-md border border-input bg-background px-3 text-xs shadow-sm focus:outline-none focus:ring-1 focus:ring-ring"
               >
-                <option value="pop">POP de Telecom</option>
-                <option value="cabinet">Armário Técnico</option>
-                <option value="technical_facility">Instalação Técnica</option>
+                {SITE_KIND_OPTIONS.filter((option) => !allowedKinds || allowedKinds.includes(option.value)).map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
               </select>
             </div>
 
@@ -290,7 +314,7 @@ export function SiteFormDialog({
             </Button>
             <Button type="submit" disabled={isSubmitting} className="gap-1.5">
               {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
-              {isEditing ? "Salvar Alterações" : "Cadastrar Site"}
+              {isEditing ? "Salvar Alterações" : defaultKind === "radio_tower" ? "Cadastrar Torre" : defaultKind === "wireless_pop" ? "Cadastrar POP" : "Cadastrar Site"}
             </Button>
           </DialogFooter>
         </form>

@@ -11,6 +11,7 @@ import {
   Copy,
   Check,
   MapPin,
+  RadioTower,
   Route,
   Trash2,
 } from "lucide-react";
@@ -54,8 +55,13 @@ export function MapFeatureSheet({
   let IconComponent = Box;
 
   if (entityKind === "site") {
-    typeLabel = "POP / Site Central";
-    IconComponent = Building2;
+    const siteKind = typeof extra.kind === "string" ? extra.kind : "pop";
+    typeLabel = siteKind === "radio_tower"
+      ? "Torre de Rádio"
+      : siteKind === "wireless_pop"
+        ? "POP Wireless"
+        : "POP / Site Central";
+    IconComponent = siteKind === "radio_tower" ? RadioTower : Building2;
     detailUrl = `/sites/${properties.entity_id}`;
   } else if (entityKind === "cable_segment" || entityKind === "cable") {
     typeLabel = "Cabo Óptico";
