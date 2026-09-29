@@ -4,7 +4,9 @@ from sqlalchemy.orm import Session
 from tests.conftest import create_test_user, login_test_client
 
 
-def test_radio_link_lifecycle_and_endpoint_integrity(client: TestClient, db_session: Session) -> None:
+def test_radio_link_lifecycle_and_endpoint_integrity(
+    client: TestClient, db_session: Session
+) -> None:
     user = create_test_user(db_session, "wireless-engineer@example.com", role="engineer")
     csrf = login_test_client(client, user.email)
     headers = {"X-CSRF-Token": csrf}
